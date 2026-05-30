@@ -986,8 +986,8 @@ function estimatePriceTargets(ticker, price) {
   if(known) {
     return {
       ...known,
-      low52w:  price * 0.72,
-      high52w: price * 1.38,
+      low52w:  known.low52w  || price * 0.72,
+      high52w: known.high52w || price * 1.38,
       count: known.buyCount + known.holdCount + known.sellCount || 20,
       isReal: false
     };
