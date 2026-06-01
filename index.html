@@ -1779,6 +1779,27 @@ function showToast(msg){
 
 // ── INIT ──
 function init() {
+  // Version check — force reload of positions data if old version cached
+  const APP_VERSION = '20260601_v9';
+  const storedVersion = localStorage.getItem('app_version');
+  if(storedVersion !== APP_VERSION) {
+    // Clear old cached positions and reload with correct data
+    localStorage.removeItem('pip_positions');
+    localStorage.setItem('app_version', APP_VERSION);
+    // Reload correct positions
+    POSITIONS = [
+      {ticker:'ACN',  qty:300,  costBasis:3616.22,  costBasisARS:3616.22,  currency:'ARS', platform:'Cocos',   sector:'IT Services',  type:'stock'},
+      {ticker:'SPOT', qty:41,   costBasis:23843.41, costBasisARS:23843.41, currency:'ARS', platform:'Cocos',   sector:'Streaming',    type:'stock'},
+      {ticker:'RBLX', qty:27,   costBasis:44100.55, costBasisARS:44100.55, currency:'ARS', platform:'Cocos',   sector:'Gaming',       type:'stock'},
+      {ticker:'MSFT', qty:30,   costBasis:19640.66, costBasisARS:19640.66, currency:'ARS', platform:'Cocos',   sector:'Technology',   type:'stock'},
+      {ticker:'LMT',  qty:9,    costBasis:38800.00, costBasisARS:38800.00, currency:'ARS', platform:'Cocos',   sector:'Defense',      type:'stock'},
+      {ticker:'ADBE', qty:30,   costBasis:7550.00,  costBasisARS:7550.00,  currency:'ARS', platform:'Cocos',   sector:'Software',     type:'stock'},
+      {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
+      {ticker:'BTC',  qty:0.069,costBasis:102000,   costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
+      {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
+    ];
+    localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
+  }
   if(API_KEY){
     IS_DEMO = false;
     document.getElementById('modeBadge').textContent = '● REAL';
@@ -1787,7 +1808,6 @@ function init() {
   buildAlerts();
   renderBriefing();
   renderPortfolio();
-  // Set up Enter key for analyzer
   document.getElementById('tickerInp').addEventListener('keydown', e => { if(e.key==='Enter') run(); });
 }
 
