@@ -685,27 +685,48 @@ canvas{max-width:100%}
 <!-- ══════════════════════════════════════════════════════════
      PAGE 6: CHAT
 ══════════════════════════════════════════════════════════ -->
-<div class="page" id="page-chat">
-  <div class="sec-hdr">
-    <div>
-      <div class="sec-title">// CHAT DE INVERSIONES</div>
-      <div class="sec-sub">Consultame sobre mercados, tu portafolio, análisis y oportunidades</div>
+<div class="page" id="page-chat" style="padding:0">
+  <div class="chat-wrap" style="height:calc(100vh - 120px);min-height:500px;display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--border);border-radius:0;overflow:hidden">
+
+    <!-- HEADER con contexto del portafolio -->
+    <div style="background:var(--bg3);padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em">// CHAT DE INVERSIONES</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px" id="chatContextLine">11 posiciones · COCOSPPA ~US$6.550 · AO27+AO28 activos</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.2)" id="chatStatus">● LISTO</div>
+        <button onclick="clearChat()" style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">LIMPIAR</button>
+      </div>
     </div>
-    <button onclick="clearChat()" class="btn btn-g" style="font-size:10px">🗑 LIMPIAR</button>
-  </div>
-  <div class="chat-wrap">
-    <div class="chat-msgs" id="chatMsgs"></div>
-    <div class="chat-suggestions" id="chatSugs">
+
+    <!-- MENSAJES -->
+    <div class="chat-msgs" id="chatMsgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px"></div>
+
+    <!-- SUGERENCIAS -->
+    <div id="chatSugs" style="padding:8px 14px;border-top:1px solid var(--border2);background:var(--bg);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
       <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Se va a romper la burbuja de IA?</button>
       <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Vendo SPOT ahora?</button>
-      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Entro a BIOX esta semana?</button>
-      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Cómo está el oro hoy?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Entro a BIOX?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">Oro y plata hoy</button>
       <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Qué hago con el COCOSPPA?</button>
-      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">Análisis macro Argentina</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">Macro Argentina</button>
     </div>
-    <div class="chat-input-row">
-      <textarea class="chat-inp" id="chatInp" placeholder="Preguntame sobre inversiones, tu portafolio, mercados..." rows="1"></textarea>
-      <button class="chat-send" id="chatSendBtn" onclick="sendChat()">ENVIAR</button>
+
+    <!-- INPUT AREA -->
+    <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--bg3);flex-shrink:0">
+      <div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;transition:border-color .2s" id="chatInputWrap">
+        <textarea id="chatInp" rows="3"
+          style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;resize:none;font-family:var(--sans);outline:none;display:block;line-height:1.5"
+          placeholder="Preguntame sobre inversiones, tu portafolio, mercados... (Enter envía · Shift+Enter nueva línea)"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border2)">
+          <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">Shift+Enter para nueva línea · Buscá en fuentes especializadas</span>
+          <button id="chatSendBtn" onclick="sendChat()"
+            style="padding:7px 18px;background:var(--accent);color:#000;border:none;border-radius:7px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:opacity .2s">
+            ENVIAR →
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1917,7 +1938,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260601_v14';
+  const APP_VERSION = '20260601_v15';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -3144,6 +3165,8 @@ async function sendChat() {
   if(sugs) sugs.style.display = 'none';
 
   appendMessage('user', text);
+  const statusEl = document.getElementById('chatStatus');
+  if(statusEl) { statusEl.textContent = '⏳ BUSCANDO...'; statusEl.style.color = 'var(--yellow)'; statusEl.style.background = 'rgba(210,153,34,.1)'; statusEl.style.borderColor = 'rgba(210,153,34,.2)'; }
   appendThinking();
 
   CHAT_HISTORY.push({role:'user', content: text});
@@ -3197,6 +3220,8 @@ async function sendChat() {
     appendMessage('assistant', `<span class="danger">Error de conexión: ${err.message}. Verificá tu internet.</span>`);
   }
 
+  const statusEl2 = document.getElementById('chatStatus');
+  if(statusEl2) { statusEl2.textContent = '● LISTO'; statusEl2.style.color = 'var(--green)'; statusEl2.style.background = 'rgba(63,185,80,.1)'; statusEl2.style.borderColor = 'rgba(63,185,80,.2)'; }
   btn.disabled = false;
   inp.focus();
 }
@@ -3220,7 +3245,13 @@ function clearChat() {
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('chatInp');
   if(inp) {
-    inp.addEventListener('input', function() {
+    const wrap = document.getElementById('chatInputWrap');
+  const inpEl = document.getElementById('chatInp');
+  if(inpEl && wrap) {
+    inpEl.addEventListener('focus', () => wrap.style.borderColor = 'var(--accent)');
+    inpEl.addEventListener('blur', () => wrap.style.borderColor = '');
+  }
+  if(inp) inp.addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 100) + 'px';
     });
