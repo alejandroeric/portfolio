@@ -770,44 +770,44 @@ canvas{max-width:100%}
   <div class="cfg-block">
     <div class="cfg-ttl">// ACTUALIZAR PRECIOS HOY</div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-      Ingresá los precios actuales de Cocos para que el P&L sea exacto. Solo los CEDEARs en pesos — BTC y ETH se actualizan solos con Alpha Vantage.
+      Subí una captura de tu portafolio en Cocos y los precios se cargan automáticamente.
     </div>
+
+    <!-- Upload area -->
+    <div id="imgUploadArea" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
+         onclick="document.getElementById('priceImageInput').click()"
+         ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+         ondragleave="this.style.borderColor='var(--border)'"
+         ondrop="event.preventDefault();this.style.borderColor='var(--border)';handleImageDrop(event)">
+      <div style="font-size:24px;margin-bottom:8px">📷</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--accent)">SUBIR CAPTURA DE COCOS</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Tocá para seleccionar o arrastrá la imagen</div>
+      <input type="file" id="priceImageInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+    </div>
+
+    <!-- Preview -->
+    <div id="imgPreview" style="display:none;margin-bottom:12px">
+      <img id="imgPreviewEl" style="max-width:100%;border-radius:8px;border:1px solid var(--border);max-height:200px;object-fit:contain">
+    </div>
+
+    <!-- Status -->
+    <div id="imgReadStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:8px 12px;border-radius:7px;background:var(--bg3);border:1px solid var(--border);margin-bottom:12px">
+      <span id="imgReadStatusText">Leyendo precios...</span>
+    </div>
+
+    <!-- Manual fields (pre-filled by AI or manual) -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px" id="priceUpdateGrid">
-      <div>
-        <div class="cfg-lbl">ACN (ARS)</div>
-        <input class="inp" id="upd_ACN" type="number" placeholder="ej: 3910">
-      </div>
-      <div>
-        <div class="cfg-lbl">SPOT (ARS)</div>
-        <input class="inp" id="upd_SPOT" type="number" placeholder="ej: 26860">
-      </div>
-      <div>
-        <div class="cfg-lbl">RBLX (ARS)</div>
-        <input class="inp" id="upd_RBLX" type="number" placeholder="ej: 35180">
-      </div>
-      <div>
-        <div class="cfg-lbl">MSFT (ARS)</div>
-        <input class="inp" id="upd_MSFT" type="number" placeholder="ej: 22960">
-      </div>
-      <div>
-        <div class="cfg-lbl">LMT (ARS)</div>
-        <input class="inp" id="upd_LMT" type="number" placeholder="ej: 38760">
-      </div>
-      <div>
-        <div class="cfg-lbl">ADBE (ARS)</div>
-        <input class="inp" id="upd_ADBE" type="number" placeholder="ej: 9315">
-      </div>
-      <div>
-        <div class="cfg-lbl">MELI (ARS)</div>
-        <input class="inp" id="upd_MELI" type="number" placeholder="ej: 21480">
-      </div>
-      <div>
-        <div class="cfg-lbl">DÓLAR MEP (ARS)</div>
-        <input class="inp" id="upd_MEP" type="number" placeholder="ej: 1434.80">
-      </div>
+      <div><div class="cfg-lbl">ACN (ARS)</div><input class="inp" id="upd_ACN" type="number" placeholder="ej: 3910"></div>
+      <div><div class="cfg-lbl">SPOT (ARS)</div><input class="inp" id="upd_SPOT" type="number" placeholder="ej: 26860"></div>
+      <div><div class="cfg-lbl">RBLX (ARS)</div><input class="inp" id="upd_RBLX" type="number" placeholder="ej: 35180"></div>
+      <div><div class="cfg-lbl">MSFT (ARS)</div><input class="inp" id="upd_MSFT" type="number" placeholder="ej: 22960"></div>
+      <div><div class="cfg-lbl">LMT (ARS)</div><input class="inp" id="upd_LMT" type="number" placeholder="ej: 38760"></div>
+      <div><div class="cfg-lbl">ADBE (ARS)</div><input class="inp" id="upd_ADBE" type="number" placeholder="ej: 9315"></div>
+      <div><div class="cfg-lbl">MELI (ARS)</div><input class="inp" id="upd_MELI" type="number" placeholder="ej: 21480"></div>
+      <div><div class="cfg-lbl">DÓLAR MEP (ARS)</div><input class="inp" id="upd_MEP" type="number" placeholder="ej: 1434.80"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-a" onclick="updatePricesHoy()">✓ GUARDAR PRECIOS DE HOY</button>
+      <button class="btn btn-a" onclick="updatePricesHoy()">✓ GUARDAR PRECIOS</button>
       <span id="updatePricesMsg" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></span>
     </div>
     <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
@@ -1938,7 +1938,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260601_v15';
+  const APP_VERSION = '20260601_v16';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -3347,6 +3347,133 @@ function renderConfigPrices() {
       if(lastUpd && data.date) lastUpd.textContent = data.date;
     } catch(e) {}
   }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════════
+//  LEER PRECIOS DESDE IMAGEN (Anthropic Vision)
+// ═══════════════════════════════════════════════════════════
+
+function handleImageDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) processImageFile(file);
+}
+
+function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if(file) processImageFile(file);
+}
+
+async function processImageFile(file) {
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result;
+    const preview = document.getElementById('imgPreview');
+    const previewEl = document.getElementById('imgPreviewEl');
+    if(preview && previewEl) {
+      previewEl.src = base64;
+      preview.style.display = 'block';
+    }
+    // Read prices with AI
+    await readPricesFromImage(base64, file.type);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function readPricesFromImage(base64DataUrl, mimeType) {
+  const statusEl = document.getElementById('imgReadStatus');
+  const statusTxt = document.getElementById('imgReadStatusText');
+  const uploadArea = document.getElementById('imgUploadArea');
+
+  if(statusEl) statusEl.style.display = 'block';
+  if(statusTxt) statusTxt.innerHTML = '⏳ Leyendo precios de la imagen...';
+  if(uploadArea) uploadArea.style.opacity = '0.5';
+
+  const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
+  if(!ANTHROPIC_KEY) {
+    if(statusTxt) statusTxt.innerHTML = '⚠ Configurá la API key de Anthropic en CONFIG → API KEYS → ANTHROPIC';
+    if(uploadArea) uploadArea.style.opacity = '1';
+    return;
+  }
+
+  // Extract base64 data without the data URL prefix
+  const base64Data = base64DataUrl.split(',')[1];
+  const mediaType = mimeType || 'image/jpeg';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: base64Data }
+            },
+            {
+              type: 'text',
+              text: `Mirá esta captura de un portafolio de inversiones argentino. Necesito que extraigas los precios actuales en pesos ARS de estas acciones: ACN (Accenture), SPOT (Spotify), RBLX (Roblox), MSFT (Microsoft), LMT (Lockheed Martin), ADBE (Adobe), MELI (MercadoLibre).
+
+Respondé SOLO con un JSON así, sin texto adicional:
+{
+  "ACN": 3910,
+  "SPOT": 26860,
+  "RBLX": 35180,
+  "MSFT": 22960,
+  "LMT": 38760,
+  "ADBE": 9315,
+  "MELI": 21480
+}
+
+Si no encontrás algún ticker en la imagen, poné null para ese valor. Solo el JSON, nada más.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    if(data.error) throw new Error(data.error.message);
+
+    const text = data.content[0].text.trim();
+    // Parse JSON response
+    const clean = text.replace(/```json|```/g, '').trim();
+    const prices = JSON.parse(clean);
+
+    // Fill in the fields
+    let filled = 0;
+    const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
+    tickers.forEach(t => {
+      const el = document.getElementById('upd_' + t);
+      if(el && prices[t] && prices[t] !== null) {
+        el.value = prices[t];
+        el.style.borderColor = 'var(--green)';
+        filled++;
+      }
+    });
+
+    if(statusTxt) statusTxt.innerHTML = `✓ ${filled} precios leídos correctamente. Verificá y tocá GUARDAR.`;
+    if(statusEl) statusEl.style.background = 'rgba(63,185,80,.08)';
+    if(statusEl) statusEl.style.borderColor = 'rgba(63,185,80,.25)';
+
+  } catch(err) {
+    if(statusTxt) statusTxt.innerHTML = `⚠ Error: ${err.message}. Cargá los precios manualmente.`;
+    if(statusEl) statusEl.style.background = 'rgba(248,81,73,.08)';
+  }
+
+  if(uploadArea) uploadArea.style.opacity = '1';
 }
 
 
