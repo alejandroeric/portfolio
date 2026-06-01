@@ -1917,7 +1917,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260601_v13';
+  const APP_VERSION = '20260601_v14';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -3089,7 +3089,18 @@ function initChat() {
   if(!msgs) return;
   msgs.innerHTML = '';
   CHAT_HISTORY = [];
-  appendMessage('assistant', `Hola. Tengo todo el contexto de tu portafolio cargado — las ${POSITIONS.length} posiciones, el capital disponible en COCOSPPA, los bonos AO27 y AO28, y el radar de oportunidades.<br><br>¿Sobre qué querés que analice hoy?`);
+  const antKey = localStorage.getItem('anthropic_key') || '';
+  if(!antKey) {
+    appendMessage('assistant', `Hola. Para activar el chat necesitás configurar la <b>API key de Anthropic</b>.<br><br>
+      <span style="color:var(--text2);font-size:12px">
+      1. Entrá a <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a><br>
+      2. Creá una cuenta y cargá $5 USD de crédito<br>
+      3. Generá una API key<br>
+      4. Pegala en <b>CONFIG → API KEYS → ANTHROPIC</b>
+      </span>`);
+  } else {
+    appendMessage('assistant', `Hola. Tengo todo el contexto de tu portafolio cargado — las <b>${POSITIONS.length} posiciones</b>, el capital disponible en COCOSPPA, los bonos AO27 y AO28, y el radar de oportunidades.<br><br>¿Sobre qué querés que analice hoy?`);
+  }
 }
 
 function appendMessage(role, content) {
@@ -3153,7 +3164,7 @@ async function sendChat() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: systemPrompt,
         tools: [{type: 'web_search_20250305', name: 'web_search'}],
