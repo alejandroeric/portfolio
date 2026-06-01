@@ -718,14 +718,30 @@ canvas{max-width:100%}
 
   <div class="cfg-block">
     <div class="cfg-ttl">// API KEYS</div>
-    <div class="cfg-row">
-      <input class="inp" id="avKeyInp" placeholder="Alpha Vantage API Key" type="password" autocomplete="off">
-      <button class="btn btn-a" onclick="saveKey()">GUARDAR</button>
-      <button class="btn btn-y" onclick="activateDemo()">DEMO</button>
+    <div class="cfg-row" style="margin-bottom:12px">
+      <div style="flex:1">
+        <div class="cfg-lbl">ALPHA VANTAGE (datos de mercado)</div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <input class="inp" id="avKeyInp" placeholder="Alpha Vantage API Key" type="password" autocomplete="off">
+          <button class="btn btn-a" onclick="saveKey()">GUARDAR</button>
+          <button class="btn btn-y" onclick="activateDemo()">DEMO</button>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+          KEY ACTIVA: <span id="activeKeyDisplay" style="color:var(--accent)">Modo Demo</span> · 
+          <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color:var(--accent)">Obtener gratis</a>
+        </div>
+      </div>
     </div>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--text2);line-height:1.7">
-      KEY ACTIVA: <span id="activeKeyDisplay" style="color:var(--accent)">Modo Demo</span><br>
-      Gratuita en <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> — 25 calls/día
+    <div style="border-top:1px solid var(--border2);padding-top:12px">
+      <div class="cfg-lbl">ANTHROPIC (chat de inversiones)</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input class="inp" id="anthropicKeyInp" placeholder="sk-ant-..." type="password" autocomplete="off">
+        <button class="btn btn-a" onclick="saveAnthropicKey()">GUARDAR</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+        KEY ACTIVA: <span id="anthropicKeyDisplay" style="color:var(--accent)">No configurada</span> · 
+        <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> · $5 USD crédito inicial
+      </div>
     </div>
   </div>
 
@@ -1773,6 +1789,13 @@ function renderConfig() {
   renderConfigPrices();
   const keyEl = document.getElementById('activeKeyDisplay');
   if(keyEl) keyEl.textContent = API_KEY ? API_KEY.slice(0,8)+'...' : 'Modo Demo activo';
+  // Show Anthropic key status
+  const antKey = localStorage.getItem('anthropic_key') || '';
+  const antEl = document.getElementById('anthropicKeyDisplay');
+  if(antEl) antEl.textContent = antKey ? antKey.slice(0,14)+'...' : 'No configurada';
+  if(antEl) antEl.style.color = antKey ? 'var(--green)' : 'var(--text2)';
+  const antInp = document.getElementById('anthropicKeyInp');
+  if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
   if(avInp && API_KEY) avInp.value = API_KEY;
   const tgT = document.getElementById('tgToken');
@@ -1789,6 +1812,17 @@ function renderConfig() {
         <button class="btn btn-d" style="font-size:9px;padding:3px 8px" onclick="deletePosition(${i})">✕</button>
       </div>`).join('');
   }
+}
+
+function saveAnthropicKey() {
+  const k = document.getElementById('anthropicKeyInp').value.trim();
+  if(!k || !k.startsWith('sk-ant-')) {
+    alert('La key debe empezar con sk-ant-');
+    return;
+  }
+  localStorage.setItem('anthropic_key', k);
+  document.getElementById('anthropicKeyDisplay').textContent = k.slice(0,14)+'...';
+  showToast('Anthropic API key guardada ✓');
 }
 
 function saveKey() {
@@ -1883,7 +1917,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260601_v12';
+  const APP_VERSION = '20260601_v13';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -3107,9 +3141,17 @@ async function sendChat() {
     const systemPrompt = buildPortfolioContext();
     const messages = CHAT_HISTORY.slice(-10); // last 10 messages for context
 
+    const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
+    if(!ANTHROPIC_KEY) {
+      removeThinking();
+      appendMessage('assistant', '<span class="danger">⚠ Necesitás configurar la API key de Anthropic en CONFIG para usar el chat.</span><br><br>Entrá a <b>CONFIG</b> → sección <b>API KEYS</b> → campo <b>ANTHROPIC</b> y pegá tu key de <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>');
+      btn.disabled = false;
+      CHAT_HISTORY.pop();
+      return;
+    }
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
