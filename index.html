@@ -475,6 +475,7 @@ canvas{max-width:100%}
   <button class="nav-tab" onclick="showPage('decisions')">DECISIONES</button>
   <button class="nav-tab" onclick="showPage('analyzer')">ANALIZAR</button>
   <button class="nav-tab" onclick="showPage('alerts')">ALERTAS</button>
+  <button class="nav-tab" onclick="showPage('chat')">💬 CHAT</button>
   <button class="nav-tab" onclick="showPage('config')">CONFIG</button>
   <div class="nav-right">
     <span id="modeBadge" class="mode-badge mode-demo">DEMO</span>
@@ -682,6 +683,34 @@ canvas{max-width:100%}
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     PAGE 6: CHAT
+══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-chat">
+  <div class="sec-hdr">
+    <div>
+      <div class="sec-title">// CHAT DE INVERSIONES</div>
+      <div class="sec-sub">Consultame sobre mercados, tu portafolio, análisis y oportunidades</div>
+    </div>
+    <button onclick="clearChat()" class="btn btn-g" style="font-size:10px">🗑 LIMPIAR</button>
+  </div>
+  <div class="chat-wrap">
+    <div class="chat-msgs" id="chatMsgs"></div>
+    <div class="chat-suggestions" id="chatSugs">
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Se va a romper la burbuja de IA?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Vendo SPOT ahora?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Entro a BIOX esta semana?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Cómo está el oro hoy?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">¿Qué hago con el COCOSPPA?</button>
+      <button class="chat-sug" onclick="sendSuggestion(this.textContent)">Análisis macro Argentina</button>
+    </div>
+    <div class="chat-input-row">
+      <textarea class="chat-inp" id="chatInp" placeholder="Preguntame sobre inversiones, tu portafolio, mercados..." rows="1"></textarea>
+      <button class="chat-send" id="chatSendBtn" onclick="sendChat()">ENVIAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      PAGE 5: CONFIG
 ══════════════════════════════════════════════════════════ -->
 <div class="page" id="page-config">
@@ -697,6 +726,55 @@ canvas{max-width:100%}
     <div style="font-family:var(--mono);font-size:9px;color:var(--text2);line-height:1.7">
       KEY ACTIVA: <span id="activeKeyDisplay" style="color:var(--accent)">Modo Demo</span><br>
       Gratuita en <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> — 25 calls/día
+    </div>
+  </div>
+
+  <!-- ACTUALIZAR PRECIOS HOY -->
+  <div class="cfg-block">
+    <div class="cfg-ttl">// ACTUALIZAR PRECIOS HOY</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+      Ingresá los precios actuales de Cocos para que el P&L sea exacto. Solo los CEDEARs en pesos — BTC y ETH se actualizan solos con Alpha Vantage.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px" id="priceUpdateGrid">
+      <div>
+        <div class="cfg-lbl">ACN (ARS)</div>
+        <input class="inp" id="upd_ACN" type="number" placeholder="ej: 3910">
+      </div>
+      <div>
+        <div class="cfg-lbl">SPOT (ARS)</div>
+        <input class="inp" id="upd_SPOT" type="number" placeholder="ej: 26860">
+      </div>
+      <div>
+        <div class="cfg-lbl">RBLX (ARS)</div>
+        <input class="inp" id="upd_RBLX" type="number" placeholder="ej: 35180">
+      </div>
+      <div>
+        <div class="cfg-lbl">MSFT (ARS)</div>
+        <input class="inp" id="upd_MSFT" type="number" placeholder="ej: 22960">
+      </div>
+      <div>
+        <div class="cfg-lbl">LMT (ARS)</div>
+        <input class="inp" id="upd_LMT" type="number" placeholder="ej: 38760">
+      </div>
+      <div>
+        <div class="cfg-lbl">ADBE (ARS)</div>
+        <input class="inp" id="upd_ADBE" type="number" placeholder="ej: 9315">
+      </div>
+      <div>
+        <div class="cfg-lbl">MELI (ARS)</div>
+        <input class="inp" id="upd_MELI" type="number" placeholder="ej: 21480">
+      </div>
+      <div>
+        <div class="cfg-lbl">DÓLAR MEP (ARS)</div>
+        <input class="inp" id="upd_MEP" type="number" placeholder="ej: 1434.80">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-a" onclick="updatePricesHoy()">✓ GUARDAR PRECIOS DE HOY</button>
+      <span id="updatePricesMsg" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></span>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+      Última actualización: <span id="lastPriceUpdate">—</span>
     </div>
   </div>
 
@@ -1227,6 +1305,8 @@ if(!POSITIONS) {
     {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
     {ticker:'BTC',  qty:0.069,costBasis:102000,   costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
     {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
+    {ticker:'AO27', qty:2930, costBasis:146490.00,costBasisARS:146490.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
+    {ticker:'AO28', qty:4188, costBasis:137320.77,costBasisARS:137320.77,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
   ];
   localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
 }
@@ -1243,8 +1323,9 @@ const KNOWN_PRICES_USD = {
 
 // ARS prices from Cocos (CEDEARs priced in pesos)
 const KNOWN_PRICES_ARS = {
-  ACN:3715.00, SPOT:26360.00, RBLX:34980.00, MSFT:22260.00,
-  LMT:39280.00, ADBE:8765.00, MELI:20990.00,
+  ACN:3910.00, SPOT:26860.00, RBLX:35180.00, MSFT:22960.00,
+  LMT:38760.00, ADBE:9315.00, MELI:21480.00,
+  AO27:146490.00, AO28:137400.00,
 };
 
 // Current MEP rate
@@ -1253,9 +1334,12 @@ const MEP_RATE = 1434.80;
 const KNOWN_PRICES = KNOWN_PRICES_USD;
 
 function getCurrentPriceARS(ticker) {
-  // For CEDEARs return ARS price, for others return USD
   if(KNOWN_PRICES_ARS[ticker]) return KNOWN_PRICES_ARS[ticker];
   return null;
+}
+
+function getEffectiveMEP() {
+  return window.MEP_RATE_OVERRIDE || MEP_RATE;
 }
 
 const LOAD_MSGS = [
@@ -1273,12 +1357,13 @@ function showPage(id) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   const tabs = document.querySelectorAll('.nav-tab');
-  const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, alerts:4, config:5};
+  const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, alerts:4, chat:5, config:6};
   if(map[id] !== undefined) tabs[map[id]].classList.add('active');
   if(id === 'briefing')  renderBriefing();
   if(id === 'portfolio') renderPortfolio();
   if(id === 'decisions') renderDecisions();
   if(id === 'alerts') renderAlerts();
+  if(id === 'chat') initChat();
   if(id === 'config') renderConfig();
 }
 
@@ -1452,7 +1537,7 @@ function renderPortfolio() {
 
 // ── COMPANY NAMES ──
 function companyName(t){
-  const n={ACN:'Accenture',SPOT:'Spotify',RBLX:'Roblox',MSFT:'Microsoft',
+  const n={ACN:'Accenture',SPOT:'Spotify',RBLX:'Roblox',MSFT:'Microsoft',AO27:'Bono Argentina 2027',AO28:'Bono Argentina 2028',
     LMT:'Lockheed Martin',ADBE:'Adobe',MELI:'MercadoLibre',BTC:'Bitcoin',ETH:'Ethereum',
     AAPL:'Apple',NVDA:'NVIDIA',TSLA:'Tesla',AMZN:'Amazon',META:'Meta',
     GOOGL:'Alphabet',JPM:'JPMorgan',GS:'Goldman Sachs',SPY:'S&P 500 ETF',QQQ:'Nasdaq ETF'};
@@ -1538,6 +1623,22 @@ function generateDecision(pos) {
     text: `<b>BTC tiene una pérdida del ${fmt(Math.abs(pnlPct))}% desde tu entrada estimada (~$102K).</b> Bitcoin opera alrededor de $97K después de tocar el máximo histórico de ~$109K. El contexto macro es mixto: PCE Core en 3.2% mantiene la Fed restrictiva (negativo para activos de riesgo), pero Goldman Sachs anticipa 50bps de recortes en H2 2026. Tenés una posición pequeña (0.069 BTC, ~$6.7K) que representa menos del 10% del portafolio. <b>Mantener. La exposición es controlada y Bitcoin actúa como hedge de inflación. No agregar hasta ver señal técnica de ruptura sobre $100K.</b>`,
     tp: 110000, sl: 82000, confidence: 55,
     levels: {res:'$100K resistencia clave', sl:'$82K soporte', macro:'Fed recorta H2 2026'}
+  };
+
+  // ── AO27 — Bono Argentina 2027 ──
+  if(t === 'AO27') return {
+    action: 'MANTENER', urgency:'p',
+    text: `<b><span class="ok-txt">AO27 — excelente decisión.</span> Compraste el bono que vence antes de las elecciones 2027.</b> El AO27 paga cupón mensual en dólares y vence en octubre 2027 dentro del mandato de Milei. Con ${pos.qty} títulos a $146.490 ARS, tu posición genera renta mensual en USD. <span class="ok-txt">La tesis es correcta: menor riesgo político que el AO28, mayor rendimiento que el COCOAUSD.</span> Mantener hasta vencimiento o hasta que el precio suba 8-10% para tomar ganancia de capital.`,
+    tp: price * 1.10, sl: price * 0.92, confidence: 75,
+    levels: {venc:'Oct 2027', rend:'~4.93% TNA USD', sl:'No vender bajo $134.000'}
+  };
+
+  // ── AO28 — Bono Argentina 2028 ──
+  if(t === 'AO28') return {
+    action: 'MANTENER', urgency:'n',
+    text: `<b>AO28 — tu posición estructural en bonos argentinos.</b> Tenés 4.188 títulos generando ~US$20 de cupón mensual. El gobierno está usando el AO28 como instrumento de financiamiento activo. <span class="warn-txt">Catalizador clave: vencimiento de deuda julio 2026.</span> Si Argentina paga sin sobresaltos, el bono puede subir 8-12%. Mantener hasta ese catalizador y evaluar.`,
+    tp: price * 1.12, sl: price * 0.91, confidence: 65,
+    levels: {cupon:'~US$20/mes', cat:'Venc. deuda Jul 2026', obj:'Subir 8-12% post-pago'}
   };
 
   // ── ETH ──
@@ -1669,6 +1770,7 @@ function renderAlerts() {
 
 // ── CONFIG ──
 function renderConfig() {
+  renderConfigPrices();
   const keyEl = document.getElementById('activeKeyDisplay');
   if(keyEl) keyEl.textContent = API_KEY ? API_KEY.slice(0,8)+'...' : 'Modo Demo activo';
   const avInp = document.getElementById('avKeyInp');
@@ -1779,8 +1881,9 @@ function showToast(msg){
 
 // ── INIT ──
 function init() {
+  loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260601_v9';
+  const APP_VERSION = '20260601_v12';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -1797,6 +1900,8 @@ function init() {
       {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
       {ticker:'BTC',  qty:0.069,costBasis:102000,   costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
       {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
+      {ticker:'AO27', qty:2930, costBasis:146490.00,costBasisARS:146490.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
+      {ticker:'AO28', qty:4188, costBasis:137320.77,costBasisARS:137320.77,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
     ];
     localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
   }
@@ -2876,6 +2981,290 @@ function refreshBriefing() {
   renderBriefing();
   showToast('Briefing actualizado ✓');
 }
+
+
+// ═══════════════════════════════════════════════════════════
+//  CHAT DE INVERSIONES — Con memoria del portafolio
+// ═══════════════════════════════════════════════════════════
+
+let CHAT_HISTORY = [];
+let CHAT_INITIALIZED = false;
+
+function buildPortfolioContext() {
+  const MEP = MEP_RATE || 1434.80;
+  const rows = POSITIONS.map(p => {
+    const priceARS = KNOWN_PRICES_ARS[p.ticker];
+    const priceUSD = KNOWN_PRICES_USD[p.ticker] || KNOWN_PRICES[p.ticker];
+    let pnlPct;
+    if(p.currency === 'ARS' && priceARS && p.costBasisARS) {
+      pnlPct = ((priceARS - p.costBasisARS) / p.costBasisARS * 100).toFixed(1);
+    } else {
+      pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100).toFixed(1);
+    }
+    const valUSD = p.currency === 'ARS' ? (priceARS||p.costBasis)/MEP*p.qty : (priceUSD||p.costBasis)*p.qty;
+    return `- ${p.ticker} (${p.qty} unidades, compra: ${p.currency==='ARS'?'$'+p.costBasis+' ARS':'$'+p.costBasis+' USD'}, P&L: ${pnlPct}%, valor: ~US$${valUSD.toFixed(0)})`;
+  }).join('\n');
+
+  return `Sos un asesor financiero profesional que trabaja junto al usuario gestionando SU portafolio. Tratá el dinero como si fuera también tuyo — con el mismo cuidado y responsabilidad.
+
+PERFIL DEL INVERSOR:
+- Perfil: moderado-agresivo
+- Horizonte: 1-3 años
+- Objetivo: crecimiento + preservación de capital
+- Lema personal: "si baja más, compro más" — nunca vende en pérdida
+- Estrategia de dolarización: compra CEDEARs, toma ganancias en dólares a tipo de cambio implícito bajo
+
+PORTAFOLIO ACTUAL (${new Date().toLocaleDateString('es-AR')}):
+${rows}
+
+CAPITAL DISPONIBLE PARA INVERTIR:
+- COCOSPPA: ~$9.4M ARS ≈ US$6.550 al MEP — esperando oportunidades
+- COCOAUSD: US$4.229 — candidato a mover a AO27/AO28
+- COCORMA: ~$1.1M ARS — reserva operativa, NO tocar
+
+INSTRUMENTOS DE RENTA FIJA:
+- AO28: 4.188 títulos, genera ~US$20/mes de cupón
+- AO27: 2.930 títulos recién comprado, vence Oct 2027 antes de elecciones
+
+EN RADAR:
+- BIOX: precio objetivo de entrada $0.39 (hoy ~$0.41)
+- Earnings ACN: 18 junio 2026
+- Earnings ADBE: 11 junio 2026
+
+CONTEXTO MACRO (junio 2026):
+- S&P 500: 7.520 (+9.86% YTD)
+- Fed Rate: 3.75% (restrictivo, esperando recortes H2 2026)
+- PCE Core: 3.2% (sobre objetivo)
+- Dólar MEP: $1.434,80
+- Riesgo país AR: ~510 puntos
+- VIX: 16.7 (mercado calmo)
+
+INSTRUCCIONES:
+- Respondé siempre en español, de forma directa y concisa
+- Cuando analices una pregunta, considerá el impacto en las posiciones actuales
+- Si es una pregunta de mercado, buscá información actualizada
+- Sé honesto — si algo es riesgoso decilo claramente
+- Máximo 3-4 párrafos por respuesta, sin listas largas
+- Usá <b>negrita</b> para puntos clave, <span class="warn">amarillo</span> para advertencias, <span class="ok">verde</span> para positivo, <span class="danger">rojo</span> para urgente`;
+}
+
+function initChat() {
+  if(CHAT_INITIALIZED) return;
+  CHAT_INITIALIZED = true;
+  const msgs = document.getElementById('chatMsgs');
+  if(!msgs) return;
+  msgs.innerHTML = '';
+  CHAT_HISTORY = [];
+  appendMessage('assistant', `Hola. Tengo todo el contexto de tu portafolio cargado — las ${POSITIONS.length} posiciones, el capital disponible en COCOSPPA, los bonos AO27 y AO28, y el radar de oportunidades.<br><br>¿Sobre qué querés que analice hoy?`);
+}
+
+function appendMessage(role, content) {
+  const msgs = document.getElementById('chatMsgs');
+  if(!msgs) return;
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = content;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendThinking() {
+  const msgs = document.getElementById('chatMsgs');
+  if(!msgs) return;
+  const div = document.createElement('div');
+  div.className = 'chat-thinking';
+  div.id = 'chatThinking';
+  div.innerHTML = 'Analizando<span>...</span>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeThinking() {
+  const t = document.getElementById('chatThinking');
+  if(t) t.remove();
+}
+
+async function sendChat() {
+  const inp = document.getElementById('chatInp');
+  const btn = document.getElementById('chatSendBtn');
+  if(!inp || !btn) return;
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+  btn.disabled = true;
+
+  // Hide suggestions after first message
+  const sugs = document.getElementById('chatSugs');
+  if(sugs) sugs.style.display = 'none';
+
+  appendMessage('user', text);
+  appendThinking();
+
+  CHAT_HISTORY.push({role:'user', content: text});
+
+  try {
+    const systemPrompt = buildPortfolioContext();
+    const messages = CHAT_HISTORY.slice(-10); // last 10 messages for context
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        tools: [{type: 'web_search_20250305', name: 'web_search'}],
+        messages: messages
+      })
+    });
+
+    const data = await response.json();
+    removeThinking();
+
+    if(data.error) {
+      appendMessage('assistant', `<span class="danger">Error: ${data.error.message}</span>`);
+      btn.disabled = false;
+      return;
+    }
+
+    // Extract text from response (may include tool use blocks)
+    const fullText = data.content
+      .map(item => item.type === 'text' ? item.text : '')
+      .filter(Boolean)
+      .join('\n');
+
+    if(fullText) {
+      CHAT_HISTORY.push({role: 'assistant', content: fullText});
+      appendMessage('assistant', fullText.replace(/\n/g, '<br>'));
+    }
+
+  } catch(err) {
+    removeThinking();
+    appendMessage('assistant', `<span class="danger">Error de conexión: ${err.message}. Verificá tu internet.</span>`);
+  }
+
+  btn.disabled = false;
+  inp.focus();
+}
+
+function sendSuggestion(text) {
+  const inp = document.getElementById('chatInp');
+  if(inp) { inp.value = text; sendChat(); }
+}
+
+function clearChat() {
+  CHAT_HISTORY = [];
+  CHAT_INITIALIZED = false;
+  const msgs = document.getElementById('chatMsgs');
+  if(msgs) msgs.innerHTML = '';
+  const sugs = document.getElementById('chatSugs');
+  if(sugs) sugs.style.display = 'flex';
+  initChat();
+}
+
+// Auto-resize textarea
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('chatInp');
+  if(inp) {
+    inp.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+    inp.addEventListener('keydown', function(e) {
+      if(e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    });
+  }
+});
+
+
+
+// ═══════════════════════════════════════════════════════════
+//  ACTUALIZAR PRECIOS DEL DÍA
+// ═══════════════════════════════════════════════════════════
+function updatePricesHoy() {
+  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
+  let updated = 0;
+
+  tickers.forEach(t => {
+    const el = document.getElementById('upd_' + t);
+    if(el && el.value && parseFloat(el.value) > 0) {
+      KNOWN_PRICES_ARS[t] = parseFloat(el.value);
+      updated++;
+    }
+  });
+
+  // Update MEP rate
+  const mepEl = document.getElementById('upd_MEP');
+  if(mepEl && mepEl.value && parseFloat(mepEl.value) > 0) {
+    // Update MEP_RATE - need to reassign since it's const
+    window.MEP_RATE_OVERRIDE = parseFloat(mepEl.value);
+  }
+
+  // Save to localStorage
+  const savedPrices = {
+    ars: KNOWN_PRICES_ARS,
+    mep: window.MEP_RATE_OVERRIDE || MEP_RATE,
+    date: new Date().toLocaleDateString('es-AR')
+  };
+  localStorage.setItem('prices_today', JSON.stringify(savedPrices));
+
+  // Show confirmation
+  const msg = document.getElementById('updatePricesMsg');
+  const lastUpd = document.getElementById('lastPriceUpdate');
+  if(msg) {
+    msg.textContent = '✓ ' + updated + ' precios actualizados';
+    msg.style.color = 'var(--green)';
+    setTimeout(() => { if(msg) msg.textContent = ''; }, 3000);
+  }
+  if(lastUpd) lastUpd.textContent = new Date().toLocaleString('es-AR');
+
+  // Refresh portfolio and briefing with new prices
+  renderPortfolio();
+  renderBriefing();
+  renderDecisions();
+
+  showToast(updated + ' precios actualizados ✓');
+}
+
+function loadSavedPrices() {
+  const saved = localStorage.getItem('prices_today');
+  if(!saved) return;
+  try {
+    const data = JSON.parse(saved);
+    // Only use if saved today
+    const today = new Date().toLocaleDateString('es-AR');
+    if(data.date === today) {
+      if(data.ars) Object.assign(KNOWN_PRICES_ARS, data.ars);
+      if(data.mep) window.MEP_RATE_OVERRIDE = data.mep;
+      const lastUpd = document.getElementById('lastPriceUpdate');
+      if(lastUpd) lastUpd.textContent = 'Hoy a las ' + (data.time || '—');
+    }
+  } catch(e) {}
+}
+
+function renderConfigPrices() {
+  // Pre-fill inputs with current prices
+  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
+  tickers.forEach(t => {
+    const el = document.getElementById('upd_' + t);
+    if(el && KNOWN_PRICES_ARS[t]) el.value = KNOWN_PRICES_ARS[t];
+  });
+  const mepEl = document.getElementById('upd_MEP');
+  if(mepEl) mepEl.value = window.MEP_RATE_OVERRIDE || MEP_RATE;
+  const saved = localStorage.getItem('prices_today');
+  if(saved) {
+    try {
+      const data = JSON.parse(saved);
+      const lastUpd = document.getElementById('lastPriceUpdate');
+      if(lastUpd && data.date) lastUpd.textContent = data.date;
+    } catch(e) {}
+  }
+}
+
 
 
 // ══════════════════════════════════════════════════════════════════
