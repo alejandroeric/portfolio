@@ -1387,10 +1387,9 @@ function getCurrentPriceARS(ticker) {
 }
 
 function getCostBasisARS(pos) {
-  // Safe getter - returns costBasisARS or converts from USD if missing
-  if(pos.costBasisARS) return pos.costBasisARS;
-  if(pos.currency === 'ARS') return pos.costBasis;
-  return null;
+  // Try costBasisARS first, then costBasis if ARS position
+  const cb = pos.costBasisARS || (pos.currency === 'ARS' ? pos.costBasis : null);
+  return (cb && cb > 0) ? cb : null;
 }
 
 function getEffectiveMEP() {
@@ -1545,7 +1544,7 @@ function renderPortfolio() {
     // P&L: ARS vs ARS for CEDEARs, USD vs USD for crypto
     let pnlPct, pnlVal;
     if(isARS2 && priceARS && p.costBasisARS) {
-      const cb3 = getCostBasisARS(p); pnlPct = cb3 ? ((priceARS - cb3) / cb3 * 100) : 0;
+      const cb3 = getCostBasisARS(p) || p.costBasis; pnlPct = ((priceARS - cb3) / cb3 * 100);
       pnlVal = (priceARS - p.costBasisARS) * p.qty; // in ARS
     } else {
       pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100);
@@ -1614,7 +1613,7 @@ function generateDecision(pos) {
   const currentARS = isARSPos ? KNOWN_PRICES_ARS[pos.ticker] : null;
   let pnlPct;
   if(isARSPos && currentARS && pos.costBasisARS) {
-    const cb1 = getCostBasisARS(pos); pnlPct = cb1 ? ((currentARS - cb1) / cb1 * 100) : 0;
+    const cb1 = getCostBasisARS(pos) || pos.costBasis; pnlPct = ((currentARS - cb1) / cb1 * 100);
   } else {
     pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
   }
@@ -1741,7 +1740,7 @@ function renderDecisions() {
     let pnlPct, pnlARS;
     if(pos.currency === 'ARS' && KNOWN_PRICES_ARS[pos.ticker] && pos.costBasisARS) {
       const currentARS = KNOWN_PRICES_ARS[pos.ticker];
-      const cb2 = getCostBasisARS(pos); pnlPct = cb2 ? ((currentARS - cb2) / cb2 * 100) : 0;
+      const cb2 = getCostBasisARS(pos) || pos.costBasis; pnlPct = ((currentARS - cb2) / cb2 * 100);
       pnlARS = (currentARS - pos.costBasisARS) * pos.qty;
     } else {
       pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
@@ -1960,7 +1959,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260604_v22';
+  const APP_VERSION = '20260604_v23';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -2948,7 +2947,7 @@ function getSemaforoItems() {
     if(!price) return;
     let pnlPct;
     if(p.currency === 'ARS' && KNOWN_PRICES_ARS[p.ticker] && p.costBasisARS) {
-      const cb4 = getCostBasisARS(p); pnlPct = cb4 ? ((KNOWN_PRICES_ARS[p.ticker] - cb4) / cb4 * 100) : 0;
+      const cb4 = getCostBasisARS(p) || p.costBasis; pnlPct = ((KNOWN_PRICES_ARS[p.ticker] - cb4) / cb4 * 100);
     } else {
       pnlPct = ((price - p.costBasis) / p.costBasis * 100);
     }
