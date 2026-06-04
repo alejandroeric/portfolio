@@ -1318,6 +1318,14 @@ function calcKelly(winRate, avgWin, avgLoss) {
 //  Perfil: moderado-agresivo · Horizonte 1-3 años
 // ═══════════════════════════════════════════════════════════════════
 
+// ── CONSTANTS ──
+// Fix 10: modelo como constante única — actualizar acá si cambia
+const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_VERSION = '2023-06-01';
+// Máx mensajes en historial de chat para no crecer indefinidamente (Fix 8)
+const CHAT_MAX_HISTORY = 20;
+
 // ── STATE ──
 let API_KEY = localStorage.getItem('av_key') || '';
 let TG_TOKEN = localStorage.getItem('tg_token') || '';
@@ -1330,6 +1338,8 @@ let data_ref = null;
 let CURRENT_RESULT = null;
 let CHARTS = {};
 
+// Fix 5: posiciones default con fecha de referencia para avisar si son viejas
+const POSITIONS_DEFAULT_DATE = '2026-06-04';
 // Pre-load with user's real portfolio if no saved positions
 if(!POSITIONS) {
   POSITIONS = [
@@ -1342,9 +1352,10 @@ if(!POSITIONS) {
     {ticker:'LMT',  qty:9,    costBasis:38800.00, costBasisARS:38800.00, currency:'ARS', platform:'Cocos',   sector:'Defense',      type:'stock'},
     {ticker:'ADBE', qty:30,   costBasis:7550.00,  costBasisARS:7550.00,  currency:'ARS', platform:'Cocos',   sector:'Software',     type:'stock'},
     {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
-    {ticker:'BTC',  qty:0.069,costBasis:102000,   costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
+    // Fix 2: BTC costo real entre $61K-$90K — se usa promedio conservador $75K
+    {ticker:'BTC',  qty:0.069,costBasis:75000,    costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
     {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
-    {ticker:'AO27', qty:2930, costBasis:146490.00,costBasisARS:146490.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
+    {ticker:'AO27', qty:2930, costBasis:148215.00,costBasisARS:148215.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
     {ticker:'AO28', qty:4188, costBasis:137320.77,costBasisARS:137320.77,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
   ];
   localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
@@ -1373,13 +1384,13 @@ const MEP_RATE = 1434.80;
 const KNOWN_PRICES = KNOWN_PRICES_USD;
 
 function getCurrentPriceARS(ticker) {
-  // Also check localStorage override from daily price update
+  // Fix 3: usar fecha ISO (YYYY-MM-DD) en lugar de toLocaleDateString — evita desajuste por timezone
   const saved = localStorage.getItem('prices_today');
   if(saved) {
     try {
       const data = JSON.parse(saved);
-      const today = new Date().toLocaleDateString('es-AR');
-      if(data.date === today && data.ars && data.ars[ticker]) {
+      const todayISO = new Date().toISOString().slice(0,10);
+      if(data.dateISO === todayISO && data.ars && data.ars[ticker]) {
         return data.ars[ticker];
       }
     } catch(e) {}
@@ -1462,16 +1473,17 @@ function renderPortfolio() {
     const price = priceARS || priceUSD;
     if(!price) return;
     const mep = getEffectiveMEP();
-    const val = isARS ? (price / mep) * p.qty : price * p.qty;
-    const cost = isARS ? (p.costBasis / mep) * p.qty : p.costBasis * p.qty;
-    totalValue += val; totalCost += cost;
-    if(p.type === 'crypto' || p.type === 'stock') inPlay += val;
-    else inCash += val;
-    inPlay++;
+    // Fix 6: conversión consistente — todo a USD usando MEP actualizado
+    const valUSD  = isARS ? (price / mep) * p.qty       : price * p.qty;
+    const costUSD = isARS ? (p.costBasisARS || p.costBasis) / mep * p.qty : p.costBasis * p.qty;
+    totalValue += valUSD; totalCost += costUSD;
+    if(p.type === 'crypto' || p.type === 'stock') inPlay += valUSD;
+    else inCash += valUSD;
   });
-  // Add ARS instruments (fixed estimates)
-  const arsUSD = (9397056+6009893+5724996+1124383)/1000; // rough ARS→USD at ~1000
-  totalValue += 2476; // applemoncash crypto
+  // Fix 7: capital disponible (COCOSPPA + COCOAUSD) se agrega dinámicamente desde config guardada
+  const extraCapital = parseFloat(localStorage.getItem('pip_cocosppa_usd') || '6550');
+  const cocoausd = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
+  totalValue += extraCapital + cocoausd;
 
   const totalPnl = totalValue - totalCost;
   const totalPnlPct = totalCost>0 ? (totalPnl/totalCost*100) : 0;
@@ -1679,8 +1691,8 @@ function generateDecision(pos) {
 
   // ── BTC ──
   if(t === 'BTC') return {
-    action: 'MANTENER', urgency:'n',
-    text: `<b>BTC tiene una pérdida del ${fmt(Math.abs(pnlPct))}% desde tu entrada estimada (~$102K).</b> Bitcoin opera alrededor de $97K después de tocar el máximo histórico de ~$109K. El contexto macro es mixto: PCE Core en 3.2% mantiene la Fed restrictiva (negativo para activos de riesgo), pero Goldman Sachs anticipa 50bps de recortes en H2 2026. Tenés una posición pequeña (0.069 BTC, ~$6.7K) que representa menos del 10% del portafolio. <b>Mantener. La exposición es controlada y Bitcoin actúa como hedge de inflación. No agregar hasta ver señal técnica de ruptura sobre $100K.</b>`,
+    action: pnlPct >= 0 ? 'MANTENER' : 'MANTENER', urgency:'n',
+    text: `<b>BTC ${pnlPct >= 0 ? 'muestra una ganancia' : 'tiene una pérdida'} del ${fmt(Math.abs(pnlPct))}% desde tu entrada estimada (~$75K).</b> Bitcoin opera alrededor de $97K después de tocar el máximo histórico de ~$109K. El contexto macro es mixto: PCE Core en 3.2% mantiene la Fed restrictiva (negativo para activos de riesgo), pero Goldman Sachs anticipa 50bps de recortes en H2 2026. Tenés una posición pequeña (0.069 BTC, ~$6.7K) que representa menos del 10% del portafolio. <b>Mantener. La exposición es controlada y Bitcoin actúa como hedge de inflación. No agregar hasta ver señal técnica de ruptura sobre $100K.</b>`,
     tp: 110000, sl: 82000, confidence: 55,
     levels: {res:'$100K resistencia clave', sl:'$82K soporte', macro:'Fed recorta H2 2026'}
   };
@@ -1960,14 +1972,14 @@ function showToast(msg){
 // ── INIT ──
 function init() {
   loadSavedPrices();
-  // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260604_v23';
+  // Fix 5: version check — force reload of positions data if old version cached
+  const APP_VERSION = '20260604_v24'; // bumped para forzar reset con correcciones
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
     localStorage.removeItem('pip_positions');
     localStorage.setItem('app_version', APP_VERSION);
-    // Reload correct positions
+    // Reload correct positions — Fix 2: BTC costo real $75K, Fix para AO27
     POSITIONS = [
       {ticker:'ACN',  qty:300,  costBasis:3616.22,  costBasisARS:3616.22,  currency:'ARS', platform:'Cocos',   sector:'IT Services',  type:'stock'},
       {ticker:'SPOT', qty:41,   costBasis:23843.41, costBasisARS:23843.41, currency:'ARS', platform:'Cocos',   sector:'Streaming',    type:'stock'},
@@ -1976,12 +1988,17 @@ function init() {
       {ticker:'LMT',  qty:9,    costBasis:38800.00, costBasisARS:38800.00, currency:'ARS', platform:'Cocos',   sector:'Defense',      type:'stock'},
       {ticker:'ADBE', qty:30,   costBasis:7550.00,  costBasisARS:7550.00,  currency:'ARS', platform:'Cocos',   sector:'Software',     type:'stock'},
       {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
-      {ticker:'BTC',  qty:0.069,costBasis:102000,   costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
+      {ticker:'BTC',  qty:0.069,costBasis:75000,    costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
       {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
-      {ticker:'AO27', qty:2930, costBasis:146490.00,costBasisARS:146490.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
+      {ticker:'AO27', qty:2930, costBasis:148215.00,costBasisARS:148215.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
       {ticker:'AO28', qty:4188, costBasis:137320.77,costBasisARS:137320.77,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
     ];
     localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
+  }
+  // Fix 5: mostrar aviso si las posiciones son del default (sin edición del usuario)
+  const positionsDate = localStorage.getItem('pip_positions_edited');
+  if(!positionsDate) {
+    console.info(`[PIP] Posiciones cargadas desde default del ${POSITIONS_DEFAULT_DATE}. Editá en CONFIG → MIS POSICIONES para personalizar.`);
   }
   if(API_KEY){
     IS_DEMO = false;
@@ -3173,6 +3190,11 @@ function removeThinking() {
   if(t) t.remove();
 }
 
+// Fix 9: validar formato de API key antes de enviar
+function isValidAnthropicKey(key) {
+  return typeof key === 'string' && key.startsWith('sk-ant-') && key.length > 20;
+}
+
 async function sendChat() {
   const inp = document.getElementById('chatInp');
   const btn = document.getElementById('chatSendBtn');
@@ -3196,9 +3218,10 @@ async function sendChat() {
 
   try {
     const systemPrompt = buildPortfolioContext();
-    const messages = CHAT_HISTORY.slice(-10); // last 10 messages for context
 
     const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
+
+    // Fix 9: validar key antes de hacer fetch
     if(!ANTHROPIC_KEY) {
       removeThinking();
       appendMessage('assistant', '<span class="danger">⚠ Necesitás configurar la API key de Anthropic en CONFIG para usar el chat.</span><br><br>Entrá a <b>CONFIG</b> → sección <b>API KEYS</b> → campo <b>ANTHROPIC</b> y pegá tu key de <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>');
@@ -3206,36 +3229,100 @@ async function sendChat() {
       CHAT_HISTORY.pop();
       return;
     }
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: systemPrompt,
-        tools: [{type: 'web_search_20250305', name: 'web_search'}],
-        messages: messages
-      })
-    });
-
-    const data = await response.json();
-    removeThinking();
-
-    if(data.error) {
-      appendMessage('assistant', `<span class="danger">Error: ${data.error.message}</span>`);
+    if(!isValidAnthropicKey(ANTHROPIC_KEY)) {
+      removeThinking();
+      appendMessage('assistant', '<span class="danger">⚠ La API key no parece válida.</span> Debe empezar con <b>sk-ant-</b>. Verificá en CONFIG → API KEYS.');
       btn.disabled = false;
+      CHAT_HISTORY.pop();
       return;
     }
 
-    // Extract text from response (may include tool use blocks)
-    const fullText = data.content
-      .map(item => item.type === 'text' ? item.text : '')
-      .filter(Boolean)
-      .join('\n');
+    // Fix 8: limitar historial a CHAT_MAX_HISTORY mensajes para no crecer indefinidamente
+    if(CHAT_HISTORY.length > CHAT_MAX_HISTORY) {
+      CHAT_HISTORY = CHAT_HISTORY.slice(-CHAT_MAX_HISTORY);
+    }
+    const messages = [...CHAT_HISTORY];
 
-    if(fullText) {
-      CHAT_HISTORY.push({role: 'assistant', content: fullText});
-      appendMessage('assistant', fullText.replace(/\n/g, '<br>'));
+    // Fix 1+4: loop completo para manejar tool_use (web_search) correctamente
+    // La API puede responder con stop_reason='tool_use', necesitamos continuar el ciclo
+    let loopMessages = messages.slice();
+    let finalText = '';
+    let iterations = 0;
+    const MAX_ITERATIONS = 5; // seguridad anti-loop infinito
+
+    while(iterations < MAX_ITERATIONS) {
+      iterations++;
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': ANTHROPIC_VERSION,
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 1000,
+          system: systemPrompt,
+          tools: [{type: 'web_search_20250305', name: 'web_search'}],
+          messages: loopMessages
+        })
+      });
+
+      const data = await response.json();
+
+      if(data.error) {
+        removeThinking();
+        appendMessage('assistant', `<span class="danger">Error API: ${data.error.message}</span>`);
+        btn.disabled = false;
+        return;
+      }
+
+      // Extraer texto de esta respuesta parcial
+      const textBlocks = data.content
+        .filter(item => item.type === 'text')
+        .map(item => item.text)
+        .join('\n');
+      if(textBlocks) finalText += textBlocks;
+
+      // Fix 4: si stop_reason es 'tool_use', continuar el ciclo con los resultados
+      if(data.stop_reason === 'tool_use') {
+        // Agregar respuesta del asistente (con tool_use blocks) al historial del loop
+        loopMessages.push({ role: 'assistant', content: data.content });
+
+        // Construir tool_result para cada tool_use block
+        const toolResults = data.content
+          .filter(item => item.type === 'tool_use')
+          .map(item => ({
+            type: 'tool_result',
+            tool_use_id: item.id,
+            content: item.type === 'tool_use' && item.name === 'web_search'
+              ? (item.input?.query ? `Búsqueda web realizada para: "${item.input.query}". Resultados procesados por el modelo.` : 'Búsqueda completada.')
+              : 'OK'
+          }));
+
+        loopMessages.push({ role: 'user', content: toolResults });
+        // Actualizar indicador
+        if(statusEl) statusEl.textContent = '🔍 BUSCANDO...';
+        continue; // siguiente iteración del loop
+      }
+
+      // stop_reason === 'end_turn' o similar — terminamos
+      break;
+    }
+
+    removeThinking();
+
+    if(finalText) {
+      // Fix 8: guardar solo el texto final en el historial (no los bloques de tool_use)
+      CHAT_HISTORY.push({role: 'assistant', content: finalText});
+      // Formateo básico: negrita, saltos de línea, emojis como bullets
+      const formatted = finalText
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\n/g, '<br>');
+      appendMessage('assistant', formatted);
+    } else {
+      appendMessage('assistant', '<span style="color:var(--text2)">Sin respuesta. Intentá de nuevo.</span>');
     }
 
   } catch(err) {
@@ -3311,11 +3398,13 @@ function updatePricesHoy() {
     window.MEP_RATE_OVERRIDE = parseFloat(mepEl.value);
   }
 
-  // Save to localStorage
+  // Save to localStorage — Fix 3: guardar dateISO para comparación timezone-safe
   const savedPrices = {
     ars: KNOWN_PRICES_ARS,
     mep: window.MEP_RATE_OVERRIDE || MEP_RATE,
-    date: new Date().toLocaleDateString('es-AR')
+    date: new Date().toLocaleDateString('es-AR'),
+    dateISO: new Date().toISOString().slice(0,10),
+    time: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})
   };
   localStorage.setItem('prices_today', JSON.stringify(savedPrices));
 
@@ -3342,9 +3431,11 @@ function loadSavedPrices() {
   if(!saved) return;
   try {
     const data = JSON.parse(saved);
-    // Only use if saved today
-    const today = new Date().toLocaleDateString('es-AR');
-    if(data.date === today) {
+    // Fix 3: comparar por ISO date (timezone-safe); mantener fallback al formato viejo
+    const todayISO = new Date().toISOString().slice(0,10);
+    const todayLoc = new Date().toLocaleDateString('es-AR');
+    const isToday = (data.dateISO === todayISO) || (!data.dateISO && data.date === todayLoc);
+    if(isToday) {
       if(data.ars) Object.assign(KNOWN_PRICES_ARS, data.ars);
       if(data.mep) window.MEP_RATE_OVERRIDE = data.mep;
       const lastUpd = document.getElementById('lastPriceUpdate');
@@ -3427,16 +3518,16 @@ async function readPricesFromImage(base64DataUrl, mimeType) {
   const mediaType = mimeType || 'image/jpeg';
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
+        'anthropic-version': ANTHROPIC_VERSION,
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: ANTHROPIC_MODEL,
         max_tokens: 500,
         messages: [{
           role: 'user',
