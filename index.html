@@ -1437,12 +1437,14 @@ function renderPortfolio() {
   let inPlay = 0, inCash = 0;
   POSITIONS.forEach(p => {
     // Use ARS price for CEDEARs, USD for crypto
-    const priceARS = p.currency === 'ARS' ? getCurrentPriceARS(p.ticker) : null;
+    const isARS = p.currency === 'ARS';
+    const priceARS = isARS ? getCurrentPriceARS(p.ticker) : null;
     const priceUSD = getCurrentPrice(p.ticker);
     const price = priceARS || priceUSD;
     if(!price) return;
-    const val = p.currency === 'ARS' ? (price / MEP_RATE) * p.qty : price * p.qty;
-    const cost = p.currency === 'ARS' ? (p.costBasis / MEP_RATE) * p.qty : p.costBasis * p.qty;
+    const mep = getEffectiveMEP();
+    const val = isARS ? (price / mep) * p.qty : price * p.qty;
+    const cost = isARS ? (p.costBasis / mep) * p.qty : p.costBasis * p.qty;
     totalValue += val; totalCost += cost;
     if(p.type === 'crypto' || p.type === 'stock') inPlay += val;
     else inCash += val;
@@ -1518,21 +1520,22 @@ function renderPortfolio() {
   const dec = getDecisionForAll();
   const tbody = document.getElementById('posBody');
   tbody.innerHTML = POSITIONS.map(p => {
-    const priceARS = p.currency === 'ARS' ? getCurrentPriceARS(p.ticker) : null;
+    const isARS2 = p.currency === 'ARS';
+    const priceARS = isARS2 ? getCurrentPriceARS(p.ticker) : null;
     const priceUSD = getCurrentPrice(p.ticker);
     if(!priceUSD && !priceARS) return '';
     // P&L: ARS vs ARS for CEDEARs, USD vs USD for crypto
     let pnlPct, pnlVal;
-    if(p.currency === 'ARS' && priceARS && p.costBasisARS) {
+    if(isARS2 && priceARS && p.costBasisARS) {
       pnlPct = ((priceARS - p.costBasisARS) / p.costBasisARS * 100);
       pnlVal = (priceARS - p.costBasisARS) * p.qty; // in ARS
     } else {
       pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100);
       pnlVal = (priceUSD - p.costBasis) * p.qty; // in USD
     }
-    const priceInUSD = priceUSD || (priceARS / MEP_RATE);
+    const priceInUSD = priceUSD || (priceARS / getEffectiveMEP());
     const valUSD = priceInUSD * p.qty;
-    const pnlUSD = p.currency === 'ARS' ? pnlVal / MEP_RATE : pnlVal;
+    const pnlUSD = isARS2 ? pnlVal / getEffectiveMEP() : pnlVal;
     const weight = totalValue > 0 ? (valUSD/totalValue*100) : 0;
     const pClass = pnlClass(pnlPct);
     const d = dec[p.ticker] || {action:'ESPERAR'};
@@ -1543,7 +1546,7 @@ function renderPortfolio() {
         <div class="cname">${companyName(p.ticker)}</div>
       </td>
       <td class="hm">
-        <div class="price-now">${p.currency==='ARS'?'$'+price.toLocaleString('es-AR')+'ARS':''+fmtP(priceInUSD)}</div>
+        <div class="price-now">${isARS2?'$'+(priceARS||0).toLocaleString('es-AR')+' ARS':fmtP(priceInUSD)}</div>
         <div style="font-family:var(--mono);font-size:9px;color:${chgToday>=0?'var(--green)':'var(--red)'}">${chgToday>=0?'+':''}${fmt(chgToday)}%</div>
       </td>
       <td><span class="${pClass}">${pnlPct>=0?'+':''}${fmt(pnlPct)}%</span></td>
@@ -1938,7 +1941,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260604_v17';
+  const APP_VERSION = '20260604_v19';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
