@@ -860,8 +860,15 @@ canvas{max-width:100%}
       <input class="inp" id="newQty" placeholder="ej: 100" type="number" min="0" step="any">
     </div>
     <div class="modal-row">
-      <div class="modal-lbl">PRECIO DE COMPRA (U$D)</div>
-      <input class="inp" id="newCost" placeholder="ej: 185.50" type="number" min="0" step="any">
+      <div class="modal-lbl">MONEDA DEL PRECIO</div>
+      <select class="inp" id="newCurrency" onchange="toggleCostLabel()">
+        <option value="ARS">ARS — CEDEAR (Cocos)</option>
+        <option value="USD">USD — Crypto / ADR</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <div class="modal-lbl" id="newCostLabel">PRECIO DE COMPRA (ARS)</div>
+      <input class="inp" id="newCost" placeholder="ej: 15000" type="number" min="0" step="any">
     </div>
     <div class="modal-row">
       <div class="modal-lbl">PLATAFORMA (opcional)</div>
@@ -1700,7 +1707,7 @@ function generateDecision(pos) {
   // ── AO27 — Bono Argentina 2027 ──
   if(t === 'AO27') return {
     action: 'MANTENER', urgency:'p',
-    text: `<b><span class="ok-txt">AO27 — excelente decisión.</span> Compraste el bono que vence antes de las elecciones 2027.</b> El AO27 paga cupón mensual en dólares y vence en octubre 2027 dentro del mandato de Milei. Con ${pos.qty} títulos a $146.490 ARS, tu posición genera renta mensual en USD. <span class="ok-txt">La tesis es correcta: menor riesgo político que el AO28, mayor rendimiento que el COCOAUSD.</span> Mantener hasta vencimiento o hasta que el precio suba 8-10% para tomar ganancia de capital.`,
+    text: `<b><span class="ok-txt">AO27 — excelente decisión.</span> Compraste el bono que vence antes de las elecciones 2027.</b> El AO27 paga cupón mensual en dólares y vence en octubre 2027 dentro del mandato de Milei. Con ${pos.qty} títulos a $${(pos.costBasisARS||pos.costBasis).toLocaleString('es-AR')} ARS, tu posición genera renta mensual en USD. <span class="ok-txt">La tesis es correcta: menor riesgo político que el AO28, mayor rendimiento que el COCOAUSD.</span> Mantener hasta vencimiento o hasta que el precio suba 8-10% para tomar ganancia de capital.`,
     tp: price * 1.10, sl: price * 0.92, confidence: 75,
     levels: {venc:'Oct 2027', rend:'~4.93% TNA USD', sl:'No vender bajo $134.000'}
   };
@@ -1914,11 +1921,25 @@ async function testTelegram(){
 }
 
 // ── POSITIONS MANAGEMENT ──
+function toggleCostLabel() {
+  const cur = document.getElementById('newCurrency').value;
+  const lbl = document.getElementById('newCostLabel');
+  const inp = document.getElementById('newCost');
+  if(cur === 'ARS') {
+    lbl.textContent = 'PRECIO DE COMPRA (ARS)';
+    inp.placeholder = 'ej: 15000';
+  } else {
+    lbl.textContent = 'PRECIO DE COMPRA (USD)';
+    inp.placeholder = 'ej: 185.50';
+  }
+}
 function openAddPosition(){
   document.getElementById('newTicker').value='';
   document.getElementById('newQty').value='';
   document.getElementById('newCost').value='';
+  document.getElementById('newCurrency').value='ARS';
   document.getElementById('newPlatform').value='';
+  toggleCostLabel();
   document.getElementById('posModal').classList.add('on');
 }
 function closePosModal(){ document.getElementById('posModal').classList.remove('on'); }
@@ -1926,10 +1947,22 @@ function savePosition(){
   const ticker = document.getElementById('newTicker').value.trim().toUpperCase();
   const qty = parseFloat(document.getElementById('newQty').value);
   const cost = parseFloat(document.getElementById('newCost').value);
+  const currency = document.getElementById('newCurrency').value;
   const platform = document.getElementById('newPlatform').value.trim() || 'Manual';
   if(!ticker||!qty||!cost){alert('Completá todos los campos obligatorios');return;}
-  POSITIONS.push({ticker,qty,costBasis:cost,platform,sector:'Otros',type:'stock'});
-  localStorage.setItem('pip_positions',JSON.stringify(POSITIONS));
+  // Fix 4: guardar costBasisARS para CEDEARs, costBasis en USD para crypto
+  const newPos = {
+    ticker, qty,
+    costBasis: cost,
+    costBasisARS: currency === 'ARS' ? cost : null,
+    currency,
+    platform,
+    sector: 'Otros',
+    type: currency === 'ARS' ? 'stock' : 'crypto'
+  };
+  POSITIONS.push(newPos);
+  localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
+  localStorage.setItem('pip_positions_edited', new Date().toISOString());
   closePosModal();
   renderPortfolio();
   showToast(`${ticker} agregado ✓`);
@@ -1969,10 +2002,27 @@ function showToast(msg){
   setTimeout(()=>{t.style.opacity='0';},2500);
 }
 
-// ── INIT ──
+// ── MACRO STRIP UPDATE ──
+function updateMacroStrip() {
+  // Fix 5: actualizar macro strip con precios dinámicos en lugar de hardcodeados
+  const mep = getEffectiveMEP();
+  const btc = KNOWN_PRICES_USD['BTC'] || 97000;
+  const strip = document.getElementById('macroStrip');
+  if(!strip) return;
+  strip.innerHTML = `
+    <div class="mc"><div class="mc-l">S&P 500</div><div class="mc-v" style="color:var(--green)">7.520 ▲</div></div>
+    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" style="color:var(--green)">16.7</div></div>
+    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" style="color:var(--yellow)">4.56%</div></div>
+    <div class="mc"><div class="mc-l">BTC</div><div class="mc-v" style="color:var(--accent)">~$${Math.round(btc/1000)}K</div></div>
+    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v">98.4</div></div>
+    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" style="color:var(--red)">3.75%</div></div>
+    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" style="color:var(--red)">3.2%</div></div>
+    <div class="mc"><div class="mc-l">MEP</div><div class="mc-v" style="color:var(--accent)">$${mep.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div></div>
+  `;
+}
 function init() {
   loadSavedPrices();
-  // Fix 5: version check — force reload of positions data if old version cached
+  updateMacroStrip(); // Fix 5: macro strip con MEP y BTC reales
   const APP_VERSION = '20260604_v24'; // bumped para forzar reset con correcciones
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
@@ -3030,11 +3080,14 @@ function renderBriefing() {
     }
   }
 
-  // Capital disponible - update USD conversion
-  const MEP = 1434.80;
+  // Capital disponible - Fix 6: usar getEffectiveMEP() en lugar de hardcoded
+  const MEP = getEffectiveMEP();
   const COCOS_ARS = 9410451;
   const cocoUSD = document.getElementById('cocosUSD');
-  if(cocoUSD) cocoUSD.textContent = '≈ US$' + Math.round(COCOS_ARS/MEP).toLocaleString('es-AR') + ' al MEP ($' + MEP.toLocaleString('es-AR') + ')';
+  if(cocoUSD) cocoUSD.textContent = '≈ US$' + Math.round(COCOS_ARS/MEP).toLocaleString('es-AR') + ' al MEP ($' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ')';
+  // Actualizar también el MEP en el panel macro
+  const macroMEP = document.getElementById('macroMEP');
+  if(macroMEP) macroMEP.textContent = '$' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   // Oportunidad del día
   const oppEl = document.getElementById('briefingOportunidad');
@@ -3086,61 +3139,66 @@ let CHAT_HISTORY = [];
 let CHAT_INITIALIZED = false;
 
 function buildPortfolioContext() {
-  const MEP = MEP_RATE || 1434.80;
+  // Fix 1: usar getEffectiveMEP() y getCurrentPriceARS() para tener precios actualizados del día
+  const MEP = getEffectiveMEP();
   const rows = POSITIONS.map(p => {
-    const priceARS = KNOWN_PRICES_ARS[p.ticker];
+    // Fix 1: pasar por getCurrentPriceARS para incluir precios guardados hoy
+    const priceARS = p.currency === 'ARS' ? getCurrentPriceARS(p.ticker) : null;
     const priceUSD = KNOWN_PRICES_USD[p.ticker] || KNOWN_PRICES[p.ticker];
-    let pnlPct;
+    let pnlPct = '—';
     if(p.currency === 'ARS' && priceARS && p.costBasisARS) {
       pnlPct = ((priceARS - p.costBasisARS) / p.costBasisARS * 100).toFixed(1);
-    } else {
+    } else if(priceUSD && p.costBasis) {
       pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100).toFixed(1);
     }
-    const valUSD = p.currency === 'ARS' ? (priceARS||p.costBasis)/MEP*p.qty : (priceUSD||p.costBasis)*p.qty;
-    return `- ${p.ticker} (${p.qty} unidades, compra: ${p.currency==='ARS'?'$'+p.costBasis+' ARS':'$'+p.costBasis+' USD'}, P&L: ${pnlPct}%, valor: ~US$${valUSD.toFixed(0)})`;
+    const effectivePrice = priceARS || priceUSD || p.costBasis;
+    const valUSD = p.currency === 'ARS' ? (effectivePrice / MEP) * p.qty : effectivePrice * p.qty;
+    const pnlSign = parseFloat(pnlPct) >= 0 ? '+' : '';
+    return `- ${p.ticker} (${p.qty}u · costo: ${p.currency==='ARS'?'$'+p.costBasis+' ARS':'$'+p.costBasis+' USD'} · P&L: ${pnlSign}${pnlPct}% · valor: ~US$${valUSD.toFixed(0)})`;
   }).join('\n');
+
+  const mepDisplay = MEP.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const cocosppaUSD = parseFloat(localStorage.getItem('pip_cocosppa_usd') || '6550');
+  const cocoausd = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
 
   return `Sos un asesor financiero profesional que trabaja junto al usuario gestionando SU portafolio. Tratá el dinero como si fuera también tuyo — con el mismo cuidado y responsabilidad.
 
 PERFIL DEL INVERSOR:
-- Perfil: moderado-agresivo
-- Horizonte: 1-3 años
-- Objetivo: crecimiento + preservación de capital
-- Lema personal: "si baja más, compro más" — nunca vende en pérdida
-- Estrategia de dolarización: compra CEDEARs, toma ganancias en dólares a tipo de cambio implícito bajo
+- Perfil: moderado-agresivo · Horizonte: 1-3 años
+- Objetivo: crecimiento + preservación de capital en dólares
+- Lema: "si baja más, compro más" — nunca vende en pérdida
+- Estrategia: dolarización vía CEDEARs (Cocos Capital), toma ganancias en USD
 
-PORTAFOLIO ACTUAL (${new Date().toLocaleDateString('es-AR')}):
+PORTAFOLIO ACTUAL (${new Date().toLocaleDateString('es-AR')} · MEP $${mepDisplay}):
 ${rows}
 
-CAPITAL DISPONIBLE PARA INVERTIR:
-- COCOSPPA: ~$9.4M ARS ≈ US$6.550 al MEP — esperando oportunidades
-- COCOAUSD: US$4.229 — candidato a mover a AO27/AO28
+CAPITAL DISPONIBLE:
+- COCOSPPA: ~US$${cocosppaUSD.toLocaleString('en-US')} al MEP — esperando oportunidades
+- COCOAUSD: US$${cocoausd.toLocaleString('en-US')} — candidato a mover a AO27/AO28
 - COCORMA: ~$1.1M ARS — reserva operativa, NO tocar
 
-INSTRUMENTOS DE RENTA FIJA:
-- AO28: 4.188 títulos, genera ~US$20/mes de cupón
-- AO27: 2.930 títulos recién comprado, vence Oct 2027 antes de elecciones
+RENTA FIJA:
+- AO28: 4.188 títulos · genera ~US$20/mes de cupón
+- AO27: 2.930 títulos · vence Oct 2027 antes de elecciones
 
-EN RADAR:
-- BIOX: precio objetivo de entrada $0.39 (hoy ~$0.41)
-- Earnings ACN: 18 junio 2026
-- Earnings ADBE: 11 junio 2026
+RADAR:
+- BIOX entrada $0.39 (hoy ~$0.41) · GLD esperar $210-215 · GGAL si riesgo país < 500
+- Earnings ADBE: 11 jun · Earnings ACN: 18 jun
 
-CONTEXTO MACRO (junio 2026):
-- S&P 500: 7.520 (+9.86% YTD)
-- Fed Rate: 3.75% (restrictivo, esperando recortes H2 2026)
-- PCE Core: 3.2% (sobre objetivo)
-- Dólar MEP: $1.434,80
-- Riesgo país AR: ~510 puntos
-- VIX: 16.7 (mercado calmo)
+DECISIONES ACTIVAS:
+- RBLX: SALIR urgente (−25%) · SPOT: REDUCIR 30-40%
+
+MACRO (junio 2026):
+- S&P 500: ~7.520 · VIX: 16.7 · Fed Rate: 3.75% · PCE Core: 3.2%
+- Riesgo país AR: ~510pts · Dólar MEP: $${mepDisplay}
 
 INSTRUCCIONES:
-- Respondé siempre en español, de forma directa y concisa
-- Cuando analices una pregunta, considerá el impacto en las posiciones actuales
-- Si es una pregunta de mercado, buscá información actualizada
+- Respondé siempre en español, directo y conciso
+- Considerá el impacto de cada respuesta en las posiciones actuales
+- Si es pregunta de mercado, buscá info actualizada con web_search
 - Sé honesto — si algo es riesgoso decilo claramente
-- Máximo 3-4 párrafos por respuesta, sin listas largas
-- Usá <b>negrita</b> para puntos clave, <span class="warn">amarillo</span> para advertencias, <span class="ok">verde</span> para positivo, <span class="danger">rojo</span> para urgente`;
+- Máximo 3-4 párrafos, sin listas largas
+- Formato: <b>negrita</b> para puntos clave, <span class="warn">warn</span> para alertas, <span class="ok">ok</span> para positivo, <span class="danger">danger</span> para urgente`;
 }
 
 function initChat() {
@@ -3422,6 +3480,7 @@ function updatePricesHoy() {
   renderPortfolio();
   renderBriefing();
   renderDecisions();
+  updateMacroStrip(); // Fix 5: refrescar macro strip con MEP actualizado
 
   showToast(updated + ' precios actualizados ✓');
 }
@@ -3445,22 +3504,31 @@ function loadSavedPrices() {
 }
 
 function renderConfigPrices() {
-  // Pre-fill inputs with current prices
+  // Fix 3: priorizar precios guardados hoy sobre los defaults hardcodeados
   const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
-  tickers.forEach(t => {
-    const el = document.getElementById('upd_' + t);
-    if(el && KNOWN_PRICES_ARS[t]) el.value = KNOWN_PRICES_ARS[t];
-  });
-  const mepEl = document.getElementById('upd_MEP');
-  if(mepEl) mepEl.value = window.MEP_RATE_OVERRIDE || MEP_RATE;
+  let savedARS = {};
+  let savedTime = null;
   const saved = localStorage.getItem('prices_today');
   if(saved) {
     try {
       const data = JSON.parse(saved);
-      const lastUpd = document.getElementById('lastPriceUpdate');
-      if(lastUpd && data.date) lastUpd.textContent = data.date;
+      const todayISO = new Date().toISOString().slice(0,10);
+      const todayLoc = new Date().toLocaleDateString('es-AR');
+      const isToday = (data.dateISO === todayISO) || (!data.dateISO && data.date === todayLoc);
+      if(isToday && data.ars) {
+        savedARS = data.ars;
+        savedTime = data.time || data.date || '—';
+      }
     } catch(e) {}
   }
+  tickers.forEach(t => {
+    const el = document.getElementById('upd_' + t);
+    if(el) el.value = savedARS[t] || KNOWN_PRICES_ARS[t] || '';
+  });
+  const mepEl = document.getElementById('upd_MEP');
+  if(mepEl) mepEl.value = window.MEP_RATE_OVERRIDE || MEP_RATE;
+  const lastUpd = document.getElementById('lastPriceUpdate');
+  if(lastUpd) lastUpd.textContent = savedTime ? 'Hoy a las ' + savedTime : '—';
 }
 
 
