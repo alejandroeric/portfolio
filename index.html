@@ -1533,7 +1533,7 @@ function renderPortfolio() {
     const priceInUSD = priceUSD || (priceARS / MEP_RATE);
     const valUSD = priceInUSD * p.qty;
     const pnlUSD = p.currency === 'ARS' ? pnlVal / MEP_RATE : pnlVal;
-    const weight = totalValue > 0 ? (val/totalValue*100) : 0;
+    const weight = totalValue > 0 ? (valUSD/totalValue*100) : 0;
     const pClass = pnlClass(pnlPct);
     const d = dec[p.ticker] || {action:'ESPERAR'};
     const chgToday = p.lastChange || 0;
@@ -1938,7 +1938,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260601_v16';
+  const APP_VERSION = '20260604_v17';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
