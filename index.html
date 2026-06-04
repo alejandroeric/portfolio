@@ -1360,9 +1360,9 @@ const KNOWN_PRICES_USD = {
 
 // ARS prices from Cocos (CEDEARs priced in pesos)
 const KNOWN_PRICES_ARS = {
-  ACN:3910.00, SPOT:26860.00, RBLX:35180.00, MSFT:22960.00,
-  LMT:38760.00, ADBE:9315.00, MELI:21480.00,
-  AO27:146490.00, AO28:137400.00,
+  ACN:3575.00, SPOT:26640.00, RBLX:32940.00, MSFT:21590.00,
+  LMT:39060.00, ADBE:8895.00, MELI:20450.00,
+  AO27:148760.00, AO28:139500.00,
 };
 
 // Current MEP rate
@@ -1371,7 +1371,25 @@ const MEP_RATE = 1434.80;
 const KNOWN_PRICES = KNOWN_PRICES_USD;
 
 function getCurrentPriceARS(ticker) {
+  // Also check localStorage override from daily price update
+  const saved = localStorage.getItem('prices_today');
+  if(saved) {
+    try {
+      const data = JSON.parse(saved);
+      const today = new Date().toLocaleDateString('es-AR');
+      if(data.date === today && data.ars && data.ars[ticker]) {
+        return data.ars[ticker];
+      }
+    } catch(e) {}
+  }
   if(KNOWN_PRICES_ARS[ticker]) return KNOWN_PRICES_ARS[ticker];
+  return null;
+}
+
+function getCostBasisARS(pos) {
+  // Safe getter - returns costBasisARS or converts from USD if missing
+  if(pos.costBasisARS) return pos.costBasisARS;
+  if(pos.currency === 'ARS') return pos.costBasis;
   return null;
 }
 
@@ -1527,7 +1545,7 @@ function renderPortfolio() {
     // P&L: ARS vs ARS for CEDEARs, USD vs USD for crypto
     let pnlPct, pnlVal;
     if(isARS2 && priceARS && p.costBasisARS) {
-      pnlPct = ((priceARS - p.costBasisARS) / p.costBasisARS * 100);
+      const cb3 = getCostBasisARS(p); pnlPct = cb3 ? ((priceARS - cb3) / cb3 * 100) : 0;
       pnlVal = (priceARS - p.costBasisARS) * p.qty; // in ARS
     } else {
       pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100);
@@ -1591,11 +1609,12 @@ function generateDecision(pos) {
   if(!priceUSD) return {action:'ESPERAR',urgency:'n',text:'Sin precio disponible',tp:null,sl:null,confidence:40};
   const price = priceUSD;
 
-  // P&L: for CEDEARs compare ARS vs ARS (same currency), for crypto USD vs USD
+  // P&L: always compare in same currency
+  const isARSPos = pos.currency === 'ARS';
+  const currentARS = isARSPos ? KNOWN_PRICES_ARS[pos.ticker] : null;
   let pnlPct;
-  if(pos.currency === 'ARS' && KNOWN_PRICES_ARS[pos.ticker] && pos.costBasisARS) {
-    const currentARS = KNOWN_PRICES_ARS[pos.ticker];
-    pnlPct = ((currentARS - pos.costBasisARS) / pos.costBasisARS * 100);
+  if(isARSPos && currentARS && pos.costBasisARS) {
+    const cb1 = getCostBasisARS(pos); pnlPct = cb1 ? ((currentARS - cb1) / cb1 * 100) : 0;
   } else {
     pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
   }
@@ -1620,7 +1639,7 @@ function generateDecision(pos) {
   // ── RBLX — Roblox ──
   if(t === 'RBLX') return {
     action: 'SALIR', urgency:'u',
-    text: `<b><span class="danger-txt">RBLX es la posición de mayor riesgo de tu portafolio.</span> Cayó un ${fmt(Math.abs(pnlPct))}% desde tu precio de compra estimado.</b> Los fundamentos son deteriorantes: EBITDA negativo (-$1.04B), deuda/equity de 21.8x, pérdida neta de $1.1B en los últimos 12 meses. Después del Q1 2026 earnings, las acciones tocaron nuevo mínimo de 52 semanas ($41.75). <span class="danger-txt">Hay una investigación legal activa de KSF (firma Kahn Swick & Foti) post-earnings.</span> La guía para 2026 fue revisada a la baja. El upside técnico es mínimo y el riesgo fundamental es máximo. <b>Recomendación: salir en la próxima sesión de buena liquidez. La pérdida realizada ($${fmt((price-pos.costBasis)*pos.qty,0)} aprox.) es deducible fiscalmente y liberás capital para mejores oportunidades.</b>`,
+    text: `<b><span class="danger-txt">RBLX es la posición de mayor riesgo de tu portafolio.</span> Cayó un ${fmt(Math.abs(pnlPct))}% desde tu precio de compra estimado.</b> Los fundamentos son deteriorantes: EBITDA negativo (-$1.04B), deuda/equity de 21.8x, pérdida neta de $1.1B en los últimos 12 meses. Después del Q1 2026 earnings, las acciones tocaron nuevo mínimo de 52 semanas ($41.75). <span class="danger-txt">Hay una investigación legal activa de KSF (firma Kahn Swick & Foti) post-earnings.</span> La guía para 2026 fue revisada a la baja. El upside técnico es mínimo y el riesgo fundamental es máximo. <b>Recomendación: salir en la próxima sesión de buena liquidez. La pérdida no realizada (~$${fmt((pos.costBasisARS - (KNOWN_PRICES_ARS['RBLX']||33000))*pos.qty/1000,0)}K ARS aprox.) es deducible fiscalmente y liberás capital para mejores oportunidades.</b>`,
     tp: price * 1.08, sl: price * 0.88, confidence: 82,
     levels: {sl52w:'$40.15 mínimo', legal:'KSF en curso', earn:'próximo N/A'}
   };
@@ -1722,7 +1741,7 @@ function renderDecisions() {
     let pnlPct, pnlARS;
     if(pos.currency === 'ARS' && KNOWN_PRICES_ARS[pos.ticker] && pos.costBasisARS) {
       const currentARS = KNOWN_PRICES_ARS[pos.ticker];
-      pnlPct = ((currentARS - pos.costBasisARS) / pos.costBasisARS * 100);
+      const cb2 = getCostBasisARS(pos); pnlPct = cb2 ? ((currentARS - cb2) / cb2 * 100) : 0;
       pnlARS = (currentARS - pos.costBasisARS) * pos.qty;
     } else {
       pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
@@ -1941,7 +1960,7 @@ function showToast(msg){
 function init() {
   loadSavedPrices();
   // Version check — force reload of positions data if old version cached
-  const APP_VERSION = '20260604_v19';
+  const APP_VERSION = '20260604_v22';
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -2929,7 +2948,7 @@ function getSemaforoItems() {
     if(!price) return;
     let pnlPct;
     if(p.currency === 'ARS' && KNOWN_PRICES_ARS[p.ticker] && p.costBasisARS) {
-      pnlPct = ((KNOWN_PRICES_ARS[p.ticker] - p.costBasisARS) / p.costBasisARS * 100);
+      const cb4 = getCostBasisARS(p); pnlPct = cb4 ? ((KNOWN_PRICES_ARS[p.ticker] - cb4) / cb4 * 100) : 0;
     } else {
       pnlPct = ((price - p.costBasis) / p.costBasis * 100);
     }
