@@ -3198,14 +3198,90 @@ function icard(name,badge,val,dir,sub1,sub2,score,pctOverride){
 // ═══════════════════════════════════════════════════════════
 
 // Radar de activos en seguimiento
+// Radar: solo tickers disponibles en Alpha Vantage (NYSE/NASDAQ)
+// BIOX y GGAL removidos — cotizan en BYMA, no disponibles en AV
 const RADAR_WATCHLIST = [
-  { ticker:'BIOX',  name:'Bioceres',       sector:'Agro AR',    entryTarget:0.39,  currentPrice:0.41, note:'Esperar $0.39. Riesgo alto — going concern activo.' },
-  { ticker:'GLD',   name:'Gold ETF',        sector:'Commodity',  entryTarget:215,   currentPrice:230,  note:'Oro en máximos históricos. Esperar corrección a $215.' },
-  { ticker:'XLE',   name:'Energy Select',   sector:'Petróleo',   entryTarget:78,    currentPrice:85,   note:'ETF petróleo. Soporte en $78 si corrige.' },
-  { ticker:'SLV',   name:'Silver ETF',      sector:'Commodity',  entryTarget:26,    currentPrice:29,   note:'Plata rezagada vs oro. Relación oro/plata históricamente alta.' },
-  { ticker:'XLV',   name:'Health Care ETF', sector:'Salud',      entryTarget:138,   currentPrice:145,  note:'Defensivo. Buena cobertura ante corrección de mercado.' },
-  { ticker:'GGAL',  name:'Galicia',         sector:'Banco AR',   entryTarget:38,    currentPrice:45,   note:'Banco argentino. Si riesgo país sigue bajando, potencial alto.' },
+  { ticker:'GLD',  name:'Gold ETF (SPDR)',   sector:'Commodity',  entryTarget:210, currentPrice:230, note:'Oro en máximos históricos. Esperar corrección a $210-215 para entrar.' },
+  { ticker:'XLE',  name:'Energy Select ETF', sector:'Petróleo',   entryTarget:78,  currentPrice:85,  note:'ETF petróleo. Soporte en $78 si corrige con caída de crudo.' },
+  { ticker:'SLV',  name:'Silver ETF (iShares)',sector:'Commodity', entryTarget:26,  currentPrice:29,  note:'Plata rezagada vs oro. Relación oro/plata históricamente alta.' },
+  { ticker:'XLV',  name:'Health Care ETF',   sector:'Salud',      entryTarget:138, currentPrice:145, note:'Defensivo. Buena cobertura ante corrección de mercado.' },
 ];
+
+// Cache de precios del radar (se actualiza al abrir Briefing)
+let RADAR_PRICES = JSON.parse(localStorage.getItem('pip_radar_prices') || '{}');
+
+async function fetchRadarPrice(ticker) {
+  if(!API_KEY || IS_DEMO) return null;
+  // Verificar si ya tenemos precio de hoy
+  const todayISO = new Date().toISOString().slice(0,10);
+  if(RADAR_PRICES[ticker] && RADAR_PRICES[ticker].date === todayISO) {
+    return RADAR_PRICES[ticker].price;
+  }
+  try {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if(data['Note'] || data['Information']) return null; // rate limit
+    const quote = data['Global Quote'];
+    if(!quote || !quote['05. price']) return null;
+    const price = parseFloat(quote['05. price']);
+    RADAR_PRICES[ticker] = { price, date: todayISO };
+    localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
+    return price;
+  } catch(e) { return null; }
+}
+
+async function updateRadarPrices() {
+  const radarEl = document.getElementById('briefingRadar');
+  if(!radarEl) return;
+  if(!API_KEY || IS_DEMO) return; // sin key no intentamos
+
+  // Actualizar de a uno con delay para no superar rate limit (5 calls/min)
+  for(let i = 0; i < RADAR_WATCHLIST.length; i++) {
+    const r = RADAR_WATCHLIST[i];
+    const price = await fetchRadarPrice(r.ticker);
+    if(price) r.currentPrice = price;
+    if(i < RADAR_WATCHLIST.length - 1) await new Promise(res => setTimeout(res, 1200));
+  }
+  renderRadar();
+}
+
+function renderRadar() {
+  const radarEl = document.getElementById('briefingRadar');
+  if(!radarEl) return;
+
+  // Aplicar precios cacheados si existen
+  RADAR_WATCHLIST.forEach(r => {
+    if(RADAR_PRICES[r.ticker]) r.currentPrice = RADAR_PRICES[r.ticker].price;
+  });
+
+  const todayISO = new Date().toISOString().slice(0,10);
+  const hasFreshData = RADAR_WATCHLIST.some(r => RADAR_PRICES[r.ticker]?.date === todayISO);
+  const lastUpdate = hasFreshData ? 'Hoy · Alpha Vantage' : (API_KEY ? 'Cargando...' : 'Demo');
+
+  radarEl.innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <span>PRECIOS EN USD · NYSE</span>
+      <span style="color:${hasFreshData?'var(--green)':'var(--muted)'}">${lastUpdate}</span>
+    </div>
+    ${RADAR_WATCHLIST.map(r => {
+      const dist = ((r.currentPrice - r.entryTarget) / r.entryTarget * 100).toFixed(1);
+      const close = Math.abs(parseFloat(dist)) < 5;
+      const below = r.currentPrice <= r.entryTarget;
+      const priceColor = below ? 'var(--green)' : 'var(--text)';
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
+          <span style="font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent);width:40px">${r.ticker}</span>
+          <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · ${r.sector}</span>
+          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${priceColor}">$${r.currentPrice.toFixed(2)}</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">obj: $${r.entryTarget}</span>
+          <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:${below?'rgba(63,185,80,.15)':close?'rgba(210,153,34,.12)':'rgba(139,148,158,.08)'};color:${below?'var(--green)':close?'var(--yellow)':'var(--text2)'}">
+            ${below?'✓ EN ZONA':close?'🎯 CERCA':dist+'% lejos'}
+          </span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);padding:2px 0 6px 50px">${r.note}</div>`;
+    }).join('')}`;
+}
 
 // Semaforo logic based on real portfolio data
 function getSemaforoItems() {
@@ -3303,25 +3379,9 @@ function renderBriefing() {
       </div>`;
   }
 
-  // Radar semanal
-  const radarEl = document.getElementById('briefingRadar');
-  if(radarEl) {
-    radarEl.innerHTML = RADAR_WATCHLIST.map(r => {
-      const dist = ((r.currentPrice - r.entryTarget) / r.entryTarget * 100).toFixed(1);
-      const close = Math.abs(parseFloat(dist)) < 5;
-      return `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
-          <span style="font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent);width:44px">${r.ticker}</span>
-          <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · ${r.sector}</span>
-          <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">Actual: $${r.currentPrice}</span>
-          <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">Entrada: $${r.entryTarget}</span>
-          <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:${close?'rgba(63,185,80,.12)':'rgba(139,148,158,.08)'};color:${close?'var(--green)':'var(--text2)'}">
-            ${close?'🎯 CERCA':dist+'% lejos'}
-          </span>
-        </div>
-        <div style="font-size:10px;color:var(--muted);padding:0 0 6px 54px;border-bottom:1px solid var(--border2)">${r.note}</div>`;
-    }).join('');
-  }
+  // Radar semanal — renderizar con precios cacheados y lanzar actualización async
+  renderRadar();
+  updateRadarPrices(); // actualiza en segundo plano sin bloquear el render
 }
 
 function refreshBriefing() {
