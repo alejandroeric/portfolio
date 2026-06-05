@@ -592,10 +592,15 @@ canvas{max-width:100%}
     <div class="kpi"><div class="kpi-lbl">RIESGO HHI</div><div class="kpi-val" id="kpiHHI">—</div><div class="kpi-sub" id="kpiHHISub">—</div></div>
   </div>
 
-  <!-- Distribución -->
+  <!-- Distribución unificada -->
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
-    <div class="sec-hdr" style="margin-bottom:10px;padding-bottom:6px">
-      <div class="sec-title">DISTRIBUCIÓN POR CLASE</div>
+    <div class="sec-hdr" style="margin-bottom:12px;padding-bottom:8px">
+      <div class="sec-title">COMPOSICIÓN DEL PORTAFOLIO</div>
+    </div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button id="distTabClass" onclick="switchDistTab('class')" style="font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:5px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer;font-weight:700">POR CLASE</button>
+      <button id="distTabSector" onclick="switchDistTab('sector')" style="font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">POR SECTOR</button>
     </div>
     <div id="distBars"></div>
   </div>
@@ -618,11 +623,6 @@ canvas{max-width:100%}
     </table>
   </div>
 
-  <!-- Sector concentration chart -->
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px">
-    <div class="sec-title" style="margin-bottom:10px">CONCENTRACIÓN SECTORIAL</div>
-    <div id="sectorBars"></div>
-  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -1567,33 +1567,41 @@ function renderPortfolio() {
   document.getElementById('kpiHHISub').className = 'kpi-sub '+(hhi>0.25?'warn':hhi>0.35?'down':'up');
   document.getElementById('kpiHHISub').textContent = hhi>0.35?'⚠ Concentración alta':hhi>0.25?'Atención: HHI elevado':'Diversificación OK';
 
-  // Distribution bars
-  const sectors = {};
-  POSITIONS.forEach(p => {
-    const price = getCurrentPrice(p.ticker) || p.costBasis;
-    const val = price * p.qty;
-    const sector = p.sector || 'Otros';
-    sectors[sector] = (sectors[sector] || 0) + val;
-  });
-  // Add fixed instruments
-  sectors['Instrumentos ARS'] = (sectors['Instrumentos ARS']||0) + 22257; // rough USD equiv
-  sectors['Bono Soberano AR'] = (sectors['Bono Soberano AR']||0) + 5724;
+  // ── COMPOSICIÓN DEL PORTAFOLIO (clase + sector unificados) ──
+  const mep = getEffectiveMEP();
 
-  const totalForDist = Object.values(sectors).reduce((a,b)=>a+b,0);
-  const colors = ['#378ADD','#3fb950','#EF9F27','#E24B4A','#a78bfa','#d29922','#00e5ff','#f85149','#e3672a'];
-  let ci=0;
-  const distEl = document.getElementById('distBars');
-  distEl.innerHTML = Object.entries(sectors)
-    .sort((a,b)=>b[1]-a[1])
-    .map(([name,val])=>{
-      const pct = (val/totalForDist*100).toFixed(1);
-      const col = colors[ci++ % colors.length];
-      return `<div class="dist-row">
-        <div class="dist-label">${name}</div>
-        <div class="dist-track"><div class="dist-fill" style="width:${pct}%;background:${col}"></div></div>
-        <div class="dist-pct">${pct}%</div>
-      </div>`;
-    }).join('');
+  // Calcular valores por clase y por sector
+  const byClass = { 'Acciones': 0, 'Bonos': 0, 'Crypto': 0 };
+  const bySector = {};
+
+  POSITIONS.forEach(p => {
+    const isARS = p.currency === 'ARS';
+    const priceARS = isARS ? getCurrentPriceARS(p.ticker) : null;
+    const priceUSD = getCurrentPrice(p.ticker) || p.costBasis;
+    const valUSD = isARS ? ((priceARS || p.costBasis) / mep) * p.qty : priceUSD * p.qty;
+
+    // Por clase
+    if(p.type === 'stock') byClass['Acciones'] += valUSD;
+    else if(p.type === 'bond') byClass['Bonos'] += valUSD;
+    else if(p.type === 'crypto') byClass['Crypto'] += valUSD;
+
+    // Por sector
+    const sector = p.sector || 'Otros';
+    bySector[sector] = (bySector[sector] || 0) + valUSD;
+  });
+
+  // Agregar capital disponible a clase
+  const cocosppaUSD = parseFloat(localStorage.getItem('pip_cocosppa_usd') || '6550');
+  const cocoausd = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
+  byClass['Capital Disponible'] = cocosppaUSD + cocoausd;
+
+  // Guardar para uso en tabs
+  window._distByClass = byClass;
+  window._distBySector = bySector;
+
+  // Renderizar vista activa
+  const activeTab = localStorage.getItem('pip_dist_tab') || 'class';
+  renderDistTab(activeTab);
 
   // Positions table
   const dec = getDecisionForAll();
@@ -1603,18 +1611,17 @@ function renderPortfolio() {
     const priceARS = isARS2 ? getCurrentPriceARS(p.ticker) : null;
     const priceUSD = getCurrentPrice(p.ticker);
     if(!priceUSD && !priceARS) return '';
-    // P&L: ARS vs ARS for CEDEARs, USD vs USD for crypto
     let pnlPct, pnlVal;
     if(isARS2 && priceARS && p.costBasisARS) {
       const cb3 = getCostBasisARS(p) || p.costBasis; pnlPct = ((priceARS - cb3) / cb3 * 100);
-      pnlVal = (priceARS - p.costBasisARS) * p.qty; // in ARS
+      pnlVal = (priceARS - p.costBasisARS) * p.qty;
     } else {
       pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100);
-      pnlVal = (priceUSD - p.costBasis) * p.qty; // in USD
+      pnlVal = (priceUSD - p.costBasis) * p.qty;
     }
-    const priceInUSD = priceUSD || (priceARS / getEffectiveMEP());
+    const priceInUSD = priceUSD || (priceARS / mep);
     const valUSD = priceInUSD * p.qty;
-    const pnlUSD = isARS2 ? pnlVal / getEffectiveMEP() : pnlVal;
+    const pnlUSD = isARS2 ? pnlVal / mep : pnlVal;
     const weight = totalValue > 0 ? (valUSD/totalValue*100) : 0;
     const pClass = pnlClass(pnlPct);
     const d = dec[p.ticker] || {action:'ESPERAR'};
@@ -1638,21 +1645,49 @@ function renderPortfolio() {
       <td><button class="action-btn" onclick="analyzeFromPortfolio('${p.ticker}')">▶ ANALIZAR</button></td>
     </tr>`;
   }).join('');
+}
 
-  // Sector concentration
-  const sectorEl = document.getElementById('sectorBars');
-  sectorEl.innerHTML = Object.entries(sectors)
-    .sort((a,b)=>b[1]-a[1]).slice(0,7)
-    .map(([name,val])=>{
-      const pct = (val/totalForDist*100).toFixed(1);
-      const col = pct>30?'var(--red)':pct>20?'var(--yellow)':'var(--green)';
+function switchDistTab(tab) {
+  localStorage.setItem('pip_dist_tab', tab);
+  const btnClass = document.getElementById('distTabClass');
+  const btnSector = document.getElementById('distTabSector');
+  if(btnClass && btnSector) {
+    if(tab === 'class') {
+      btnClass.style.background = 'var(--accent)'; btnClass.style.color = '#000'; btnClass.style.borderColor = 'var(--accent)';
+      btnSector.style.background = 'transparent'; btnSector.style.color = 'var(--text2)'; btnSector.style.borderColor = 'var(--border)';
+    } else {
+      btnSector.style.background = 'var(--accent)'; btnSector.style.color = '#000'; btnSector.style.borderColor = 'var(--accent)';
+      btnClass.style.background = 'transparent'; btnClass.style.color = 'var(--text2)'; btnClass.style.borderColor = 'var(--border)';
+    }
+  }
+  renderDistTab(tab);
+}
+
+function renderDistTab(tab) {
+  const distEl = document.getElementById('distBars');
+  if(!distEl) return;
+  const data = tab === 'class' ? window._distByClass : window._distBySector;
+  if(!data) return;
+
+  const colors = ['#378ADD','#3fb950','#EF9F27','#E24B4A','#a78bfa','#d29922','#00e5ff','#f85149','#e3672a'];
+  const total = Object.values(data).reduce((a,b)=>a+b,0);
+  let ci = 0;
+
+  distEl.innerHTML = Object.entries(data)
+    .sort((a,b) => b[1]-a[1])
+    .map(([name, val]) => {
+      const pct = (val/total*100).toFixed(1);
+      // En vista sector, colorear por concentración
+      const col = tab === 'sector'
+        ? (pct>30 ? 'var(--red)' : pct>20 ? 'var(--yellow)' : colors[ci++ % colors.length])
+        : colors[ci++ % colors.length];
+      const warn = tab === 'sector' && pct > 25;
       return `<div class="dist-row">
-        <div class="dist-label">${name}</div>
+        <div class="dist-label" style="${warn?'color:var(--yellow)':''}">${name}${warn?' ⚠':''}</div>
         <div class="dist-track"><div class="dist-fill" style="width:${pct}%;background:${col}"></div></div>
-        <div class="dist-pct" style="color:${col}">${pct}%</div>
+        <div class="dist-pct" style="color:${tab==='sector'?(pct>30?'var(--red)':pct>20?'var(--yellow)':'var(--text2)'):'var(--text2)'}">${pct}%</div>
       </div>`;
     }).join('');
-}
 
 // ── COMPANY NAMES ──
 function companyName(t){
