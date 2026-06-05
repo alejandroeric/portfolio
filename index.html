@@ -1591,9 +1591,8 @@ function renderPortfolio() {
   });
 
   // Agregar capital disponible a clase
-  const cocosppaUSD = parseFloat(localStorage.getItem('pip_cocosppa_usd') || '6550');
-  const cocoausd = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
-  byClass['Capital Disponible'] = cocosppaUSD + cocoausd;
+  const cocosppaUSD2 = parseFloat(localStorage.getItem('pip_cocosppa_usd') || '6550');
+  byClass['Capital Disponible'] = cocosppaUSD2 + cocoausd;
 
   // Guardar para uso en tabs
   window._distByClass = byClass;
