@@ -564,7 +564,10 @@ canvas{max-width:100%}
 
   <!-- RADAR SEMANAL -->
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
-    <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);margin-bottom:10px">// RADAR SEMANAL — EN SEGUIMIENTO</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent)">// RADAR — RECOMENDACIONES IA</div>
+      <button onclick="refreshRadar()" style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↻ NUEVO</button>
+    </div>
     <div id="briefingRadar"></div>
   </div>
 </div>
@@ -3216,13 +3219,16 @@ const RADAR_UNIVERSE = [
 
 // Lista activa del radar — se rellena con recomendaciones de Claude
 let RADAR_WATCHLIST = JSON.parse(localStorage.getItem('pip_radar_active') || '[]');
-// Si no hay recomendaciones guardadas, usar los 4 defaults
+// Si no hay recomendaciones guardadas, usar los 7 defaults
 if(!RADAR_WATCHLIST.length) {
   RADAR_WATCHLIST = [
-    { ticker:'GLD',  name:'Gold ETF (SPDR)',      sector:'Commodity', entryTarget:210, currentPrice:230, note:'Oro en máximos históricos. Esperar corrección a $210-215.' },
-    { ticker:'XLE',  name:'Energy Select ETF',    sector:'Petróleo',  entryTarget:78,  currentPrice:85,  note:'ETF petróleo. Soporte en $78 si corrige.' },
-    { ticker:'SLV',  name:'Silver ETF (iShares)', sector:'Commodity', entryTarget:26,  currentPrice:29,  note:'Plata rezagada vs oro. Relación históricamente alta.' },
-    { ticker:'XLV',  name:'Health Care ETF',      sector:'Salud',     entryTarget:138, currentPrice:145, note:'Defensivo. Buena cobertura ante corrección de mercado.' },
+    { ticker:'GLD',  name:'Gold ETF (SPDR)',       sector:'Commodity', entryTarget:210, currentPrice:230, note:'Oro en máximos históricos. Esperar corrección a $210-215.' },
+    { ticker:'XLE',  name:'Energy Select ETF',     sector:'Petróleo',  entryTarget:78,  currentPrice:85,  note:'ETF petróleo. Soporte en $78 si corrige.' },
+    { ticker:'SLV',  name:'Silver ETF (iShares)',  sector:'Commodity', entryTarget:26,  currentPrice:29,  note:'Plata rezagada vs oro. Relación históricamente alta.' },
+    { ticker:'XLV',  name:'Health Care ETF',       sector:'Salud',     entryTarget:138, currentPrice:145, note:'Defensivo. Buena cobertura ante corrección de mercado.' },
+    { ticker:'NVDA', name:'Nvidia',                sector:'IA/Semis',  entryTarget:105, currentPrice:120, note:'IA líder. Esperar pullback a soporte antes de entrar.' },
+    { ticker:'TLT',  name:'iShares 20Y Treasury',  sector:'Bonos USA', entryTarget:88,  currentPrice:92,  note:'Sube cuando Fed recorta tasas — posicionarse antes de H2 2026.' },
+    { ticker:'EWZ',  name:'iShares Brazil ETF',    sector:'LATAM',     entryTarget:28,  currentPrice:32,  note:'ETF Brasil correlacionado con Argentina. Diversificación regional.' },
   ];
 }
 
@@ -3280,7 +3286,7 @@ Universo disponible para radar: ${universo}
 
 Fecha: ${new Date().toLocaleDateString('es-AR')}. S&P 500 ~7520, VIX ~16.7, Fed Rate 3.75%, DXY ~98.
 
-Elegí exactamente 4 tickers del universo que:
+Elegí exactamente 7 tickers del universo que:
 1. NO estén ya en mis posiciones actuales
 2. Complementen mi portafolio (no dupliquen sectores)
 3. Estén en zona de entrada interesante HOY o cerca de ella
@@ -3513,6 +3519,19 @@ function renderBriefing() {
 function refreshBriefing() {
   renderBriefing();
   showToast('Briefing actualizado ✓');
+}
+
+function refreshRadar() {
+  // Resetear cache de IA para forzar nuevas recomendaciones
+  RADAR_LAST_AI = '';
+  localStorage.removeItem('pip_radar_ai_date');
+  localStorage.removeItem('pip_radar_active');
+  RADAR_WATCHLIST = [];
+  // Mostrar loading
+  const radarEl = document.getElementById('briefingRadar');
+  if(radarEl) radarEl.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:20px;text-align:center">✦ Consultando Claude para nuevas recomendaciones...</div>';
+  updateRadarPrices();
+  showToast('Actualizando recomendaciones IA...');
 }
 
 
