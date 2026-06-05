@@ -1848,20 +1848,61 @@ function renderDecisions() {
 // ── ALERTS ──
 function buildAlerts() {
   ACTIVE_ALERTS = [];
-  POSITIONS.forEach(p => {
-    const price = getCurrentPrice(p.ticker);
-    if(!price) return;
-    const pnlPct = ((price - p.costBasis)/p.costBasis*100);
-    const dec = generateDecision(p);
+  const mep = getEffectiveMEP();
 
-    if(p.ticker==='RBLX') ACTIVE_ALERTS.push({type:'red',title:'RBLX — Acción urgente requerida',body:'Pérdida del 68.9%, EBITDA negativo, investigación legal activa. Ver decisiones para análisis completo.',time:'Hoy'});
-    if(p.ticker==='SPOT'&&pnlPct>80) ACTIVE_ALERTS.push({type:'yel',title:'SPOT — Ganancias para tomar',body:`+${fmt(pnlPct)}% de ganancia. Objetivo de analistas casi alcanzado. Considerar reducir 30-40%.`,time:'Hoy'});
-    if(p.ticker==='ACN') ACTIVE_ALERTS.push({type:'yel',title:'ACN — Earnings el 18 de Junio',body:'Accenture reporta resultados en 20 días. Momento clave para decidir si mantener o salir.',time:'20 días'});
-    if(p.ticker==='ADBE') ACTIVE_ALERTS.push({type:'yel',title:'ADBE — Earnings el 11 de Junio',body:`Adobe reporta en 13 días. Hoy subió +5.53%. EPS esperado $5.67. Posicionarse antes.`,time:'13 días'});
-    if(pnlPct < -40 && p.ticker !== 'RBLX') ACTIVE_ALERTS.push({type:'yel',title:`${p.ticker} — Pérdida superior al 40%`,body:`La posición acumula ${fmt(Math.abs(pnlPct))}% de pérdida desde tu precio de entrada.`,time:'Actualizado'});
+  POSITIONS.forEach(p => {
+    // Fix: usar el mismo cálculo de P&L que renderPortfolio — ARS vs ARS para CEDEARs
+    const isARS = p.currency === 'ARS';
+    const priceARS = isARS ? getCurrentPriceARS(p.ticker) : null;
+    const priceUSD = getCurrentPrice(p.ticker);
+
+    let pnlPct = null;
+    if(isARS && priceARS && (p.costBasisARS || p.costBasis)) {
+      const cb = p.costBasisARS || p.costBasis;
+      pnlPct = (priceARS - cb) / cb * 100;
+    } else if(!isARS && priceUSD && p.costBasis) {
+      pnlPct = (priceUSD - p.costBasis) / p.costBasis * 100;
+    }
+    if(pnlPct === null) return;
+
+    const dec = generateDecision(p);
+    const pnlAbs = Math.abs(pnlPct).toFixed(1);
+    const pnlSign = pnlPct >= 0 ? '+' : '−';
+
+    // Alertas por urgencia de decisión
+    if(dec.urgency === 'u') {
+      ACTIVE_ALERTS.push({
+        type:'red',
+        title:`${p.ticker} — Acción urgente requerida`,
+        body:`${pnlSign}${pnlAbs}% desde tu entrada. ${dec.action}: ${dec.text.replace(/<[^>]+>/g,'').slice(0,100)}...`,
+        time:'Hoy'
+      });
+    }
+
+    // Earnings próximos hardcodeados (fechas conocidas)
+    if(p.ticker==='ACN') {
+      const daysTo = Math.ceil((new Date('2026-06-18') - new Date()) / 86400000);
+      if(daysTo > 0) ACTIVE_ALERTS.push({type:'yel', title:'ACN — Earnings el 18 de Junio', body:`Accenture reporta en ${daysTo} días. P&L actual: ${pnlSign}${pnlAbs}%. Momento clave para decidir si mantener o salir.`, time:`${daysTo} días`});
+    }
+    if(p.ticker==='ADBE') {
+      const daysTo = Math.ceil((new Date('2026-06-11') - new Date()) / 86400000);
+      if(daysTo > 0) ACTIVE_ALERTS.push({type:'yel', title:'ADBE — Earnings el 11 de Junio', body:`Adobe reporta en ${daysTo} días. P&L actual: ${pnlSign}${pnlAbs}%. EPS esperado $5.67.`, time:`${daysTo} días`});
+    }
+
+    // Ganancias importantes para tomar
+    if(pnlPct > 15 && dec.action === 'REDUCIR') {
+      ACTIVE_ALERTS.push({type:'yel', title:`${p.ticker} — Ganancias para considerar tomar`, body:`+${pnlAbs}% de ganancia. Señal de reducir posición según análisis.`, time:'Hoy'});
+    }
+
+    // Pérdidas significativas (solo si no es ya urgente)
+    if(pnlPct < -20 && dec.urgency !== 'u') {
+      ACTIVE_ALERTS.push({type:'yel', title:`${p.ticker} — Pérdida del ${pnlAbs}%`, body:`La posición acumula −${pnlAbs}% desde tu precio de entrada. Revisá la decisión en DECISIONES.`, time:'Actualizado'});
+    }
   });
-  ACTIVE_ALERTS.push({type:'blu',title:'Concentración tecnológica',body:'ACN + MSFT + ADBE + SPOT representan más del 55% del portafolio de acciones. Por encima de lo recomendable para perfil moderado-agresivo.',time:'Estructural'});
-  ACTIVE_ALERTS.push({type:'blu',title:'Fed Funds Rate 3.75% — Restrictivo',body:'Las tasas altas presionan valuaciones tech. Contexto favorable para sectores defensivos (LMT, healthcare, utilities).',time:'Mayo 2026'});
+
+  // Alertas estructurales fijas
+  ACTIVE_ALERTS.push({type:'blu', title:'Concentración tecnológica', body:'ACN + MSFT + ADBE + SPOT representan más del 55% del portafolio. Por encima de lo recomendable para perfil moderado-agresivo.', time:'Estructural'});
+  ACTIVE_ALERTS.push({type:'blu', title:'Fed Funds Rate 3.75% — Restrictivo', body:'Las tasas altas presionan valuaciones tech. Contexto favorable para sectores defensivos (LMT, healthcare, utilities).', time:'Jun 2026'});
 
   const dot = document.getElementById('alertDot');
   if(dot) dot.style.display = ACTIVE_ALERTS.filter(a=>a.type==='red').length > 0 ? 'block' : 'none';
