@@ -809,6 +809,7 @@ canvas{max-width:100%}
       <div><div class="cfg-lbl">LMT (ARS)</div><input class="inp" id="upd_LMT" type="number" placeholder="ej: 38760"></div>
       <div><div class="cfg-lbl">ADBE (ARS)</div><input class="inp" id="upd_ADBE" type="number" placeholder="ej: 9315"></div>
       <div><div class="cfg-lbl">MELI (ARS)</div><input class="inp" id="upd_MELI" type="number" placeholder="ej: 21480"></div>
+      <div><div class="cfg-lbl">MU (ARS)</div><input class="inp" id="upd_MU" type="number" placeholder="ej: 287350"></div>
       <div><div class="cfg-lbl">DÓLAR MEP (ARS)</div><input class="inp" id="upd_MEP" type="number" placeholder="ej: 1434.80"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1375,7 +1376,7 @@ let TG_CHAT_ID = '';
 // ── NOTIFICACIONES DEL NAVEGADOR ──
 const NOTIF_DEFAULTS = { price: 3, score: 2, rsiOb: 75, rsiOs: 25 };
 let THRESHOLDS = JSON.parse(localStorage.getItem('pip_thresholds') || JSON.stringify(NOTIF_DEFAULTS));
-const WATCHLIST = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','BTC','ETH'];
+const WATCHLIST = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU','BTC','ETH'];
 let LAST_SCORES = JSON.parse(localStorage.getItem('lastScores') || '{}');
 let MONITOR_INTERVAL = null;
 let IS_DEMO = !API_KEY;
@@ -1422,7 +1423,7 @@ const KNOWN_PRICES_USD = {
 // ARS prices from Cocos (CEDEARs priced in pesos)
 const KNOWN_PRICES_ARS = {
   ACN:3575.00, SPOT:26640.00, RBLX:32940.00, MSFT:21590.00,
-  LMT:39060.00, ADBE:8895.00, MELI:20450.00,
+  LMT:39060.00, ADBE:8895.00, MELI:20450.00, MU:287350.00,
   AO27:148760.00, AO28:139500.00,
 };
 
@@ -2252,7 +2253,7 @@ function updateMacroStrip() {
 function init() {
   loadSavedPrices();
   updateMacroStrip(); // Fix 5: macro strip con MEP y BTC reales
-  const APP_VERSION = '20260604_v24'; // bumped para forzar reset con correcciones
+  const APP_VERSION = '20260605_v25'; // MU agregado
   const storedVersion = localStorage.getItem('app_version');
   if(storedVersion !== APP_VERSION) {
     // Clear old cached positions and reload with correct data
@@ -2267,6 +2268,7 @@ function init() {
       {ticker:'LMT',  qty:9,    costBasis:38800.00, costBasisARS:38800.00, currency:'ARS', platform:'Cocos',   sector:'Defense',      type:'stock'},
       {ticker:'ADBE', qty:30,   costBasis:7550.00,  costBasisARS:7550.00,  currency:'ARS', platform:'Cocos',   sector:'Software',     type:'stock'},
       {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
+      {ticker:'MU',   qty:1,    costBasis:287200.00,costBasisARS:287200.00,currency:'ARS', platform:'Cocos',   sector:'Semiconductors',type:'stock'},
       {ticker:'BTC',  qty:0.069,costBasis:75000,    costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
       {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
       {ticker:'AO27', qty:2930, costBasis:148215.00,costBasisARS:148215.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
@@ -3877,7 +3879,7 @@ document.addEventListener('DOMContentLoaded', () => {
 //  ACTUALIZAR PRECIOS DEL DÍA
 // ═══════════════════════════════════════════════════════════
 function updatePricesHoy() {
-  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
+  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU'];
   let updated = 0;
 
   tickers.forEach(t => {
@@ -3944,7 +3946,7 @@ function loadSavedPrices() {
 
 function renderConfigPrices() {
   // Fix 3: priorizar precios guardados hoy sobre los defaults hardcodeados
-  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
+  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU'];
   let savedARS = {};
   let savedTime = null;
   const saved = localStorage.getItem('prices_today');
@@ -4075,7 +4077,7 @@ Si no encontrás algún ticker en la imagen, poné null para ese valor. Solo el 
 
     // Fill in the fields
     let filled = 0;
-    const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI'];
+    const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU'];
     tickers.forEach(t => {
       const el = document.getElementById('upd_' + t);
       if(el && prices[t] && prices[t] !== null) {
