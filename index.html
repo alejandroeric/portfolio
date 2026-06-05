@@ -1513,6 +1513,7 @@ function renderPortfolio() {
   // Calculate totals
   let totalValue = 0, totalCost = 0;
   let inPlay = 0, inCash = 0;
+  const mep = getEffectiveMEP();
   POSITIONS.forEach(p => {
     // Use ARS price for CEDEARs, USD for crypto
     const isARS = p.currency === 'ARS';
@@ -1520,7 +1521,6 @@ function renderPortfolio() {
     const priceUSD = getCurrentPrice(p.ticker);
     const price = priceARS || priceUSD;
     if(!price) return;
-    const mep = getEffectiveMEP();
     // Fix 6: conversión consistente — todo a USD usando MEP actualizado
     const valUSD  = isARS ? (price / mep) * p.qty       : price * p.qty;
     const costUSD = isARS ? (p.costBasisARS || p.costBasis) / mep * p.qty : p.costBasis * p.qty;
@@ -1568,7 +1568,7 @@ function renderPortfolio() {
   document.getElementById('kpiHHISub').textContent = hhi>0.35?'⚠ Concentración alta':hhi>0.25?'Atención: HHI elevado':'Diversificación OK';
 
   // ── COMPOSICIÓN DEL PORTAFOLIO (clase + sector unificados) ──
-  const mep = getEffectiveMEP();
+  // mep ya declarado arriba en el forEach
 
   // Calcular valores por clase y por sector
   const byClass = { 'Acciones': 0, 'Bonos': 0, 'Crypto': 0 };
