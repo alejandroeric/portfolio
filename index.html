@@ -4886,7 +4886,11 @@ async function readPricesFromImage(base64DataUrl, mimeType) {
             },
             {
               type: 'text',
-              text: `Mirá esta captura de un portafolio de inversiones argentino. Necesito que extraigas los precios actuales en pesos ARS de estas acciones: ACN (Accenture), SPOT (Spotify), RBLX (Roblox), MSFT (Microsoft), LMT (Lockheed Martin), ADBE (Adobe), MELI (MercadoLibre).
+              text: `Esta es una captura de pantalla de un portafolio en Cocos Capital (broker argentino). La tabla tiene varias columnas: ticker, cantidad, precio actual de mercado, precio promedio de compra, variación, etc.
+
+IMPORTANTE: Necesito el PRECIO ACTUAL DE MERCADO en pesos ARS (NO el precio promedio de compra). En Cocos, el precio actual suele estar en la columna "Precio" o "Cotización" — es el precio de mercado de HOY, no el costo promedio.
+
+Extraé el precio actual de mercado en ARS de estas acciones: ACN (Accenture), SPOT (Spotify), RBLX (Roblox), MSFT (Microsoft), LMT (Lockheed Martin), ADBE (Adobe), MELI (MercadoLibre), MU (Micron).
 
 Respondé SOLO con un JSON así, sin texto adicional:
 {
@@ -4896,7 +4900,8 @@ Respondé SOLO con un JSON así, sin texto adicional:
   "MSFT": 22960,
   "LMT": 38760,
   "ADBE": 9315,
-  "MELI": 21480
+  "MELI": 21480,
+  "MU": 287000
 }
 
 Si no encontrás algún ticker en la imagen, poné null para ese valor. Solo el JSON, nada más.`
