@@ -229,6 +229,23 @@ canvas{max-width:100%}
 .layer-loading{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px}
 .layer-content{font-size:11px;color:var(--text2);line-height:1.6}
 
+/* ── SCREENER ── */
+.scr-filters{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
+@media(min-width:600px){.scr-filters{grid-template-columns:repeat(4,1fr);}}
+.scr-filter{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.scr-filter-label{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--muted);margin-bottom:5px;}
+.scr-filter select,.scr-filter input{background:transparent;border:none;color:var(--text);font-family:var(--mono);font-size:11px;width:100%;outline:none;cursor:pointer;}
+.scr-universe{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;}
+.scr-universe-label{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;}
+.scr-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.scr-tag{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg4);color:var(--text2);cursor:pointer;transition:all .15s;}
+.scr-tag.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.07);}
+.scr-result{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.scr-result-ticker{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent);min-width:60px;}
+.scr-result-scores{display:flex;gap:8px;flex-wrap:wrap;flex:1;}
+.scr-score-chip{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;}
+.scr-result-action{margin-left:auto;}
+
 /* ── CORRELATION MATRIX ── */
 .corr-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .corr-table{border-collapse:collapse;font-family:var(--mono);font-size:10px;min-width:100%;}
@@ -522,6 +539,7 @@ canvas{max-width:100%}
   <button class="nav-tab" onclick="showPage('portfolio')">PORTAFOLIO</button>
   <button class="nav-tab" onclick="showPage('decisions')">DECISIONES</button>
   <button class="nav-tab" onclick="showPage('analyzer')">ANALIZAR</button>
+  <button class="nav-tab" onclick="showPage('screener')">SCREENER</button>
   <button class="nav-tab" onclick="showPage('alerts')">ALERTAS</button>
   <button class="nav-tab" onclick="showPage('chat')">💬 CHAT</button>
   <button class="nav-tab" onclick="showPage('config')">CONFIG</button>
@@ -733,6 +751,64 @@ canvas{max-width:100%}
     </div>
     <div class="res-box" id="resBox"></div>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 4: SCREENER
+══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-screener">
+  <div class="sec-hdr">
+    <div>
+      <div class="sec-title">// SCREENER DE OPORTUNIDADES</div>
+      <div class="sec-sub">Fase 1: fundamentales vía FMP (sin costo AV) · Fase 2: técnico solo para los que pasan</div>
+    </div>
+    <button class="btn btn-a" id="scrRunBtn" onclick="runScreener()">▶ EJECUTAR</button>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="scr-filters">
+    <div class="scr-filter">
+      <div class="scr-filter-label">P/E MÁXIMO</div>
+      <select id="scrPE"><option value="0">Cualquiera</option><option value="15">≤ 15 (barato)</option><option value="25" selected>≤ 25</option><option value="35">≤ 35</option><option value="50">≤ 50</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">ROE MÍNIMO</div>
+      <select id="scrROE"><option value="0" selected>Cualquiera</option><option value="0.08">≥ 8%</option><option value="0.15">≥ 15%</option><option value="0.20">≥ 20%</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">DEUDA/EQUITY MÁX.</div>
+      <select id="scrDebt"><option value="999" selected>Cualquiera</option><option value="0.5">≤ 0.5 (baja)</option><option value="1.0">≤ 1.0</option><option value="1.5">≤ 1.5</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">FCF YIELD MÍN.</div>
+      <select id="scrFCF"><option value="0" selected>Cualquiera</option><option value="0.02">≥ 2%</option><option value="0.05">≥ 5%</option><option value="0.08">≥ 8%</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">MARGEN BRUTO MÍN.</div>
+      <select id="scrGross"><option value="0" selected>Cualquiera</option><option value="0.20">≥ 20%</option><option value="0.35">≥ 35%</option><option value="0.50">≥ 50%</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">CURRENT RATIO MÍN.</div>
+      <select id="scrCR"><option value="0" selected>Cualquiera</option><option value="1.0">≥ 1.0</option><option value="1.5">≥ 1.5</option><option value="2.0">≥ 2.0</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">SCORE TÉCNICO MÍN.</div>
+      <select id="scrTech"><option value="0" selected>Cualquiera</option><option value="50">≥ 50%</option><option value="60">≥ 60%</option><option value="70">≥ 70%</option></select>
+    </div>
+    <div class="scr-filter">
+      <div class="scr-filter-label">EXCLUIR MIS POSICIONES</div>
+      <select id="scrExclude"><option value="1" selected>Sí</option><option value="0">No</option></select>
+    </div>
+  </div>
+
+  <!-- UNIVERSO -->
+  <div class="scr-universe">
+    <div class="scr-universe-label">UNIVERSO DE TICKERS (hacé clic para activar/desactivar)</div>
+    <div class="scr-tags" id="scrTags"></div>
+  </div>
+
+  <!-- RESULTADOS -->
+  <div id="scrResults"><div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:30px 0;">Configurá los filtros y presioná EJECUTAR.</div></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -1648,11 +1724,12 @@ function showPage(id) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   const tabs = document.querySelectorAll('.nav-tab');
-  const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, alerts:4, chat:5, config:6};
+  const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, screener:4, alerts:5, chat:6, config:7};
   if(map[id] !== undefined) tabs[map[id]].classList.add('active');
   if(id === 'briefing')  renderBriefing();
   if(id === 'portfolio') renderPortfolio();
   if(id === 'decisions') renderDecisions();
+  if(id === 'screener')  initScreener();
   if(id === 'alerts') renderAlerts();
   if(id === 'chat') initChat();
   if(id === 'config') renderConfig();
@@ -2106,6 +2183,154 @@ function renderCorrelation() {
     <span class="corr-legend-item"><span class="corr-legend-dot" style="background:rgba(167,139,250,.5)"></span>Negativa — descorrelacionado</span>
   </div>
   <div class="corr-verdict" style="background:${verdictColor};border:1px solid ${verdictBorder};">${verdictText}</div>`;
+}
+
+// ── SCREENER ──
+const SCREENER_UNIVERSE = [
+  'AAPL','MSFT','GOOGL','AMZN','META','NVDA','TSLA','NFLX','AMD','INTC',
+  'JPM','BAC','GS','V','MA','BRK.B','WFC','AXP',
+  'JNJ','PFE','UNH','ABBV','MRK',
+  'XOM','CVX','COP',
+  'WMT','COST','HD','NKE','MCD',
+  'BA','GE','CAT','MMM',
+  'GLD','SLV','SPY','QQQ','TLT',
+  'MELI','NU','SQ','PYPL',
+];
+
+function initScreener() {
+  const tagsEl = document.getElementById('scrTags');
+  if(!tagsEl || tagsEl.children.length > 0) return;
+  const myTickers = POSITIONS.map(p => p.ticker);
+  SCREENER_UNIVERSE.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'scr-tag active';
+    btn.textContent = t;
+    if(myTickers.includes(t)) { btn.classList.remove('active'); btn.style.opacity = '.4'; btn.title = 'Ya en tu portafolio'; }
+    btn.onclick = () => btn.classList.toggle('active');
+    tagsEl.appendChild(btn);
+  });
+}
+
+async function runScreener() {
+  const btn = document.getElementById('scrRunBtn');
+  const resEl = document.getElementById('scrResults');
+  if(!resEl) return;
+
+  const activeTickers = [...document.querySelectorAll('#scrTags .scr-tag.active')].map(b => b.textContent);
+  if(!activeTickers.length) { resEl.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--red);padding:20px 0;text-align:center">Activá al menos un ticker en el universo.</div>'; return; }
+
+  const maxPE    = parseFloat(document.getElementById('scrPE').value)    || 999;
+  const minROE   = parseFloat(document.getElementById('scrROE').value)   || 0;
+  const maxDebt  = parseFloat(document.getElementById('scrDebt').value)  || 999;
+  const minFCF   = parseFloat(document.getElementById('scrFCF').value)   || 0;
+  const minGross = parseFloat(document.getElementById('scrGross').value) || 0;
+  const minCR    = parseFloat(document.getElementById('scrCR').value)    || 0;
+  const minTech  = parseFloat(document.getElementById('scrTech').value)  || 0;
+  const excludeOwned = document.getElementById('scrExclude').value === '1';
+  const myTickers = POSITIONS.map(p => p.ticker);
+
+  btn.disabled = true; btn.textContent = '⏳ FASE 1...';
+  resEl.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--text2);padding:20px 0;text-align:center"><span style="display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle"></span>Fase 1: analizando fundamentales sin consumir cuota AV...</div>';
+
+  // FASE 1: Filtro fundamental vía FMP
+  const passed = [];
+  for(const ticker of activeTickers) {
+    if(excludeOwned && myTickers.includes(ticker)) continue;
+    if(!FMP_KEY) { passed.push({ ticker, ratios: null, skipped: true }); continue; }
+    try {
+      const [ratiosR, profileR] = await Promise.allSettled([
+        fetch(`https://financialmodelingprep.com/api/v3/ratios-ttm/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
+      ]);
+      const rat = ratiosR.status==='fulfilled' ? ratiosR.value[0] : null;
+      const pro = profileR.status==='fulfilled' ? profileR.value[0] : null;
+      if(!rat) { passed.push({ ticker, ratios: null, profile: null, skipped: true }); continue; }
+
+      const pe    = rat.peRatioTTM;
+      const roe   = rat.returnOnEquityTTM;
+      const debt  = rat.debtEquityRatioTTM;
+      const fcf   = rat.freeCashFlowYieldTTM;
+      const gross = rat.grossProfitMarginTTM;
+      const cr    = rat.currentRatioTTM;
+
+      const okPE    = !maxPE   || maxPE===999   || (pe   > 0 && pe   <= maxPE);
+      const okROE   = !minROE  || minROE===0     || (roe  != null && roe  >= minROE);
+      const okDebt  = !maxDebt || maxDebt===999  || (debt != null && debt <= maxDebt);
+      const okFCF   = !minFCF  || minFCF===0     || (fcf  != null && fcf  >= minFCF);
+      const okGross = !minGross|| minGross===0   || (gross!= null && gross>= minGross);
+      const okCR    = !minCR   || minCR===0      || (cr   != null && cr   >= minCR);
+
+      if(okPE && okROE && okDebt && okFCF && okGross && okCR) {
+        passed.push({ ticker, ratios: rat, profile: pro });
+      }
+    } catch(e) { continue; }
+  }
+
+  if(!passed.length) {
+    resEl.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--yellow);padding:20px 0;text-align:center">Ningún ticker pasó los filtros fundamentales. Relajá los criterios.</div>';
+    btn.disabled = false; btn.textContent = '▶ EJECUTAR'; return;
+  }
+
+  // FASE 2: Filtro técnico (consume AV solo si hay filtro técnico activo)
+  const results = [];
+  if(minTech > 0 && API_KEY && !IS_DEMO) {
+    btn.textContent = `⏳ FASE 2 (${passed.length} tickers)...`;
+    let avCalls = 0;
+    for(const item of passed) {
+      if(avCalls >= 10) { results.push({ ...item, techScore: null, limitReached: true }); continue; }
+      try {
+        const data = await fetchAV(item.ticker, 'Daily');
+        const r = analyze(data);
+        RESULTS_CACHE[item.ticker] = { ...r, CD: data };
+        avCalls++;
+        if(r.aiScore >= minTech) results.push({ ...item, techScore: r.aiScore, result: r });
+      } catch(e) { results.push({ ...item, techScore: null }); }
+    }
+  } else {
+    passed.forEach(item => results.push({ ...item, techScore: null }));
+  }
+
+  if(!results.length) {
+    resEl.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--yellow);padding:20px 0;text-align:center">Ningún ticker pasó el filtro técnico. Bajá el mínimo de score técnico.</div>';
+    btn.disabled = false; btn.textContent = '▶ EJECUTAR'; return;
+  }
+
+  // Render resultados
+  const fmt2 = v => v==null||isNaN(v)?'N/A':Number(v).toFixed(2);
+  const fmtP = v => v==null||isNaN(v)?'N/A':(Number(v)*100).toFixed(1)+'%';
+  const chip = (label, val, good) => `<span class="scr-score-chip" style="background:${good?'rgba(63,185,80,.12)':'rgba(139,148,158,.1)'};color:${good?'var(--green)':'var(--text2)'};border:1px solid ${good?'rgba(63,185,80,.25)':'var(--border)'}">${label}: ${val}</span>`;
+
+  resEl.innerHTML = `
+  <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:10px;letter-spacing:.08em">
+    ${results.length} RESULTADO${results.length!==1?'S':''} · Fase 1: ${activeTickers.length} → ${passed.length} · ${minTech>0?`Fase 2: ${results.length} pasan score ≥${minTech}%`:'Sin filtro técnico'}
+  </div>
+  ${results.map(item => {
+    const r = item.ratios || {};
+    const p = item.profile || {};
+    const ts = item.techScore;
+    return `
+    <div class="scr-result">
+      <div>
+        <div class="scr-result-ticker">${item.ticker}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px">${p.companyName||''} · ${p.sector||''}</div>
+        ${p.price ? `<div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);margin-top:4px">$${Number(p.price).toFixed(2)}</div>` : ''}
+      </div>
+      <div class="scr-result-scores">
+        ${r.peRatioTTM  ? chip('P/E',  fmt2(r.peRatioTTM),  r.peRatioTTM < 25) : ''}
+        ${r.returnOnEquityTTM != null ? chip('ROE', fmtP(r.returnOnEquityTTM), r.returnOnEquityTTM > 0.15) : ''}
+        ${r.debtEquityRatioTTM != null ? chip('D/E', fmt2(r.debtEquityRatioTTM), r.debtEquityRatioTTM < 1) : ''}
+        ${r.freeCashFlowYieldTTM != null ? chip('FCF', fmtP(r.freeCashFlowYieldTTM), r.freeCashFlowYieldTTM > 0.03) : ''}
+        ${r.grossProfitMarginTTM != null ? chip('Mg.Bruto', fmtP(r.grossProfitMarginTTM), r.grossProfitMarginTTM > 0.35) : ''}
+        ${ts != null ? chip('Técnico', ts+'%', ts >= 60) : '<span class="scr-score-chip" style="background:rgba(139,148,158,.1);color:var(--muted);border:1px solid var(--border)">Técnico: no analizado</span>'}
+        ${item.limitReached ? '<span class="scr-score-chip" style="background:rgba(210,153,34,.1);color:var(--yellow);border:1px solid rgba(210,153,34,.25)">⚠ Límite AV</span>' : ''}
+      </div>
+      <div class="scr-result-action">
+        <button class="btn btn-a" style="font-size:9px" onclick="analyzeFromPortfolio('${item.ticker}')">▶ ANALIZAR</button>
+      </div>
+    </div>`;
+  }).join('')}`;
+
+  btn.disabled = false; btn.textContent = '▶ EJECUTAR';
 }
 
 // ── DECISIONS PAGE ──
