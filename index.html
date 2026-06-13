@@ -229,6 +229,16 @@ canvas{max-width:100%}
 .layer-loading{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px}
 .layer-content{font-size:11px;color:var(--text2);line-height:1.6}
 
+/* ── CORRELATION MATRIX ── */
+.corr-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.corr-table{border-collapse:collapse;font-family:var(--mono);font-size:10px;min-width:100%;}
+.corr-table th{padding:6px 10px;color:var(--text2);font-size:9px;letter-spacing:.08em;text-align:center;white-space:nowrap;}
+.corr-table td{padding:5px 8px;text-align:center;font-weight:700;font-size:11px;border:1px solid rgba(255,255,255,.04);min-width:52px;}
+.corr-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--text2);}
+.corr-legend-item{display:flex;align-items:center;gap:4px;}
+.corr-legend-dot{width:10px;height:10px;border-radius:2px;}
+.corr-verdict{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.6;}
+
 /* ── BENCHMARK COMPARISON ── */
 .bench-card{background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:18px 20px;margin-bottom:14px;}
 .bench-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
@@ -657,6 +667,18 @@ canvas{max-width:100%}
       </thead>
       <tbody id="posBody"></tbody>
     </table>
+  </div>
+
+  <!-- MATRIZ DE CORRELACIÓN -->
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:12px" id="corrSection">
+    <div class="sec-hdr" style="margin-bottom:10px;padding-bottom:8px">
+      <div>
+        <div class="sec-title">// CORRELACIÓN ENTRE POSICIONES</div>
+        <div class="sec-sub">Diversificación real del portafolio · Verde = bajo riesgo compartido</div>
+      </div>
+      <button class="btn btn-g" style="font-size:9px" onclick="renderCorrelation()">↻ CALCULAR</button>
+    </div>
+    <div id="corrMatrix"><div style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:20px 0;text-align:center">Presioná CALCULAR para analizar la correlación entre tus posiciones.</div></div>
   </div>
 
 </div>
@@ -1972,6 +1994,118 @@ function getDecisionForAll() {
   const result = {};
   POSITIONS.forEach(p => { result[p.ticker] = generateDecision(p); });
   return result;
+}
+
+// ── CORRELATION MATRIX ──
+function renderCorrelation() {
+  const el = document.getElementById('corrMatrix');
+  if(!el) return;
+
+  // Filtramos solo acciones/crypto con datos en RESULTS_CACHE
+  const tickers = POSITIONS.filter(p => p.type !== 'bond').map(p => p.ticker);
+  const cached  = tickers.filter(t => RESULTS_CACHE[t] && RESULTS_CACHE[t].CD && RESULTS_CACHE[t].CD.closes && RESULTS_CACHE[t].CD.closes.length > 20);
+
+  if(cached.length < 2) {
+    el.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:20px 0;text-align:center">Necesitás analizar al menos 2 posiciones en el Analizador primero para calcular la correlación.</div>`;
+    return;
+  }
+
+  // Calcular retornos diarios para cada ticker
+  const returns = {};
+  cached.forEach(t => {
+    const closes = RESULTS_CACHE[t].CD.closes;
+    const rets = [];
+    for(let i = 1; i < closes.length; i++) {
+      rets.push((closes[i] - closes[i-1]) / closes[i-1]);
+    }
+    returns[t] = rets;
+  });
+
+  // Calcular correlación de Pearson entre dos series
+  const pearson = (a, b) => {
+    const n = Math.min(a.length, b.length);
+    if(n < 5) return null;
+    const ax = a.slice(-n), bx = b.slice(-n);
+    const ma = ax.reduce((s,v) => s+v, 0) / n;
+    const mb = bx.reduce((s,v) => s+v, 0) / n;
+    let num = 0, da = 0, db = 0;
+    for(let i = 0; i < n; i++) {
+      const va = ax[i]-ma, vb = bx[i]-mb;
+      num += va*vb; da += va*va; db += vb*vb;
+    }
+    const denom = Math.sqrt(da*db);
+    return denom === 0 ? null : num/denom;
+  };
+
+  // Construir matriz
+  const matrix = {};
+  cached.forEach(t1 => {
+    matrix[t1] = {};
+    cached.forEach(t2 => {
+      matrix[t1][t2] = t1 === t2 ? 1 : pearson(returns[t1], returns[t2]);
+    });
+  });
+
+  // Color por correlación
+  const corrColor = (v, isSelf) => {
+    if(isSelf) return { bg:'rgba(0,229,255,.15)', color:'var(--accent)' };
+    if(v === null) return { bg:'var(--bg3)', color:'var(--muted)' };
+    if(v > 0.7)  return { bg:'rgba(248,81,73,.25)',  color:'var(--red)' };
+    if(v > 0.4)  return { bg:'rgba(210,153,34,.2)',  color:'var(--yellow)' };
+    if(v > 0.1)  return { bg:'rgba(63,185,80,.15)',  color:'var(--green)' };
+    if(v > -0.1) return { bg:'rgba(139,148,158,.1)', color:'var(--text2)' };
+    return { bg:'rgba(167,139,250,.15)', color:'var(--purple)' };
+  };
+
+  // Veredicto general
+  let highCorr = 0, pairs = 0;
+  cached.forEach((t1, i) => {
+    cached.forEach((t2, j) => {
+      if(j <= i) return;
+      const v = matrix[t1][t2];
+      if(v !== null && v > 0.7) highCorr++;
+      pairs++;
+    });
+  });
+  const riskPct = pairs > 0 ? Math.round(highCorr/pairs*100) : 0;
+  const verdictColor = riskPct > 50 ? 'rgba(248,81,73,.1)' : riskPct > 20 ? 'rgba(210,153,34,.1)' : 'rgba(63,185,80,.1)';
+  const verdictBorder = riskPct > 50 ? 'rgba(248,81,73,.3)' : riskPct > 20 ? 'rgba(210,153,34,.3)' : 'rgba(63,185,80,.3)';
+  const verdictText = riskPct > 50
+    ? `<strong style="color:var(--red)">Diversificación débil.</strong> Más del 50% de tus pares tienen correlación alta (>0.7). Si el mercado cae, tus posiciones caen juntas.`
+    : riskPct > 20
+    ? `<strong style="color:var(--yellow)">Diversificación moderada.</strong> Algunos pares se mueven juntos. Considerá agregar activos no correlacionados (bonos, commodities, otro sector).`
+    : `<strong style="color:var(--green)">Buena diversificación.</strong> Tus posiciones tienen baja correlación entre sí. El portafolio está bien distribuido por riesgo.`;
+
+  el.innerHTML = `
+  <div class="corr-wrap">
+    <table class="corr-table">
+      <thead>
+        <tr>
+          <th></th>
+          ${cached.map(t => `<th>${t}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${cached.map(t1 => `
+        <tr>
+          <th style="text-align:left;color:var(--accent);padding-right:12px">${t1}</th>
+          ${cached.map(t2 => {
+            const v = matrix[t1][t2];
+            const isSelf = t1 === t2;
+            const { bg, color } = corrColor(v, isSelf);
+            return `<td style="background:${bg};color:${color}">${isSelf ? '—' : v !== null ? v.toFixed(2) : 'N/A'}</td>`;
+          }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="corr-legend">
+    <span class="corr-legend-item"><span class="corr-legend-dot" style="background:rgba(248,81,73,.5)"></span>Alta (>0.7) — riesgo</span>
+    <span class="corr-legend-item"><span class="corr-legend-dot" style="background:rgba(210,153,34,.5)"></span>Media (0.4–0.7) — atención</span>
+    <span class="corr-legend-item"><span class="corr-legend-dot" style="background:rgba(63,185,80,.5)"></span>Baja (0.1–0.4) — buena</span>
+    <span class="corr-legend-item"><span class="corr-legend-dot" style="background:rgba(167,139,250,.5)"></span>Negativa — descorrelacionado</span>
+  </div>
+  <div class="corr-verdict" style="background:${verdictColor};border:1px solid ${verdictBorder};">${verdictText}</div>`;
 }
 
 // ── DECISIONS PAGE ──
@@ -3681,6 +3815,7 @@ async function run(){
     clearInterval(iv);ld.classList.remove('on');
     const result=analyze(data);
     data_ref = data;
+    RESULTS_CACHE[ticker] = { ...result, CD: data };
     renderResults(result);
     updateWatchlistItem(ticker,result);
   }catch(err){clearInterval(iv);ld.classList.remove('on');showErr('⚠ '+err.message);}
