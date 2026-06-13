@@ -3107,12 +3107,12 @@ async function loadAllLayers(r, data) {
   // Price targets rendered directly in renderResults
 
   // Layer 1: Fundamentals
+  let fundData = null;
   const fundEl = document.getElementById('layer-fundamentals');
   if(fundEl) {
     fundEl.innerHTML = '<div class="loading-inline"><span class="spin-sm"></span>Cargando fundamentales...</div>';
-    const fundData = await fetchFundamentals(r.ticker);
+    fundData = await fetchFundamentals(r.ticker);
     fundEl.innerHTML = renderFundamentals(fundData, r.ticker);
-    // Update master score if fundamentals loaded
     if(fundData && fundData.ratios) {
       const fScore = calcFundamentalScore(fundData.ratios, fundData.profile||{}, fundData.income||[]);
       updateMasterScore(r, fScore, null, null, null);
@@ -3165,10 +3165,9 @@ async function loadAllLayers(r, data) {
     updateKelly();
   }
 
-  // Layer 6: Claude Narrative — runs after fundamentals and news are loaded
+  // Layer 6: Claude Narrative — reutiliza fundData ya cargado en Layer 1
   const narrativeEl = document.getElementById('layer-narrative');
   if(narrativeEl) {
-    const fundData = await fetchFundamentals(r.ticker);
     await fetchClaudeNarrative(r, fundData, narrativeEl);
   }
 }
