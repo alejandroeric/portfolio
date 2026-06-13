@@ -2346,18 +2346,23 @@ function renderDecisions() {
   const urgLabel = u => ({u:'🔴 URGENTE',w:'🟡 RECOMENDADO',p:'🟢 POSITIVO',n:'⚪ MONITOREAR',i:'🔵 INFO'}[u]||'');
 
   container.innerHTML = decisions.map(({pos, dec}) => {
-    const price = getCurrentPrice(pos.ticker) || pos.costBasis;
-    let pnlPct, pnlARS;
-    if(pos.currency === 'ARS' && KNOWN_PRICES_ARS[pos.ticker] && pos.costBasisARS) {
-      const currentARS = KNOWN_PRICES_ARS[pos.ticker];
-      const cb2 = getCostBasisARS(pos) || pos.costBasis; pnlPct = ((currentARS - cb2) / cb2 * 100);
-      pnlARS = (currentARS - pos.costBasisARS) * pos.qty;
-    } else {
+    const isARS = pos.currency === 'ARS';
+    const currentARS = isARS ? getCurrentPriceARS(pos.ticker) : null;
+    const realPrice = getCurrentPrice(pos.ticker);
+    const price = realPrice || pos.costBasis;
+    const hasPriceData = !!(currentARS || realPrice);
+    let pnlPct = null, pnlARS = null;
+    if(isARS && currentARS) {
+      const cb2 = getCostBasisARS(pos) || pos.costBasis;
+      pnlPct = ((currentARS - cb2) / cb2 * 100);
+      pnlARS = (currentARS - (pos.costBasisARS || pos.costBasis)) * pos.qty;
+    } else if(hasPriceData) {
       pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
       pnlARS = null;
     }
+    const displayPrice = isARS && currentARS ? currentARS : price;
     const pnlUSD = pnlARS ? pnlARS / getEffectiveMEP() : (price - pos.costBasis) * pos.qty;
-    const pnlClass2 = pnlPct>=0?'pnl-g':'pnl-r';
+    const pnlClass2 = pnlPct!=null && pnlPct>=0?'pnl-g':'pnl-r';
     const confColor = dec.confidence>=70?'var(--green)':dec.confidence>=50?'var(--yellow)':'var(--red)';
 
     const levelsHTML = dec.levels ? Object.entries(dec.levels).map(([k,v])=>`
@@ -2372,14 +2377,14 @@ function renderDecisions() {
         </div>
         <div class="dec-right">
           <div class="dec-badge ${badgeClass(dec.action)}">${dec.action}</div>
-          <div class="dec-pnl ${pnlClass2}">${pnlPct>=0?'+':''}${fmt(pnlPct)}%</div>
+          <div class="dec-pnl ${pnlClass2}">${pnlPct!=null?(pnlPct>=0?'+':'')+fmt(pnlPct)+'%':'–'}</div>
           <div style="font-family:var(--mono);font-size:9px;color:var(--muted)">${urgLabel(dec.urgency)}</div>
         </div>
       </div>
       <div class="dec-metrics">
-        <div class="dm"><div class="dm-l">PRECIO HOY</div><div class="dm-v" style="color:var(--accent)">${fmtP(price)}</div></div>
-        <div class="dm"><div class="dm-l">PRECIO COMPRA</div><div class="dm-v">${pos.currency==='ARS'?'$'+pos.costBasis.toLocaleString('es-AR')+'<span style="font-size:9px;color:var(--text2)"> ARS</span>':fmtP(pos.costBasis)}</div></div>
-        <div class="dm"><div class="dm-l">VALOR POSICIÓN</div><div class="dm-v">${fmtK(price*pos.qty)}</div></div>
+        <div class="dm"><div class="dm-l">PRECIO HOY</div><div class="dm-v" style="color:var(--accent)">${isARS && currentARS ? '$'+currentARS.toLocaleString('es-AR')+' ARS' : fmtP(price)}</div></div>
+        <div class="dm"><div class="dm-l">PRECIO COMPRA</div><div class="dm-v">${isARS?'$'+(pos.costBasisARS||pos.costBasis).toLocaleString('es-AR')+'<span style="font-size:9px;color:var(--text2)"> ARS</span>':fmtP(pos.costBasis)}</div></div>
+        <div class="dm"><div class="dm-l">VALOR POSICIÓN</div><div class="dm-v">${isARS && currentARS ? fmtK(currentARS*pos.qty/getEffectiveMEP()) : fmtK(price*pos.qty)}</div></div>
         ${dec.tp?`<div class="dm"><div class="dm-l">TAKE PROFIT</div><div class="dm-v" style="color:var(--green)">${fmtP(dec.tp)}</div></div>`:''}
         ${dec.sl?`<div class="dm"><div class="dm-l">STOP LOSS</div><div class="dm-v" style="color:var(--red)">${fmtP(dec.sl)}</div></div>`:''}
       </div>
