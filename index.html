@@ -229,6 +229,25 @@ canvas{max-width:100%}
 .layer-loading{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px}
 .layer-content{font-size:11px;color:var(--text2);line-height:1.6}
 
+/* ── BENCHMARK COMPARISON ── */
+.bench-card{background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:18px 20px;margin-bottom:14px;}
+.bench-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.bench-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent);}
+.bench-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:500px){.bench-grid{grid-template-columns:1fr;}}
+.bench-period{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:12px 14px;}
+.bench-period-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);margin-bottom:8px;}
+.bench-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:11px;}
+.bench-name{color:var(--text2);}
+.bench-val{font-family:var(--mono);font-weight:700;font-size:12px;}
+.bench-verdict{border-radius:9px;padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.bench-verdict.out{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);}
+.bench-verdict.under{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);}
+.bench-verdict.neutral{background:rgba(139,148,158,.08);border:1px solid var(--border);}
+.bench-verdict-icon{font-size:22px;}
+.bench-verdict-text{font-size:12px;line-height:1.6;color:var(--text);}
+.bench-verdict-text strong{color:#fff;}
+
 /* ── NARRATIVE ANALYST ── */
 .narrative-card{background:var(--bg2);border:1px solid rgba(0,229,255,.2);border-radius:13px;padding:18px 20px;margin-bottom:14px;position:relative;overflow:hidden;}
 .narrative-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
@@ -2739,6 +2758,17 @@ function renderResults(r){
     </div>
   </div>
 
+  <!-- BENCHMARK COMPARISON -->
+  <div class="bench-card" id="layer-benchmark">
+    <div class="bench-header">
+      <div class="bench-title">// RENDIMIENTO VS BENCHMARK SECTORIAL</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px 0;">
+      <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;"></span>
+      Comparando vs benchmark...
+    </div>
+  </div>
+
   <!-- NARRATIVE ANALYST -->
   <div class="narrative-card" id="layer-narrative">
     <div class="narrative-header">
@@ -3294,6 +3324,108 @@ async function fetchMacro() {
   };
 }
 
+const SECTOR_ETF = {
+  'Technology':'XLK','Software':'XLK','IT Services':'XLK','Semiconductors':'SOXX',
+  'Streaming':'XLC','Gaming':'XLC','Communication':'XLC',
+  'Defense':'XLA','Aerospace':'XLA',
+  'FinTech LATAM':'XLF','Financials':'XLF','Banking':'XLF',
+  'Healthcare':'XLV','Pharma':'XLV',
+  'Energy':'XLE','Utilities':'XLU','Consumer':'XLY',
+  'Crypto':'GBTC','Bono Soberano AR':'TLT',
+};
+
+async function fetchBenchmark(ticker, sector, tickerCloses, tickerLabels) {
+  const benchTicker = SECTOR_ETF[sector] || 'SPY';
+  const el = document.getElementById('layer-benchmark');
+  if(!el) return;
+
+  let benchCloses = null;
+  if(API_KEY && !IS_DEMO) {
+    try {
+      const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${benchTicker}&outputsize=compact&apikey=${API_KEY}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const ts = json['Time Series (Daily)'];
+      if(ts) {
+        benchCloses = Object.entries(ts).slice(0, 130).reverse().map(([, v]) => parseFloat(v['4. close']));
+      }
+    } catch(e) {}
+  }
+
+  const calcReturn = (closes, days) => {
+    if(!closes || closes.length < days + 1) return null;
+    const recent = closes[closes.length - 1];
+    const past   = closes[closes.length - 1 - days];
+    return ((recent - past) / past * 100);
+  };
+
+  const periods = [
+    { label: '1 MES',  days: 21 },
+    { label: '3 MESES', days: 63 },
+    { label: '6 MESES', days: 126 },
+  ];
+
+  const rows = periods.map(p => {
+    const tickerRet = calcReturn(tickerCloses, p.days);
+    const benchRet  = calcReturn(benchCloses, p.days);
+    const diff = (tickerRet != null && benchRet != null) ? tickerRet - benchRet : null;
+    return { ...p, tickerRet, benchRet, diff };
+  });
+
+  // Veredicto basado en los 3 meses
+  const mainDiff = rows[1].diff;
+  let verdictClass = 'neutral', verdictIcon = '⚖', verdictText = '';
+  if(mainDiff != null) {
+    if(mainDiff > 3) {
+      verdictClass = 'out';
+      verdictIcon = '↑';
+      verdictText = `<strong>${ticker} está superando a ${benchTicker}</strong> por ${mainDiff.toFixed(1)}% en los últimos 3 meses. El mercado premia esta acción más que al sector. Señal positiva para mantener la posición.`;
+    } else if(mainDiff < -3) {
+      verdictClass = 'under';
+      verdictIcon = '↓';
+      verdictText = `<strong>${ticker} está rezagado vs ${benchTicker}</strong> por ${Math.abs(mainDiff).toFixed(1)}% en los últimos 3 meses. El sector rinde más que esta acción individual. Evaluar si tiene sentido seguir expuesto.`;
+    } else {
+      verdictIcon = '≈';
+      verdictText = `<strong>${ticker} está en línea con ${benchTicker}</strong> (diferencia menor a 3%). Sin ventaja ni desventaja clara respecto al sector en este período.`;
+    }
+  } else {
+    verdictText = benchCloses ? 'Datos insuficientes para comparar.' : `Sin API key activa. Configurá Alpha Vantage en ⚙ Config para ver la comparación vs ${benchTicker}.`;
+  }
+
+  const fmtRet = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+  const retColor = v => v == null ? 'var(--text2)' : v >= 0 ? 'var(--green)' : 'var(--red)';
+  const diffColor = v => v == null ? 'var(--text2)' : v >= 3 ? 'var(--green)' : v <= -3 ? 'var(--red)' : 'var(--yellow)';
+
+  el.innerHTML = `
+  <div class="bench-header">
+    <div class="bench-title">// RENDIMIENTO VS BENCHMARK SECTORIAL</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text2);">${ticker} vs ${benchTicker} (${sector || 'mercado'})</div>
+  </div>
+  <div class="bench-grid">
+    ${rows.map(p => `
+    <div class="bench-period">
+      <div class="bench-period-label">${p.label}</div>
+      <div class="bench-row">
+        <span class="bench-name">${ticker}</span>
+        <span class="bench-val" style="color:${retColor(p.tickerRet)}">${fmtRet(p.tickerRet)}</span>
+      </div>
+      <div class="bench-row">
+        <span class="bench-name">${benchTicker}</span>
+        <span class="bench-val" style="color:${retColor(p.benchRet)}">${fmtRet(p.benchRet)}</span>
+      </div>
+      <div style="border-top:1px solid var(--border2);margin:6px 0;"></div>
+      <div class="bench-row">
+        <span class="bench-name">Alpha</span>
+        <span class="bench-val" style="color:${diffColor(p.diff)}">${p.diff != null ? (p.diff >= 0 ? '+' : '') + p.diff.toFixed(1) + '%' : '—'}</span>
+      </div>
+    </div>`).join('')}
+  </div>
+  <div class="bench-verdict ${verdictClass}">
+    <div class="bench-verdict-icon">${verdictIcon}</div>
+    <div class="bench-verdict-text">${verdictText}</div>
+  </div>`;
+}
+
 async function loadAllLayers(r, data) {
   if(!data) return;
   
@@ -3358,7 +3490,11 @@ async function loadAllLayers(r, data) {
     updateKelly();
   }
 
-  // Layer 6: Claude Narrative — reutiliza fundData ya cargado en Layer 1
+  // Layer 6: Benchmark comparison
+  const sector = fundData?.profile?.sector || r.sector || 'Technology';
+  await fetchBenchmark(r.ticker, sector, data.closes, data.labels);
+
+  // Layer 7: Claude Narrative — reutiliza fundData ya cargado en Layer 1
   const narrativeEl = document.getElementById('layer-narrative');
   if(narrativeEl) {
     await fetchClaudeNarrative(r, fundData, narrativeEl);
