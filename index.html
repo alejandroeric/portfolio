@@ -1375,7 +1375,112 @@ function calcKelly(winRate, avgWin, avgLoss) {
   const W = parseFloat(winRate) / 100;
   const R = Math.abs(parseFloat(avgWin)) / Math.abs(parseFloat(avgLoss)||1);
   const kelly = W - (1 - W) / R;
-  return Math.max(0, Math.min(0.25, kelly)); // Cap at 25%
+  return Math.max(0, Math.min(0.25, kelly));
+}
+
+function calcFundamentalScore(ratios, profile, income) {
+  if(!ratios) return 50;
+  let score = 50;
+  const r = ratios;
+  const p = profile || {};
+
+  // P/E (0-20 pts): bajo es mejor
+  const pe = r.peRatioTTM;
+  if(pe > 0 && pe < 15) score += 20;
+  else if(pe >= 15 && pe < 25) score += 10;
+  else if(pe >= 25 && pe < 40) score += 0;
+  else if(pe >= 40) score -= 10;
+
+  // ROE (0-15 pts)
+  const roe = r.returnOnEquityTTM;
+  if(roe > 0.20) score += 15;
+  else if(roe > 0.15) score += 10;
+  else if(roe > 0.08) score += 5;
+  else if(roe < 0) score -= 10;
+
+  // Deuda/Equity (0-15 pts)
+  const dte = r.debtEquityRatioTTM;
+  if(dte < 0.3) score += 15;
+  else if(dte < 0.8) score += 8;
+  else if(dte < 1.5) score += 0;
+  else score -= 10;
+
+  // FCF Yield (0-10 pts)
+  const fcf = r.freeCashFlowYieldTTM;
+  if(fcf > 0.07) score += 10;
+  else if(fcf > 0.03) score += 5;
+  else if(fcf < 0) score -= 8;
+
+  // Margen neto (0-10 pts)
+  const nm = r.netProfitMarginTTM;
+  if(nm > 0.20) score += 10;
+  else if(nm > 0.10) score += 5;
+  else if(nm < 0) score -= 8;
+
+  // Current Ratio (0-10 pts)
+  const cr = r.currentRatioTTM;
+  if(cr >= 2) score += 10;
+  else if(cr >= 1) score += 5;
+  else score -= 10;
+
+  // Margen bruto (0-10 pts)
+  const gm = r.grossProfitMarginTTM;
+  if(gm > 0.50) score += 10;
+  else if(gm > 0.30) score += 5;
+  else if(gm > 0.15) score += 2;
+
+  // Revenue growth (0-10 pts)
+  if(income && income.length >= 2 && income[0]?.revenue && income[1]?.revenue) {
+    const g = (income[0].revenue - income[1].revenue) / Math.abs(income[1].revenue);
+    if(g > 0.15) score += 10;
+    else if(g > 0.05) score += 5;
+    else if(g < 0) score -= 5;
+  }
+
+  // DCF vs precio (0-10 pts)
+  if(p.dcf && p.price) {
+    const upside = (p.dcf - p.price) / p.price;
+    if(upside > 0.20) score += 10;
+    else if(upside > 0) score += 5;
+    else score -= 5;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function calcMasterScore(techScore, fundScore, sentScore, macroScore, btScore) {
+  // Pesos: técnico 35%, fundamental 30%, sentimiento 15%, macro 10%, backtest 10%
+  const master = (techScore * 0.35) + (fundScore * 0.30) + (sentScore * 0.15) + (macroScore * 0.10) + (btScore * 0.10);
+  return Math.max(0, Math.min(100, Math.round(master)));
+}
+
+function updateKelly() {
+  const capEl   = document.getElementById('kellyCap');
+  const riskEl  = document.getElementById('kellyRisk');
+  const priceEl = document.getElementById('kellyPrice');
+  const slEl    = document.getElementById('kellySL');
+  const outEl   = document.getElementById('kellyOutput');
+  if(!capEl || !outEl) return;
+
+  const capital = parseFloat(capEl.value) || 10000;
+  const riskPct = parseFloat(riskEl.value) || 2;
+  const price   = parseFloat(priceEl.value) || 100;
+  const sl      = parseFloat(slEl.value) || 95;
+
+  const riskPerShare = Math.abs(price - sl);
+  if(riskPerShare <= 0) { outEl.innerHTML = 'Stop loss debe ser menor al precio actual.'; return; }
+
+  const riskAmount   = capital * (riskPct / 100);
+  const shares       = Math.floor(riskAmount / riskPerShare);
+  const totalInvest  = shares * price;
+  const pctPortfolio = (totalInvest / capital * 100).toFixed(1);
+
+  outEl.innerHTML = `
+    <span style="color:var(--accent)">Acciones a comprar:</span> <strong style="color:#fff">${shares}</strong><br>
+    <span style="color:var(--text2)">Capital en riesgo:</span> <strong style="color:var(--red)">$${riskAmount.toFixed(0)} (${riskPct}%)</strong><br>
+    <span style="color:var(--text2)">Inversión total:</span> <strong style="color:var(--accent)">$${totalInvest.toLocaleString('es-AR', {maximumFractionDigits:0})} (${pctPortfolio}% del capital)</strong><br>
+    <span style="color:var(--text2)">Pérdida máxima si toca SL:</span> <strong style="color:var(--red)">-$${riskAmount.toFixed(0)}</strong>
+  `;
 }
 
 
