@@ -4024,7 +4024,13 @@ async function readPricesFromImage(base64DataUrl, mimeType) {
 
   // Extract base64 data without the data URL prefix
   const base64Data = base64DataUrl.split(',')[1];
-  const mediaType = mimeType || 'image/jpeg';
+  // Detect real format from magic bytes (file.type and data URL prefix can lie)
+  let mediaType;
+  if (base64Data.startsWith('/9j/')) mediaType = 'image/jpeg';
+  else if (base64Data.startsWith('iVBORw')) mediaType = 'image/png';
+  else if (base64Data.startsWith('R0lGOD')) mediaType = 'image/gif';
+  else if (base64Data.startsWith('UklGR')) mediaType = 'image/webp';
+  else mediaType = mimeType || 'image/jpeg';
 
   try {
     const response = await fetch(ANTHROPIC_API_URL, {
