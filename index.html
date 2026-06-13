@@ -1978,7 +1978,7 @@ function renderDecisions() {
       pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
       pnlARS = null;
     }
-    const pnlUSD = pnlARS ? pnlARS / (MEP_RATE||1434.80) : (price - pos.costBasis) * pos.qty;
+    const pnlUSD = pnlARS ? pnlARS / getEffectiveMEP() : (price - pos.costBasis) * pos.qty;
     const pnlClass2 = pnlPct>=0?'pnl-g':'pnl-r';
     const confColor = dec.confidence>=70?'var(--green)':dec.confidence>=50?'var(--yellow)':'var(--red)';
 
