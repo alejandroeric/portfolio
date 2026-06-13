@@ -229,6 +229,23 @@ canvas{max-width:100%}
 .layer-loading{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px}
 .layer-content{font-size:11px;color:var(--text2);line-height:1.6}
 
+/* ── NARRATIVE ANALYST ── */
+.narrative-card{background:var(--bg2);border:1px solid rgba(0,229,255,.2);border-radius:13px;padding:18px 20px;margin-bottom:14px;position:relative;overflow:hidden;}
+.narrative-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.narrative-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.narrative-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent);}
+.narrative-badge{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:4px;background:rgba(0,229,255,.08);color:var(--accent);border:1px solid rgba(0,229,255,.2);}
+.narrative-body{font-size:13px;color:var(--text);line-height:1.8;}
+.narrative-body p{margin-bottom:10px;}
+.narrative-body p:last-child{margin-bottom:0;}
+.narrative-section{margin-bottom:12px;}
+.narrative-section-title{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--text2);margin-bottom:5px;}
+.narrative-verdict{background:var(--bg3);border-radius:9px;padding:12px 14px;margin-top:14px;border:1px solid var(--border);}
+.narrative-verdict-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);margin-bottom:5px;}
+.narrative-verdict-text{font-size:13px;font-weight:600;color:var(--text);line-height:1.6;}
+.narrative-bull{color:var(--green);}
+.narrative-bear{color:var(--red);}
+
 /* ── ASSET HEADER ── */
 .asset-hdr{padding:14px;border-bottom:1px solid var(--border2)}
 .ah-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
@@ -2589,6 +2606,20 @@ function renderResults(r){
       <div class="slv"><div class="slvlbl">Take Profit (2.5× ATR)</div><div class="slvprice" style="color:var(--green)">${fmtP(r.tp)}</div><div class="slvdesc">+${fmt(Math.abs(r.tp-r.entry)/r.entry*100,1)}% · R:R ${fmt(r.rr,2)}:1</div></div>
       <div class="slv"><div class="slvlbl">Stop Loss (1.8× ATR)</div><div class="slvprice" style="color:var(--red)">${fmtP(r.sl)}</div><div class="slvdesc">−${fmt(Math.abs(r.sl-r.entry)/r.entry*100,1)}% máx. riesgo</div></div>
     </div>
+  </div>
+
+  <!-- NARRATIVE ANALYST -->
+  <div class="narrative-card" id="layer-narrative">
+    <div class="narrative-header">
+      <div class="narrative-title">// ANÁLISIS NARRATIVO — ANALISTA SENIOR</div>
+      <div class="narrative-badge">Claude AI</div>
+    </div>
+    <div class="narrative-body">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px 0;">
+        <span class="spin-sm" style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;"></span>
+        Generando análisis narrativo...
+      </div>
+    </div>
   </div>`;
 
   document.getElementById('resBox').classList.add('on');
@@ -3128,6 +3159,110 @@ async function loadAllLayers(r, data) {
   if(riskEl && data) {
     riskEl.innerHTML = renderRisk(r, runBacktest(data, r), data);
     updateKelly();
+  }
+
+  // Layer 6: Claude Narrative — runs after fundamentals and news are loaded
+  const narrativeEl = document.getElementById('layer-narrative');
+  if(narrativeEl) {
+    const fundData = await fetchFundamentals(r.ticker);
+    await fetchClaudeNarrative(r, fundData, narrativeEl);
+  }
+}
+
+async function fetchClaudeNarrative(r, fundData, el) {
+  const antKey = localStorage.getItem('anthropic_key') || '';
+  if(!antKey) {
+    el.querySelector('.narrative-body').innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px 0;">Configurá tu API key de Anthropic en ⚙ Config para ver el análisis narrativo.</div>';
+    return;
+  }
+
+  const p = fundData?.profile || {};
+  const rat = fundData?.ratios || {};
+  const income = fundData?.income || [];
+
+  const fmt2 = v => (v==null||isNaN(v)) ? 'N/A' : Number(v).toFixed(2);
+  const fmtPct = v => (v==null||isNaN(v)) ? 'N/A' : (Number(v)*100).toFixed(1)+'%';
+
+  let revGrowth = 'N/A';
+  if(income.length>=2 && income[0]?.revenue && income[1]?.revenue) {
+    revGrowth = ((income[0].revenue - income[1].revenue) / Math.abs(income[1].revenue) * 100).toFixed(1) + '%';
+  }
+
+  const prompt = `Sos un analista financiero senior con 20 años de experiencia en mercados de capitales. Analizá ${r.ticker} con toda la información disponible y escribí un análisis narrativo profundo como si tu propio dinero estuviera en juego.
+
+DATOS TÉCNICOS:
+- Score técnico: ${r.aiScore}%
+- Señales alcistas: ${r.bullSignals}/10 | Señales bajistas: ${r.bearSignals}/10
+- RSI: ${fmt2(r.rsiV)} | MACD histograma: ${fmt2(r.histV)} | ADX: ${fmt2(r.adxV)}
+- Squeeze Momentum: ${r.sqNow ? 'ON (comprimido)' : 'OFF'} | Disparado: ${r.fired ? 'SÍ' : 'NO'}
+- OBV: ${r.obvTrend ? 'ACUMULANDO (institucionales comprando)' : 'DISTRIBUYENDO (institucionales vendiendo)'}
+- Precio actual: ${r.price} ${r.currency} | Stop Loss: ${r.sl?.toFixed(2)} | Take Profit: ${r.tp?.toFixed(2)}
+
+DATOS FUNDAMENTALES:
+- P/E (TTM): ${fmt2(rat.peRatioTTM)} | P/B: ${fmt2(rat.priceToBookRatioTTM)} | EV/EBITDA: ${fmt2(rat.enterpriseValueMultipleTTM)}
+- ROE: ${fmtPct(rat.returnOnEquityTTM)} | Margen neto: ${fmtPct(rat.netProfitMarginTTM)} | FCF Yield: ${fmtPct(rat.freeCashFlowYieldTTM)}
+- Deuda/Equity: ${fmt2(rat.debtEquityRatioTTM)} | Dividend Yield: ${fmtPct(rat.dividendYielTTM)}
+- Crecimiento de revenue YoY: ${revGrowth}
+- Market Cap: ${p.mktCap ? (p.mktCap/1e9).toFixed(1)+'B' : 'N/A'} | Beta: ${fmt2(p.beta)}
+- DCF valuación: ${p.dcf ? '$'+Number(p.dcf).toFixed(2) : 'N/A'} vs precio actual ${r.price}
+- Sector: ${p.sector || r.sector || 'N/A'} | País: ${p.country || 'N/A'}
+
+CONTEXTO MACRO ACTUAL (Junio 2026):
+- S&P 500: ~7.520 | VIX: ~16.7 (mercado tranquilo) | Fed Rate: 3.75% | DXY: ~98
+
+Escribí el análisis en español rioplatense. Estructuralo EXACTAMENTE así (usá estas etiquetas HTML):
+
+<div class="narrative-section">
+<div class="narrative-section-title">CALIDAD DE LOS NÚMEROS</div>
+<p>[Interpretá los ratios: ¿el ROE es real o inflado por deuda? ¿el FCF respalda las ganancias? ¿el crecimiento es sostenible? Comparalo con el promedio del sector usando tu conocimiento.]</p>
+</div>
+
+<div class="narrative-section">
+<div class="narrative-section-title">POSICIÓN COMPETITIVA Y MOAT</div>
+<p>[Usando tu conocimiento de la empresa: ¿qué ventaja competitiva tiene? ¿es duradera? ¿hay amenazas al moat?]</p>
+</div>
+
+<div class="narrative-section">
+<div class="narrative-section-title">SEÑAL TÉCNICA</div>
+<p>[Interpretá las señales técnicas en contexto: ¿confirman o contradicen los fundamentales? ¿qué dice el OBV sobre el dinero institucional?]</p>
+</div>
+
+<div class="narrative-section">
+<div class="narrative-section-title"><span class="narrative-bull">CASO BULL</span></div>
+<p>[La tesis para comprar — concreta, con números y catalizadores específicos.]</p>
+</div>
+
+<div class="narrative-section">
+<div class="narrative-section-title"><span class="narrative-bear">CASO BEAR</span></div>
+<p>[El riesgo principal que te haría no dormir — sé honesto y específico.]</p>
+</div>
+
+<div class="narrative-verdict">
+<div class="narrative-verdict-label">VEREDICTO FINAL</div>
+<div class="narrative-verdict-text">[Una oración directa: qué harías vos con esta acción hoy y por qué. Sin ambigüedades.]</div>
+</div>`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': antKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+    const text = data.content[0].text;
+    el.querySelector('.narrative-body').innerHTML = text;
+  } catch(e) {
+    el.querySelector('.narrative-body').innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--red);padding:10px 0;">Error al generar análisis: ${e.message}</div>`;
   }
 }
 
