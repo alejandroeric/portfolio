@@ -2932,6 +2932,10 @@ function renderFundamentals(data, ticker) {
     { k:'Próx. Earnings',    v: nextEarnings,                  sub: 'Fecha resultados', col:'var(--yellow)' },
     { k:'Insiders',          v: insiderSignal,                 sub: `${insiderBuys}C / ${insiderSells}V (últimas 10 transacc.)`, col: insiderColor },
     { k:'Short Interest',    v: shortFloat,                    sub: 'Presión bajista', col: shortFloat==='Normal'?'var(--text)':'var(--red)' },
+    // Nuevos ratios
+    { k:'Current Ratio',    v: fmt2(r.currentRatioTTM),       sub: r.currentRatioTTM>=2?'Excelente liquidez':r.currentRatioTTM>=1?'Liquidez OK':'⚠ Riesgo liquidez', col: r.currentRatioTTM>=2?'var(--green)':r.currentRatioTTM>=1?'var(--yellow)':'var(--red)' },
+    { k:'Margen Bruto',     v: fmtPct(r.grossProfitMarginTTM), sub: r.grossProfitMarginTTM>0.4?'Excelente':r.grossProfitMarginTTM>0.2?'Aceptable':'Bajo', col: r.grossProfitMarginTTM>0.4?'var(--green)':r.grossProfitMarginTTM>0.2?'var(--yellow)':'var(--red)' },
+    { k:'Rev./Acción YoY',  v: (() => { if(income.length>=2&&income[0]?.revenue&&income[1]?.revenue&&income[0]?.weightedAverageShsOut&&income[1]?.weightedAverageShsOut){ const r0=income[0].revenue/income[0].weightedAverageShsOut; const r1=income[1].revenue/income[1].weightedAverageShsOut; const g=(r0-r1)/Math.abs(r1)*100; return g.toFixed(1)+'%'; } return 'N/A'; })(), sub: 'Crecimiento por acción', col: (() => { if(income.length>=2&&income[0]?.revenue&&income[1]?.revenue&&income[0]?.weightedAverageShsOut&&income[1]?.weightedAverageShsOut){ const r0=income[0].revenue/income[0].weightedAverageShsOut; const r1=income[1].revenue/income[1].weightedAverageShsOut; const g=(r0-r1)/Math.abs(r1)*100; return g>10?'var(--green)':g>0?'var(--yellow)':'var(--red)'; } return 'var(--text)'; })() },
   ];
 
   const fundamentalScore = calcFundamentalScore(r, p, income);
@@ -3202,7 +3206,8 @@ DATOS FUNDAMENTALES:
 - P/E (TTM): ${fmt2(rat.peRatioTTM)} | P/B: ${fmt2(rat.priceToBookRatioTTM)} | EV/EBITDA: ${fmt2(rat.enterpriseValueMultipleTTM)}
 - ROE: ${fmtPct(rat.returnOnEquityTTM)} | Margen neto: ${fmtPct(rat.netProfitMarginTTM)} | FCF Yield: ${fmtPct(rat.freeCashFlowYieldTTM)}
 - Deuda/Equity: ${fmt2(rat.debtEquityRatioTTM)} | Dividend Yield: ${fmtPct(rat.dividendYielTTM)}
-- Crecimiento de revenue YoY: ${revGrowth}
+- Current Ratio: ${fmt2(rat.currentRatioTTM)} | Margen Bruto: ${fmtPct(rat.grossProfitMarginTTM)}
+- Crecimiento de revenue YoY: ${revGrowth} | Revenue por acción YoY: ${(() => { if(income.length>=2&&income[0]?.revenue&&income[1]?.revenue&&income[0]?.weightedAverageShsOut&&income[1]?.weightedAverageShsOut){ const r0=income[0].revenue/income[0].weightedAverageShsOut; const r1=income[1].revenue/income[1].weightedAverageShsOut; return ((r0-r1)/Math.abs(r1)*100).toFixed(1)+'%'; } return 'N/A'; })()}
 - Market Cap: ${p.mktCap ? (p.mktCap/1e9).toFixed(1)+'B' : 'N/A'} | Beta: ${fmt2(p.beta)}
 - DCF valuación: ${p.dcf ? '$'+Number(p.dcf).toFixed(2) : 'N/A'} vs precio actual ${r.price}
 - Sector: ${p.sector || r.sector || 'N/A'} | País: ${p.country || 'N/A'}
