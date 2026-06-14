@@ -1709,6 +1709,11 @@ function getEffectiveMEP() {
   return window.MEP_RATE_OVERRIDE || MEP_RATE;
 }
 
+// Bonos argentinos se cotizan por VN 100, no por unidad
+function bondScale(pos) {
+  return (pos.type === 'bond' && pos.currency === 'ARS') ? 100 : 1;
+}
+
 const LOAD_MSGS = [
   ['Descargando datos históricos...','OHLCV · 100 días'],
   ['Calculando indicadores técnicos...','RSI · MACD · ADX · Squeeze'],
@@ -1775,8 +1780,9 @@ function renderPortfolio() {
     const price = priceARS || priceUSD;
     if(!price) return;
     // Fix 6: conversión consistente — todo a USD usando MEP actualizado
-    const valUSD  = isARS ? (price / mep) * p.qty       : price * p.qty;
-    const costUSD = isARS ? (p.costBasisARS || p.costBasis) / mep * p.qty : p.costBasis * p.qty;
+    const bscale  = bondScale(p);
+    const valUSD  = isARS ? (price / bscale / mep) * p.qty       : price * p.qty;
+    const costUSD = isARS ? (p.costBasisARS || p.costBasis) / bscale / mep * p.qty : p.costBasis * p.qty;
     totalValue += valUSD; totalCost += costUSD;
     if(p.type === 'crypto' || p.type === 'stock') inPlay += valUSD;
     else inCash += valUSD;
@@ -1791,8 +1797,11 @@ function renderPortfolio() {
 
   // HHI concentration
   const weights = POSITIONS.map(p => {
-    const price = getCurrentPrice(p.ticker) || p.costBasis;
-    return (price * p.qty) / Math.max(totalValue, 1);
+    const isAb = p.currency === 'ARS';
+    const prA = isAb ? getCurrentPriceARS(p.ticker) : null;
+    const prU = getCurrentPrice(p.ticker) || p.costBasis;
+    const wVal = isAb ? (prA || p.costBasis) / bondScale(p) / mep * p.qty : prU * p.qty;
+    return wVal / Math.max(totalValue, 1);
   });
   const hhi = weights.reduce((s,w) => s + w*w, 0);
 
@@ -1831,7 +1840,7 @@ function renderPortfolio() {
     const isARS = p.currency === 'ARS';
     const priceARS = isARS ? getCurrentPriceARS(p.ticker) : null;
     const priceUSD = getCurrentPrice(p.ticker) || p.costBasis;
-    const valUSD = isARS ? ((priceARS || p.costBasis) / mep) * p.qty : priceUSD * p.qty;
+    const valUSD = isARS ? ((priceARS || p.costBasis) / bondScale(p) / mep) * p.qty : priceUSD * p.qty;
 
     // Por clase
     if(p.type === 'stock') byClass['Acciones'] += valUSD;
@@ -1866,13 +1875,13 @@ function renderPortfolio() {
     let pnlPct, pnlVal;
     if(isARS2 && priceARS && p.costBasisARS) {
       const cb3 = getCostBasisARS(p) || p.costBasis; pnlPct = ((priceARS - cb3) / cb3 * 100);
-      pnlVal = (priceARS - p.costBasisARS) * p.qty;
+      pnlVal = (priceARS - p.costBasisARS) * p.qty / bondScale(p);
     } else {
       pnlPct = ((priceUSD - p.costBasis) / p.costBasis * 100);
       pnlVal = (priceUSD - p.costBasis) * p.qty;
     }
-    const priceInUSD = priceUSD || (priceARS / mep);
-    const valUSD = priceInUSD * p.qty;
+    const priceInUSD = priceUSD || (priceARS / bondScale(p) / mep);
+    const valUSD = isARS2 ? (priceARS || p.costBasis) / bondScale(p) / mep * p.qty : priceInUSD * p.qty;
     const pnlUSD = isARS2 ? pnlVal / mep : pnlVal;
     const weight = totalValue > 0 ? (valUSD/totalValue*100) : 0;
     const pClass = pnlClass(pnlPct);
@@ -2355,7 +2364,7 @@ function renderDecisions() {
     if(isARS && currentARS) {
       const cb2 = getCostBasisARS(pos) || pos.costBasis;
       pnlPct = ((currentARS - cb2) / cb2 * 100);
-      pnlARS = (currentARS - (pos.costBasisARS || pos.costBasis)) * pos.qty;
+      pnlARS = (currentARS - (pos.costBasisARS || pos.costBasis)) * pos.qty / bondScale(pos);
     } else if(hasPriceData) {
       pnlPct = ((price - pos.costBasis) / pos.costBasis * 100);
       pnlARS = null;
@@ -2384,7 +2393,7 @@ function renderDecisions() {
       <div class="dec-metrics">
         <div class="dm"><div class="dm-l">PRECIO HOY</div><div class="dm-v" style="color:var(--accent)">${isARS && currentARS ? '$'+currentARS.toLocaleString('es-AR')+' ARS' : fmtP(price)}</div></div>
         <div class="dm"><div class="dm-l">PRECIO COMPRA</div><div class="dm-v">${isARS?'$'+(pos.costBasisARS||pos.costBasis).toLocaleString('es-AR')+'<span style="font-size:9px;color:var(--text2)"> ARS</span>':fmtP(pos.costBasis)}</div></div>
-        <div class="dm"><div class="dm-l">VALOR POSICIÓN</div><div class="dm-v">${isARS && currentARS ? fmtK(currentARS*pos.qty/getEffectiveMEP()) : fmtK(price*pos.qty)}</div></div>
+        <div class="dm"><div class="dm-l">VALOR POSICIÓN</div><div class="dm-v">${isARS && currentARS ? fmtK(currentARS*pos.qty/bondScale(pos)/getEffectiveMEP()) : fmtK(price*pos.qty)}</div></div>
         ${dec.tp?`<div class="dm"><div class="dm-l">TAKE PROFIT</div><div class="dm-v" style="color:var(--green)">${fmtP(dec.tp)}</div></div>`:''}
         ${dec.sl?`<div class="dm"><div class="dm-l">STOP LOSS</div><div class="dm-v" style="color:var(--red)">${fmtP(dec.sl)}</div></div>`:''}
       </div>
