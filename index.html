@@ -784,8 +784,8 @@ canvas{max-width:100%}
       <select id="scrFCF"><option value="0" selected>Cualquiera</option><option value="0.02">≥ 2%</option><option value="0.05">≥ 5%</option><option value="0.08">≥ 8%</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">MARGEN BRUTO MÍN.</div>
-      <select id="scrGross"><option value="0" selected>Cualquiera</option><option value="0.20">≥ 20%</option><option value="0.35">≥ 35%</option><option value="0.50">≥ 50%</option></select>
+      <div class="scr-filter-label">ROA MÍN.</div>
+      <select id="scrGross"><option value="0" selected>Cualquiera</option><option value="0.05">≥ 5%</option><option value="0.08">≥ 8%</option><option value="0.15">≥ 15%</option></select>
     </div>
     <div class="scr-filter">
       <div class="scr-filter-label">CURRENT RATIO MÍN.</div>
@@ -1302,28 +1302,16 @@ async function fetchPriceTargets(ticker, currentPrice) {
   let targets = null;
   if(FMP_KEY && FMP_KEY !== 'demo') {
     try {
-      const [ptR, profileR, ratingR] = await Promise.allSettled([
-        fetch(`https://financialmodelingprep.com/stable/price-target?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/stable/analyst-stock-recommendations?symbol=${ticker}&limit=1&apikey=${FMP_KEY}`).then(r=>r.json()),
-      ]);
-      const ptData    = ptR.status==='fulfilled'    ? ptR.value    : [];
-      const profile   = profileR.status==='fulfilled'? profileR.value[0] : null;
-      const ratingData= ratingR.status==='fulfilled' ? ratingR.value[0]  : null;
-      if(ptData.length > 0) {
-        const prices = ptData.slice(0,20).map(p=>p.priceTarget).filter(p=>p>0);
-        targets = {
-          low:     Math.min(...prices),
-          avg:     prices.reduce((a,b)=>a+b,0)/prices.length,
-          high:    Math.max(...prices),
-          count:   prices.length,
-          low52w:  profile?.range ? parseFloat(profile.range.split('-')[0]) : currentPrice*0.7,
-          high52w: profile?.range ? parseFloat(profile.range.split('-')[1]) : currentPrice*1.3,
-          buyCount:  ratingData?.analystRatingsbuy   || 0,
-          holdCount: ratingData?.analystRatingsHold  || 0,
-          sellCount: ratingData?.analystRatingsSell  || 0,
-          isReal: true
-        };
+      const profileR = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json());
+      const profile = Array.isArray(profileR) ? profileR[0] : null;
+      if(profile?.range) {
+        // Use 52w range from profile to enrich the technical estimate
+        const parts = profile.range.split('-');
+        const low52w  = parseFloat(parts[0]);
+        const high52w = parseFloat(parts[1]);
+        if(low52w > 0 && high52w > 0) {
+          targets = { ...estimatePriceTargets(ticker, currentPrice), low52w, high52w, isReal: false };
+        }
       }
     } catch(e) {}
   }
@@ -1381,21 +1369,31 @@ function estimatePriceTargets(ticker, price) {
   };
 }
 
+function normMetrics(m) {
+  if(!m) return null;
+  const pe = m.earningsYieldTTM && m.earningsYieldTTM > 0 ? 1 / m.earningsYieldTTM : null;
+  return {
+    peRatioTTM:           pe,
+    returnOnEquityTTM:    m.returnOnEquityTTM,
+    debtEquityRatioTTM:   m.netDebtToEBITDATTM,
+    freeCashFlowYieldTTM: m.freeCashFlowYieldTTM,
+    currentRatioTTM:      m.currentRatioTTM,
+    returnOnAssetsTTM:    m.returnOnAssetsTTM,
+    revenuePerShareTTM:   m.revenuePerShareTTM || null,
+  };
+}
+
 async function fetchFundamentals(ticker) {
   const base = `https://financialmodelingprep.com/stable`;
   const k = FMP_KEY;
   try {
-    const [profileR, ratiosR, incomeR, insiderR] = await Promise.allSettled([
+    const [profileR, metricsR] = await Promise.allSettled([
       fetch(`${base}/profile?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
-      fetch(`${base}/ratios-ttm?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
-      fetch(`${base}/income-statement?symbol=${ticker}&limit=4&apikey=${k}`).then(r=>r.json()),
-      fetch(`${base}/insider-trading?symbol=${ticker}&limit=10&apikey=${k}`).then(r=>r.json()),
+      fetch(`${base}/key-metrics-ttm?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
     ]);
     const profile = profileR.status==='fulfilled' ? profileR.value[0] : null;
-    const ratios  = ratiosR.status==='fulfilled'  ? ratiosR.value[0] : null;
-    const income  = incomeR.status==='fulfilled'  ? incomeR.value    : [];
-    const insider = insiderR.status==='fulfilled' ? insiderR.value   : [];
-    return { profile, ratios, income, insider };
+    const ratios  = metricsR.status==='fulfilled'  ? normMetrics(metricsR.value[0]) : null;
+    return { profile, ratios, income: [], insider: [] };
   } catch(e) {
     return null;
   }
@@ -2317,19 +2315,20 @@ async function runScreener() {
     if(excludeOwned && myTickers.includes(ticker)) continue;
     if(!FMP_KEY) { passed.push({ ticker, ratios: null, skipped: true }); continue; }
     try {
-      const [ratiosR, profileR] = await Promise.allSettled([
-        fetch(`https://financialmodelingprep.com/stable/ratios-ttm?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+      const [metricsR, profileR] = await Promise.allSettled([
+        fetch(`https://financialmodelingprep.com/stable/key-metrics-ttm?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
         fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
       ]);
-      const rat = ratiosR.status==='fulfilled' ? ratiosR.value[0] : null;
-      const pro = profileR.status==='fulfilled' ? profileR.value[0] : null;
+      const rawM = metricsR.status==='fulfilled' ? metricsR.value[0] : null;
+      const rat  = normMetrics(rawM);
+      const pro  = profileR.status==='fulfilled' ? profileR.value[0] : null;
       if(!rat) { passed.push({ ticker, ratios: null, profile: null, skipped: true }); continue; }
 
       const pe    = rat.peRatioTTM;
       const roe   = rat.returnOnEquityTTM;
       const debt  = rat.debtEquityRatioTTM;
       const fcf   = rat.freeCashFlowYieldTTM;
-      const gross = rat.grossProfitMarginTTM;
+      const gross = rat.returnOnAssetsTTM;
       const cr    = rat.currentRatioTTM;
 
       const okPE    = !maxPE   || maxPE===999   || (pe   > 0 && pe   <= maxPE);
@@ -2399,7 +2398,7 @@ async function runScreener() {
         ${r.returnOnEquityTTM != null ? chip('ROE', fmtP(r.returnOnEquityTTM), r.returnOnEquityTTM > 0.15) : ''}
         ${r.debtEquityRatioTTM != null ? chip('D/E', fmt2(r.debtEquityRatioTTM), r.debtEquityRatioTTM < 1) : ''}
         ${r.freeCashFlowYieldTTM != null ? chip('FCF', fmtP(r.freeCashFlowYieldTTM), r.freeCashFlowYieldTTM > 0.03) : ''}
-        ${r.grossProfitMarginTTM != null ? chip('Mg.Bruto', fmtP(r.grossProfitMarginTTM), r.grossProfitMarginTTM > 0.35) : ''}
+        ${r.returnOnAssetsTTM != null ? chip('ROA', fmtP(r.returnOnAssetsTTM), r.returnOnAssetsTTM > 0.08) : ''}
         ${ts != null ? chip('Técnico', ts+'%', ts >= 60) : '<span class="scr-score-chip" style="background:rgba(139,148,158,.1);color:var(--muted);border:1px solid var(--border)">Técnico: no analizado</span>'}
         ${item.limitReached ? '<span class="scr-score-chip" style="background:rgba(210,153,34,.1);color:var(--yellow);border:1px solid rgba(210,153,34,.25)">⚠ Límite AV</span>' : ''}
       </div>
@@ -3832,7 +3831,7 @@ async function fetchBenchmark(ticker, sector, tickerCloses, tickerLabels) {
       verdictText = `<strong>${ticker} está en línea con ${benchTicker}</strong> (diferencia menor a 3%). Sin ventaja ni desventaja clara respecto al sector en este período.`;
     }
   } else {
-    verdictText = benchCloses ? 'Datos insuficientes para comparar.' : `Sin API key activa. Configurá Alpha Vantage en ⚙ Config para ver la comparación vs ${benchTicker}.`;
+    verdictText = benchCloses ? 'Datos insuficientes para comparar.' : API_KEY && !IS_DEMO ? `No se pudo obtener datos de ${benchTicker} (límite de llamadas por minuto de AV). Volvé a analizar en unos segundos.` : `Configurá Alpha Vantage en ⚙ Config para ver la comparación vs ${benchTicker}.`;
   }
 
   const fmtRet = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
