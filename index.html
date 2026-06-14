@@ -2195,6 +2195,8 @@ function renderCorrelation() {
 }
 
 // ── SCREENER ──
+// Universe editable: loads from localStorage or falls back to default
+let CUSTOM_UNIVERSE = JSON.parse(localStorage.getItem('pip_screener_universe') || 'null');
 const SCREENER_UNIVERSE = [
   'AAPL','MSFT','GOOGL','AMZN','META','NVDA','TSLA','NFLX','AMD','INTC',
   'JPM','BAC','GS','V','MA','BRK.B','WFC','AXP',
@@ -2206,18 +2208,86 @@ const SCREENER_UNIVERSE = [
   'MELI','NU','SQ','PYPL',
 ];
 
+function saveScreenerUniverse() {
+  localStorage.setItem('pip_screener_universe', JSON.stringify(CUSTOM_UNIVERSE));
+}
+
+function rebuildScreenerTag(ticker, index, tagsEl) {
+  const myTickers = POSITIONS.map(p => p.ticker);
+  const isOwned = myTickers.includes(ticker);
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center';
+
+  const btn = document.createElement('button');
+  btn.className = 'scr-tag active';
+  btn.textContent = ticker;
+  if(isOwned) { btn.classList.remove('active'); btn.style.opacity='.4'; btn.title='Ya en tu portafolio'; }
+  btn.onclick = () => btn.classList.toggle('active');
+
+  const editBtn = document.createElement('button');
+  editBtn.textContent = '✎';
+  editBtn.style.cssText = 'position:absolute;top:-6px;right:-6px;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:8px;display:none;padding:0;line-height:15px;text-align:center;z-index:1';
+  editBtn.title = 'Cambiar ticker (vacío = eliminar)';
+
+  wrap.onmouseenter = () => editBtn.style.display = 'block';
+  wrap.onmouseleave = () => editBtn.style.display = 'none';
+
+  editBtn.onclick = (e) => {
+    e.stopPropagation();
+    const input = document.createElement('input');
+    input.value = ticker;
+    input.style.cssText = 'width:58px;font-family:var(--mono);font-size:10px;text-transform:uppercase;background:var(--bg3);color:var(--text);border:1px solid var(--accent);border-radius:5px;padding:3px 6px;outline:none';
+    input.maxLength = 6;
+
+    const confirm = () => {
+      const val = input.value.trim().toUpperCase();
+      if(val) { CUSTOM_UNIVERSE[index] = val; }
+      else    { CUSTOM_UNIVERSE.splice(index, 1); }
+      saveScreenerUniverse();
+      initScreener();
+    };
+    input.onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); confirm(); } if(e.key==='Escape') initScreener(); };
+    input.onblur = confirm;
+    wrap.replaceChild(input, btn);
+    editBtn.style.display = 'none';
+    input.focus(); input.select();
+  };
+
+  wrap.appendChild(btn);
+  wrap.appendChild(editBtn);
+  return wrap;
+}
+
 function initScreener() {
   const tagsEl = document.getElementById('scrTags');
-  if(!tagsEl || tagsEl.children.length > 0) return;
-  const myTickers = POSITIONS.map(p => p.ticker);
-  SCREENER_UNIVERSE.forEach(t => {
-    const btn = document.createElement('button');
-    btn.className = 'scr-tag active';
-    btn.textContent = t;
-    if(myTickers.includes(t)) { btn.classList.remove('active'); btn.style.opacity = '.4'; btn.title = 'Ya en tu portafolio'; }
-    btn.onclick = () => btn.classList.toggle('active');
-    tagsEl.appendChild(btn);
-  });
+  if(!tagsEl) return;
+  tagsEl.innerHTML = '';
+  if(!CUSTOM_UNIVERSE) CUSTOM_UNIVERSE = [...SCREENER_UNIVERSE];
+
+  CUSTOM_UNIVERSE.forEach((t, i) => tagsEl.appendChild(rebuildScreenerTag(t, i, tagsEl)));
+
+  // Botón agregar
+  const addBtn = document.createElement('button');
+  addBtn.className = 'scr-tag';
+  addBtn.textContent = '+ AGREGAR';
+  addBtn.style.cssText = 'border-color:var(--green);color:var(--green);opacity:1';
+  addBtn.onclick = () => {
+    const input = document.createElement('input');
+    input.placeholder = 'TICKER';
+    input.style.cssText = 'width:58px;font-family:var(--mono);font-size:10px;text-transform:uppercase;background:var(--bg3);color:var(--text);border:1px solid var(--green);border-radius:5px;padding:3px 6px;outline:none';
+    input.maxLength = 6;
+    const confirm = () => {
+      const val = input.value.trim().toUpperCase();
+      if(val) { CUSTOM_UNIVERSE.push(val); saveScreenerUniverse(); }
+      initScreener();
+    };
+    input.onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); confirm(); } if(e.key==='Escape') initScreener(); };
+    input.onblur = confirm;
+    addBtn.replaceWith(input);
+    input.focus();
+  };
+  tagsEl.appendChild(addBtn);
 }
 
 async function runScreener() {
