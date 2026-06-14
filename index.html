@@ -1371,15 +1371,20 @@ function estimatePriceTargets(ticker, price) {
 
 function normMetrics(m) {
   if(!m) return null;
-  const pe = m.earningsYieldTTM && m.earningsYieldTTM > 0 ? 1 / m.earningsYieldTTM : null;
+  const pe = m.peRatioTTM || (m.earningsYieldTTM && m.earningsYieldTTM > 0 ? 1 / m.earningsYieldTTM : null);
   return {
-    peRatioTTM:           pe,
-    returnOnEquityTTM:    m.returnOnEquityTTM,
-    debtEquityRatioTTM:   m.netDebtToEBITDATTM,
-    freeCashFlowYieldTTM: m.freeCashFlowYieldTTM,
-    currentRatioTTM:      m.currentRatioTTM,
-    returnOnAssetsTTM:    m.returnOnAssetsTTM,
-    revenuePerShareTTM:   m.revenuePerShareTTM || null,
+    peRatioTTM:                 pe,
+    priceToBookRatioTTM:        m.pbRatioTTM || m.priceToBookRatioTTM || null,
+    enterpriseValueMultipleTTM: m.enterpriseValueOverEBITDATTM || m.evToEbitdaTTM || null,
+    returnOnEquityTTM:          m.returnOnEquityTTM,
+    returnOnAssetsTTM:          m.returnOnAssetsTTM,
+    netProfitMarginTTM:         m.netProfitMarginTTM || null,
+    grossProfitMarginTTM:       m.grossProfitMarginTTM || null,
+    freeCashFlowYieldTTM:       m.freeCashFlowYieldTTM,
+    debtEquityRatioTTM:         m.debtToEquityTTM || m.netDebtToEBITDATTM || null,
+    currentRatioTTM:            m.currentRatioTTM,
+    dividendYielTTM:            m.dividendYieldTTM || m.dividendYielTTM || null,
+    revenuePerShareTTM:         m.revenuePerShareTTM || null,
   };
 }
 
@@ -1391,10 +1396,15 @@ async function fetchFundamentals(ticker) {
       fetch(`${base}/profile?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
       fetch(`${base}/key-metrics-ttm?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
     ]);
-    const profile = profileR.status==='fulfilled' ? profileR.value[0] : null;
-    const ratios  = metricsR.status==='fulfilled'  ? normMetrics(metricsR.value[0]) : null;
+    const profRaw = profileR.status==='fulfilled' ? profileR.value : null;
+    const metRaw  = metricsR.status==='fulfilled'  ? metricsR.value  : null;
+    const profile = Array.isArray(profRaw) ? profRaw[0] : (profRaw && !profRaw['Error Message'] ? profRaw : null);
+    const metObj  = Array.isArray(metRaw)  ? metRaw[0]  : (metRaw  && !metRaw['Error Message']  ? metRaw  : null);
+    const ratios  = normMetrics(metObj);
+    console.log('[PIP] fetchFundamentals', ticker, { profile: !!profile, ratios, metRaw });
     return { profile, ratios, income: [], insider: [] };
   } catch(e) {
+    console.error('[PIP] fetchFundamentals error', ticker, e);
     return null;
   }
 }
@@ -3195,8 +3205,12 @@ function renderResults(r){
     <div class="btitle">// Niveles estratégicos de operación</div>
     <div class="slvls">
       <div class="slv"><div class="slvlbl">Precio actual</div><div class="slvprice" style="color:var(--accent)">${fmtP(r.entry)}</div><div class="slvdesc">${r.currency} · ATR: ${fmtP(r.atrC)}</div></div>
-      <div class="slv"><div class="slvlbl">Take Profit (2.5× ATR)</div><div class="slvprice" style="color:var(--green)">${fmtP(r.tp)}</div><div class="slvdesc">+${fmt(Math.abs(r.tp-r.entry)/r.entry*100,1)}% · R:R ${fmt(r.rr,2)}:1</div></div>
-      <div class="slv"><div class="slvlbl">Stop Loss (1.8× ATR)</div><div class="slvprice" style="color:var(--red)">${fmtP(r.sl)}</div><div class="slvdesc">−${fmt(Math.abs(r.sl-r.entry)/r.entry*100,1)}% máx. riesgo</div></div>
+      ${r.vClass&&r.vClass.includes('buy')
+        ? `<div class="slv"><div class="slvlbl">Take Profit (2.5× ATR)</div><div class="slvprice" style="color:var(--green)">${fmtP(r.tp)}</div><div class="slvdesc">+${fmt(Math.abs(r.tp-r.entry)/r.entry*100,1)}% · R:R ${fmt(r.rr,2)}:1</div></div>
+      <div class="slv"><div class="slvlbl">Stop Loss (1.8× ATR)</div><div class="slvprice" style="color:var(--red)">${fmtP(r.sl)}</div><div class="slvdesc">−${fmt(Math.abs(r.sl-r.entry)/r.entry*100,1)}% máx. riesgo</div></div>`
+        : `<div class="slv"><div class="slvlbl">Salida recomendada (1.8× ATR)</div><div class="slvprice" style="color:var(--red)">${fmtP(r.sl)}</div><div class="slvdesc">+${fmt(Math.abs(r.sl-r.entry)/r.entry*100,1)}% sobre precio actual</div></div>
+      <div class="slv"><div class="slvlbl">Objetivo bajista (2.5× ATR)</div><div class="slvprice" style="color:var(--muted)">${fmtP(r.tp)}</div><div class="slvdesc">−${fmt(Math.abs(r.tp-r.entry)/r.entry*100,1)}% si la caída continúa</div></div>`
+      }
     </div>
   </div>
 
