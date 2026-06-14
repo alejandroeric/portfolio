@@ -1303,9 +1303,9 @@ async function fetchPriceTargets(ticker, currentPrice) {
   if(FMP_KEY && FMP_KEY !== 'demo') {
     try {
       const [ptR, profileR, ratingR] = await Promise.allSettled([
-        fetch(`https://financialmodelingprep.com/api/v3/price-target?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/api/v3/analyst-stock-recommendations/${ticker}?limit=1&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/price-target?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/analyst-stock-recommendations?symbol=${ticker}&limit=1&apikey=${FMP_KEY}`).then(r=>r.json()),
       ]);
       const ptData    = ptR.status==='fulfilled'    ? ptR.value    : [];
       const profile   = profileR.status==='fulfilled'? profileR.value[0] : null;
@@ -1382,13 +1382,13 @@ function estimatePriceTargets(ticker, price) {
 }
 
 async function fetchFundamentals(ticker) {
-  const base = `https://financialmodelingprep.com/api/v3`;
+  const base = `https://financialmodelingprep.com/stable`;
   const k = FMP_KEY;
   try {
     const [profileR, ratiosR, incomeR, insiderR] = await Promise.allSettled([
-      fetch(`${base}/profile/${ticker}?apikey=${k}`).then(r=>r.json()),
-      fetch(`${base}/ratios-ttm/${ticker}?apikey=${k}`).then(r=>r.json()),
-      fetch(`${base}/income-statement/${ticker}?limit=4&apikey=${k}`).then(r=>r.json()),
+      fetch(`${base}/profile?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
+      fetch(`${base}/ratios-ttm?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
+      fetch(`${base}/income-statement?symbol=${ticker}&limit=4&apikey=${k}`).then(r=>r.json()),
       fetch(`${base}/insider-trading?symbol=${ticker}&limit=10&apikey=${k}`).then(r=>r.json()),
     ]);
     const profile = profileR.status==='fulfilled' ? profileR.value[0] : null;
@@ -2248,8 +2248,8 @@ async function runScreener() {
     if(!FMP_KEY) { passed.push({ ticker, ratios: null, skipped: true }); continue; }
     try {
       const [ratiosR, profileR] = await Promise.allSettled([
-        fetch(`https://financialmodelingprep.com/api/v3/ratios-ttm/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/ratios-ttm?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
       ]);
       const rat = ratiosR.status==='fulfilled' ? ratiosR.value[0] : null;
       const pro = profileR.status==='fulfilled' ? profileR.value[0] : null;
