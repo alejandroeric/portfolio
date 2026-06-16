@@ -131,6 +131,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 .mc{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:7px 12px;white-space:nowrap;flex-shrink:0}
 .mc-l{font-family:var(--mono);font-size:8px;color:var(--text2);letter-spacing:.08em}
 .mc-v{font-family:var(--mono);font-size:12px;font-weight:700;margin-top:2px}
+.mc-h{font-family:var(--mono);font-size:7px;color:var(--muted);margin-top:2px;letter-spacing:.04em}
 
 /* ── CONFIG ── */
 .cfg-block{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
@@ -554,11 +555,11 @@ canvas{max-width:100%}
 <!-- MACRO STRIP (visible everywhere) -->
 <div style="padding:8px 14px 0;max-width:1000px;margin:0 auto">
   <div class="macro-strip" id="macroStrip">
-    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" id="macroVIX">16.7</div></div>
-    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" id="macroT10Y">4.56%</div></div>
-    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v" id="macroDXY">98.4</div></div>
-    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" id="macroFED">3.75%</div></div>
-    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" id="macroPCE">3.2%</div></div>
+    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" id="macroVIX">16.7</div><div class="mc-h" id="macroVIXh">&lt;20 tranquilo</div></div>
+    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" id="macroT10Y">4.56%</div><div class="mc-h">bono libre de riesgo</div></div>
+    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v" id="macroDXY">98.4</div><div class="mc-h">↑ USD fuerte</div></div>
+    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" id="macroFED">3.75%</div><div class="mc-h">tasa objetivo Fed</div></div>
+    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" id="macroPCE">3.2%</div><div class="mc-h">meta Fed: 2%</div></div>
   </div>
 </div>
 
@@ -2678,6 +2679,8 @@ async function fetchMacroData() {
     if(id === 'macroVIX') {
       el.textContent = num.toFixed(1);
       el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
+      const hint = document.getElementById('macroVIXh');
+      if(hint) hint.textContent = num < 20 ? '<20 tranquilo' : num < 30 ? '20-30 alerta' : '>30 pánico';
     } else if(id === 'macroT10Y' || id === 'macroFED') {
       el.textContent = num.toFixed(2) + '%';
       el.style.color = num > 4.5 ? '#f85149' : '#d29922';
