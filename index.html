@@ -2673,16 +2673,16 @@ async function fetchMacroData() {
     const num = parseFloat(value);
     if(id === 'macroVIX') {
       el.textContent = num.toFixed(1);
-      el.style.color = num < 20 ? 'var(--green)' : num < 30 ? 'var(--yellow)' : 'var(--red)';
+      el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
     } else if(id === 'macroT10Y' || id === 'macroFED') {
       el.textContent = num.toFixed(2) + '%';
-      el.style.color = num > 4.5 ? 'var(--red)' : 'var(--yellow)';
+      el.style.color = num > 4.5 ? '#f85149' : '#d29922';
     } else if(id === 'macroDXY') {
       el.textContent = num.toFixed(1);
-      el.style.color = 'var(--text)';
+      el.style.color = '#e6edf3';
     } else if(id === 'macroPCE') {
       el.textContent = num.toFixed(1) + '%';
-      el.style.color = num > 3 ? 'var(--red)' : 'var(--yellow)';
+      el.style.color = num > 3 ? '#f85149' : '#d29922';
     }
   });
 }
