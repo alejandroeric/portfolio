@@ -554,14 +554,11 @@ canvas{max-width:100%}
 <!-- MACRO STRIP (visible everywhere) -->
 <div style="padding:8px 14px 0;max-width:1000px;margin:0 auto">
   <div class="macro-strip" id="macroStrip">
-    <div class="mc"><div class="mc-l">S&P 500</div><div class="mc-v" style="color:var(--green)">7.520 ▲</div></div>
-    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" style="color:var(--green)">16.7</div></div>
-    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" style="color:var(--yellow)">4.56%</div></div>
-    <div class="mc"><div class="mc-l">BTC</div><div class="mc-v" style="color:var(--accent)">~$97K</div></div>
-    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v">98.4</div></div>
-    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" style="color:var(--red)">3.75%</div></div>
-    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" style="color:var(--red)">3.2%</div></div>
-    <div class="mc"><div class="mc-l">ISM MFG</div><div class="mc-v" style="color:var(--green)">52.7</div></div>
+    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" id="macroVIX">16.7</div></div>
+    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" id="macroT10Y">4.56%</div></div>
+    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v" id="macroDXY">98.4</div></div>
+    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" id="macroFED">3.75%</div></div>
+    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" id="macroPCE">3.2%</div></div>
   </div>
 </div>
 
@@ -912,6 +909,17 @@ canvas{max-width:100%}
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
         KEY ACTIVA: <span id="fmpKeyDisplay" style="color:var(--accent)">No configurada</span> ·
         <a href="https://financialmodelingprep.com/developer/docs" target="_blank" style="color:var(--accent)">financialmodelingprep.com</a> · Plan gratis disponible
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
+      <div class="cfg-lbl">FRED API (datos macro: VIX, Treasury, Fed Rate, DXY, PCE)</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input class="inp" id="fredKeyInp" placeholder="FRED API Key" type="password" autocomplete="off">
+        <button class="btn btn-a" onclick="saveFredKey()">GUARDAR</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+        KEY ACTIVA: <span id="fredKeyDisplay" style="color:var(--accent)">No configurada</span> ·
+        <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" style="color:var(--accent)">fred.stlouisfed.org</a> · Gratis
       </div>
     </div>
   </div>
@@ -1627,8 +1635,9 @@ const ANTHROPIC_VERSION = '2023-06-01';
 const CHAT_MAX_HISTORY = 20;
 
 // ── STATE ──
-let API_KEY = localStorage.getItem('av_key') || '';
-let FMP_KEY = localStorage.getItem('fmp_key') || '';
+let API_KEY  = localStorage.getItem('av_key')   || '';
+let FMP_KEY  = localStorage.getItem('fmp_key')  || '';
+let FRED_KEY = localStorage.getItem('fred_key') || '';
 let TG_TOKEN = ''; // legacy — ya no se usa
 let TG_CHAT_ID = '';
 
@@ -2583,6 +2592,9 @@ function renderConfig() {
   const fmpEl = document.getElementById('fmpKeyDisplay');
   if(fmpEl) fmpEl.textContent = FMP_KEY ? FMP_KEY.slice(0,8)+'...' : 'No configurada';
   if(fmpEl) fmpEl.style.color = FMP_KEY ? 'var(--green)' : 'var(--text2)';
+  const fredEl = document.getElementById('fredKeyDisplay');
+  if(fredEl) fredEl.textContent = FRED_KEY ? FRED_KEY.slice(0,8)+'...' : 'No configurada';
+  if(fredEl) fredEl.style.color = FRED_KEY ? 'var(--green)' : 'var(--text2)';
   const antInp = document.getElementById('anthropicKeyInp');
   if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
@@ -2621,6 +2633,58 @@ function saveFmpKey() {
   document.getElementById('fmpKeyDisplay').textContent = k.slice(0,8)+'...';
   document.getElementById('fmpKeyDisplay').style.color = 'var(--green)';
   showToast('FMP API key guardada ✓');
+}
+
+function saveFredKey() {
+  const k = document.getElementById('fredKeyInp').value.trim();
+  if(!k) { alert('Ingresá tu FRED API Key'); return; }
+  FRED_KEY = k;
+  localStorage.setItem('fred_key', k);
+  document.getElementById('fredKeyDisplay').textContent = k.slice(0,8)+'...';
+  document.getElementById('fredKeyDisplay').style.color = 'var(--green)';
+  showToast('FRED API key guardada ✓');
+  fetchMacroData();
+}
+
+async function fetchMacroData() {
+  if(!FRED_KEY) return;
+  const base = 'https://api.stlouisfed.org/fred/series/observations';
+  const params = `&api_key=${FRED_KEY}&sort_order=desc&limit=1&file_type=json`;
+  const series = {
+    macroVIX:  'VIXCLS',
+    macroT10Y: 'DGS10',
+    macroDXY:  'DTWEXBGS',
+    macroFED:  'DFF',
+    macroPCE:  'PCEPILFE',
+  };
+  const results = await Promise.allSettled(
+    Object.entries(series).map(([id, sid]) =>
+      fetch(`${base}?series_id=${sid}${params}`)
+        .then(r => r.json())
+        .then(d => ({ id, value: d.observations?.[0]?.value }))
+    )
+  );
+  results.forEach(r => {
+    if(r.status !== 'fulfilled') return;
+    const { id, value } = r.value;
+    if(!value || value === '.') return;
+    const el = document.getElementById(id);
+    if(!el) return;
+    const num = parseFloat(value);
+    if(id === 'macroVIX') {
+      el.textContent = num.toFixed(1);
+      el.style.color = num < 20 ? 'var(--green)' : num < 30 ? 'var(--yellow)' : 'var(--red)';
+    } else if(id === 'macroT10Y' || id === 'macroFED') {
+      el.textContent = num.toFixed(2) + '%';
+      el.style.color = num > 4.5 ? 'var(--red)' : 'var(--yellow)';
+    } else if(id === 'macroDXY') {
+      el.textContent = num.toFixed(1);
+      el.style.color = 'var(--text)';
+    } else if(id === 'macroPCE') {
+      el.textContent = num.toFixed(1) + '%';
+      el.style.color = num > 3 ? 'var(--red)' : 'var(--yellow)';
+    }
+  });
 }
 
 function saveKey() {
@@ -4780,6 +4844,7 @@ function clearChat() {
 
 // Auto-resize textarea
 document.addEventListener('DOMContentLoaded', () => {
+  fetchMacroData();
   const inp = document.getElementById('chatInp');
   if(inp) {
     const wrap = document.getElementById('chatInputWrap');
