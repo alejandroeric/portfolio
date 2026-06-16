@@ -2917,21 +2917,10 @@ function showToast(msg){
 
 // ── MACRO STRIP UPDATE ──
 function updateMacroStrip() {
-  // Fix 5: actualizar macro strip con precios dinámicos en lugar de hardcodeados
+  // Actualizar solo el chip de MEP (el resto lo maneja fetchMacroData via FRED)
   const mep = getEffectiveMEP();
-  const btc = KNOWN_PRICES_USD['BTC'] || 97000;
-  const strip = document.getElementById('macroStrip');
-  if(!strip) return;
-  strip.innerHTML = `
-    <div class="mc"><div class="mc-l">S&P 500</div><div class="mc-v" style="color:var(--green)">7.520 ▲</div></div>
-    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" style="color:var(--green)">16.7</div></div>
-    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" style="color:var(--yellow)">4.56%</div></div>
-    <div class="mc"><div class="mc-l">BTC</div><div class="mc-v" style="color:var(--accent)">~$${Math.round(btc/1000)}K</div></div>
-    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v">98.4</div></div>
-    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" style="color:var(--red)">3.75%</div></div>
-    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" style="color:var(--red)">3.2%</div></div>
-    <div class="mc"><div class="mc-l">MEP</div><div class="mc-v" style="color:var(--accent)">$${mep.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div></div>
-  `;
+  const mepEl = document.getElementById('macroMEP');
+  if(mepEl) mepEl.textContent = '$' + mep.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
 }
 function init() {
   loadSavedPrices();
