@@ -2647,46 +2647,35 @@ function saveFredKey() {
 }
 
 async function fetchMacroData() {
-  const base = 'https://fred.stlouisfed.org/graph/fredgraph.csv';
+  const yf = 'https://query1.finance.yahoo.com/v8/finance/chart/';
   const series = {
-    macroVIX:  'VIXCLS',
-    macroT10Y: 'DGS10',
-    macroDXY:  'DTWEXBGS',
-    macroFED:  'DFF',
-    macroPCE:  'PCEPILFE',
+    macroVIX:  '%5EVIX',
+    macroT10Y: '%5ETNX',
+    macroDXY:  'DX-Y.NYB',
   };
   const results = await Promise.allSettled(
-    Object.entries(series).map(([id, sid]) =>
-      fetch(`${base}?id=${sid}`)
-        .then(r => r.text())
-        .then(csv => {
-          const lines = csv.trim().split('\n').filter(l => l && !l.startsWith('DATE'));
-          const last = lines[lines.length - 1];
-          const value = last?.split(',')[1];
-          return { id, value };
-        })
+    Object.entries(series).map(([id, sym]) =>
+      fetch(`${yf}${sym}?interval=1d&range=1d`)
+        .then(r => r.json())
+        .then(d => ({ id, value: d.chart?.result?.[0]?.meta?.regularMarketPrice }))
     )
   );
   results.forEach(r => {
     if(r.status !== 'fulfilled') return;
     const { id, value } = r.value;
-    if(!value || value === '.' || value.trim() === '') return;
+    if(value == null || isNaN(value)) return;
     const el = document.getElementById(id);
     if(!el) return;
     const num = parseFloat(value);
-    if(isNaN(num)) return;
     if(id === 'macroVIX') {
       el.textContent = num.toFixed(1);
       el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
-    } else if(id === 'macroT10Y' || id === 'macroFED') {
+    } else if(id === 'macroT10Y') {
       el.textContent = num.toFixed(2) + '%';
       el.style.color = num > 4.5 ? '#f85149' : '#d29922';
     } else if(id === 'macroDXY') {
       el.textContent = num.toFixed(1);
       el.style.color = '#e6edf3';
-    } else if(id === 'macroPCE') {
-      el.textContent = num.toFixed(1) + '%';
-      el.style.color = num > 3 ? '#f85149' : '#d29922';
     }
   });
 }
