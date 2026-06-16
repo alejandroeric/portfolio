@@ -2647,35 +2647,46 @@ function saveFredKey() {
 }
 
 async function fetchMacroData() {
-  const yf = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+  const proxy  = 'https://api.allorigins.win/get?url=';
+  const fred   = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=';
   const series = {
-    macroVIX:  '%5EVIX',
-    macroT10Y: '%5ETNX',
-    macroDXY:  'DX-Y.NYB',
+    macroVIX:  'VIXCLS',
+    macroT10Y: 'DGS10',
+    macroDXY:  'DTWEXBGS',
+    macroFED:  'DFF',
+    macroPCE:  'PCEPILFE',
   };
   const results = await Promise.allSettled(
-    Object.entries(series).map(([id, sym]) =>
-      fetch(`${yf}${sym}?interval=1d&range=1d`)
+    Object.entries(series).map(([id, sid]) =>
+      fetch(proxy + encodeURIComponent(fred + sid))
         .then(r => r.json())
-        .then(d => ({ id, value: d.chart?.result?.[0]?.meta?.regularMarketPrice }))
+        .then(d => {
+          const lines = d.contents.trim().split('\n').filter(l => l && !l.startsWith('DATE'));
+          const last  = lines[lines.length - 1];
+          return { id, value: last?.split(',')[1] };
+        })
     )
   );
   results.forEach(r => {
     if(r.status !== 'fulfilled') return;
     const { id, value } = r.value;
-    if(value == null || isNaN(value)) return;
+    if(!value || value === '.') return;
+    const num = parseFloat(value);
+    if(isNaN(num)) return;
     const el = document.getElementById(id);
     if(!el) return;
-    const num = parseFloat(value);
     if(id === 'macroVIX') {
       el.textContent = num.toFixed(1);
       el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
-    } else if(id === 'macroT10Y') {
+    } else if(id === 'macroT10Y' || id === 'macroFED') {
       el.textContent = num.toFixed(2) + '%';
       el.style.color = num > 4.5 ? '#f85149' : '#d29922';
     } else if(id === 'macroDXY') {
       el.textContent = num.toFixed(1);
       el.style.color = '#e6edf3';
+    } else if(id === 'macroPCE') {
+      el.textContent = num.toFixed(1) + '%';
+      el.style.color = num > 3 ? '#f85149' : '#d29922';
     }
   });
 }
