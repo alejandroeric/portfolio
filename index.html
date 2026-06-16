@@ -2647,9 +2647,7 @@ function saveFredKey() {
 }
 
 async function fetchMacroData() {
-  if(!FRED_KEY) return;
-  const base = 'https://api.stlouisfed.org/fred/series/observations';
-  const params = `&api_key=${FRED_KEY}&sort_order=desc&limit=1&file_type=json`;
+  const base = 'https://fred.stlouisfed.org/graph/fredgraph.csv';
   const series = {
     macroVIX:  'VIXCLS',
     macroT10Y: 'DGS10',
@@ -2659,18 +2657,24 @@ async function fetchMacroData() {
   };
   const results = await Promise.allSettled(
     Object.entries(series).map(([id, sid]) =>
-      fetch(`${base}?series_id=${sid}${params}`)
-        .then(r => r.json())
-        .then(d => ({ id, value: d.observations?.[0]?.value }))
+      fetch(`${base}?id=${sid}`)
+        .then(r => r.text())
+        .then(csv => {
+          const lines = csv.trim().split('\n').filter(l => l && !l.startsWith('DATE'));
+          const last = lines[lines.length - 1];
+          const value = last?.split(',')[1];
+          return { id, value };
+        })
     )
   );
   results.forEach(r => {
     if(r.status !== 'fulfilled') return;
     const { id, value } = r.value;
-    if(!value || value === '.') return;
+    if(!value || value === '.' || value.trim() === '') return;
     const el = document.getElementById(id);
     if(!el) return;
     const num = parseFloat(value);
+    if(isNaN(num)) return;
     if(id === 'macroVIX') {
       el.textContent = num.toFixed(1);
       el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
