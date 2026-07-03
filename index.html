@@ -1267,7 +1267,7 @@ function analyze(data){
 }
 
 async function fetchAV(ticker, tf) {
-  if(FINNHUB_KEY) return fetchFinnhubCandle(ticker, tf);
+  // Candles históricos: Alpha Vantage (Finnhub free no incluye stock/candle)
   // Fallback: Alpha Vantage
   const fn = tf === 'weekly' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
   const url = `https://www.alphavantage.co/query?function=${fn}&symbol=${encodeURIComponent(ticker)}&outputsize=compact&apikey=${API_KEY}`;
@@ -4008,19 +4008,8 @@ async function fetchBenchmark(ticker, sector, tickerCloses, tickerLabels) {
   if(!el) return;
 
   let benchCloses = null;
-  // Primario: Finnhub candle
-  if(FINNHUB_KEY && !IS_DEMO) {
-    try {
-      const to   = Math.floor(Date.now() / 1000);
-      const from = to - (150 * 24 * 60 * 60);
-      const url  = `https://finnhub.io/api/v1/stock/candle?symbol=${benchTicker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
-      const res  = await fetch(url);
-      const d    = await res.json();
-      if(d.s === 'ok' && d.c?.length) benchCloses = d.c;
-    } catch(e) {}
-  }
-  // Fallback: Alpha Vantage
-  if(!benchCloses && API_KEY && !IS_DEMO) {
+  // Alpha Vantage para datos históricos (Finnhub free no incluye candles)
+  if(API_KEY && !IS_DEMO) {
     try {
       const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${benchTicker}&outputsize=compact&apikey=${API_KEY}`;
       const res = await fetch(url);
