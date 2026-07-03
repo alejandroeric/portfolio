@@ -913,6 +913,17 @@ canvas{max-width:100%}
       </div>
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
+      <div class="cfg-lbl">FINNHUB (precios, noticias, analistas, insiders — reemplaza Alpha Vantage)</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input class="inp" id="finnhubKeyInp" placeholder="Finnhub API Key" type="password" autocomplete="off">
+        <button class="btn btn-a" onclick="saveFinnhubKey()">GUARDAR</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+        KEY ACTIVA: <span id="finnhubKeyDisplay" style="color:var(--accent)">No configurada</span> ·
+        <a href="https://finnhub.io/register" target="_blank" style="color:var(--accent)">finnhub.io</a> · 60 llamadas/min gratis
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FRED API (datos macro: VIX, Treasury, Fed Rate, DXY, PCE)</div>
       <div style="display:flex;gap:8px;margin-top:4px">
         <input class="inp" id="fredKeyInp" placeholder="FRED API Key" type="password" autocomplete="off">
@@ -1255,44 +1266,71 @@ function analyze(data){
   return{ticker:data.ticker,price,prevClose:data.previousClose,currency:data.currency,exchange:data.exchange,isDemo:data.isDemo||false,comp,verdict,vClass,aiScore,confidenceNote,bullSignals,bearSignals,canAct,noTrend,contradicting,SC,rsiV,macdV,sigV,histV,stK,stD,adxV,pDIv,mDIv,sqNow,fired,momV,sm10v:sm10[n-1],sm55v:sm55[n-1],abv10,abv55,gc:gc2,volStr,rv,av:av2,adxP,obvTrend,entry:price,tp,sl,rr,atrC,CD};
 }
 
-async function fetchAV(ticker,tf){
-  const fn=tf==='weekly'?'TIME_SERIES_WEEKLY':'TIME_SERIES_DAILY';
-  const url=`https://www.alphavantage.co/query?function=${fn}&symbol=${encodeURIComponent(ticker)}&outputsize=compact&apikey=${API_KEY}`;
+async function fetchAV(ticker, tf) {
+  if(FINNHUB_KEY) return fetchFinnhubCandle(ticker, tf);
+  // Fallback: Alpha Vantage
+  const fn = tf === 'weekly' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
+  const url = `https://www.alphavantage.co/query?function=${fn}&symbol=${encodeURIComponent(ticker)}&outputsize=compact&apikey=${API_KEY}`;
   let data;
-  try{
-    const resp=await fetch(url);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    data=await resp.json();
-  } catch(e){
+  try {
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    data = await resp.json();
+  } catch(e) {
     throw new Error('Sin conexión. Verificá tu internet o usá Modo Demo.');
   }
-  // Rate limit (5 calls/min)
   if(data['Note']) throw new Error('Llamadas muy seguidas. Esperá 60 segundos.');
-  // Daily limit (25 calls/day)
-  if(data['Information']){
+  if(data['Information']) {
     if(data['Information'].includes('25') || data['Information'].includes('limit'))
-      throw new Error('Límite diario (25 calls) alcanzado. Se renueva a medianoche UTC. Mientras tanto usá Modo Demo: andá a CONFIG → DEMO.');
-    throw new Error('API: '+data['Information'].slice(0,100));
+      throw new Error('Límite diario (25 calls) alcanzado. Configurá Finnhub en CONFIG para eliminar este límite.');
+    throw new Error('API: ' + data['Information'].slice(0, 100));
   }
-  // Ticker not found (non-US tickers like YPFD won't be in Alpha Vantage)
-  if(data['Error Message'] || (!data['Time Series (Daily)'] && !data['Weekly Time Series'])){
-    throw new Error('Ticker "'+ticker+'" no disponible. Alpha Vantage solo tiene tickers de EE.UU. (NYSE/NASDAQ). Probá en Modo Demo o verificá el ticker.');
+  if(data['Error Message'] || (!data['Time Series (Daily)'] && !data['Weekly Time Series']))
+    throw new Error('Ticker "' + ticker + '" no disponible. Verificá el ticker o configurá Finnhub en CONFIG.');
+  const key = tf === 'weekly' ? 'Weekly Time Series' : 'Time Series (Daily)';
+  const ts = data[key];
+  if(!ts) throw new Error('Sin datos históricos para "' + ticker + '".');
+  const entries = Object.entries(ts).sort((a, b) => a[0] > b[0] ? 1 : -1).slice(-200);
+  const gc = e => parseFloat(e['4. close'] || e['5. adjusted close']);
+  return {
+    ticker: ticker.toUpperCase(), currency: 'USD', exchange: 'NYSE/NASDAQ', isDemo: false,
+    currentPrice: gc(entries[entries.length-1][1]),
+    previousClose: gc(entries[entries.length-2][1]),
+    timestamps: entries.map(e => e[0]),
+    opens:   entries.map(e => parseFloat(e[1]['1. open'])),
+    highs:   entries.map(e => parseFloat(e[1]['2. high'])),
+    lows:    entries.map(e => parseFloat(e[1]['3. low'])),
+    closes:  entries.map(e => gc(e[1])),
+    volumes: entries.map(e => parseInt(e[1]['5. volume'] || e[1]['6. volume'] || 0))
+  };
+}
+
+async function fetchFinnhubCandle(ticker, tf) {
+  const to   = Math.floor(Date.now() / 1000);
+  const from = to - (210 * 24 * 60 * 60);
+  const res  = tf === 'weekly' ? 'W' : 'D';
+  const url  = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(ticker)}&resolution=${res}&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+  let d;
+  try {
+    const resp = await fetch(url);
+    d = await resp.json();
+  } catch(e) {
+    throw new Error('Sin conexión con Finnhub. Verificá tu internet.');
   }
-  const key=tf==='weekly'?'Weekly Time Series':'Time Series (Daily)';
-  const ts=data[key];
-  if(!ts) throw new Error('Sin datos históricos para "'+ticker+'".');
-  const entries=Object.entries(ts).sort((a,b)=>a[0]>b[0]?1:-1).slice(-200);
-  const gc=e=>parseFloat(e['4. close']||e['5. adjusted close']);
-  return{
-    ticker:ticker.toUpperCase(),currency:'USD',exchange:'NYSE/NASDAQ',isDemo:false,
-    currentPrice:gc(entries[entries.length-1][1]),
-    previousClose:gc(entries[entries.length-2][1]),
-    timestamps:entries.map(e=>e[0]),
-    opens:entries.map(e=>parseFloat(e[1]['1. open'])),
-    highs:entries.map(e=>parseFloat(e[1]['2. high'])),
-    lows:entries.map(e=>parseFloat(e[1]['3. low'])),
-    closes:entries.map(e=>gc(e[1])),
-    volumes:entries.map(e=>parseInt(e[1]['5. volume']||e[1]['6. volume']||0))
+  if(d.s !== 'ok' || !d.c?.length)
+    throw new Error('Ticker "' + ticker + '" no disponible en Finnhub. Verificá el símbolo.');
+  const n = d.c.length;
+  const timestamps = d.t.map(ts => new Date(ts * 1000).toISOString().slice(0, 10));
+  return {
+    ticker: ticker.toUpperCase(), currency: 'USD', exchange: 'NYSE/NASDAQ', isDemo: false,
+    currentPrice:  d.c[n-1],
+    previousClose: d.c[n-2],
+    timestamps,
+    opens:   d.o,
+    highs:   d.h,
+    lows:    d.l,
+    closes:  d.c,
+    volumes: d.v
   };
 }
 
@@ -1307,28 +1345,40 @@ function genDemo(ticker){
 }
 
 async function fetchPriceTargets(ticker, currentPrice) {
-  // Try FMP for real analyst targets
-  let targets = null;
+  let targets = estimatePriceTargets(ticker, currentPrice);
+
+  // Enriquecer con rango 52w de FMP
   if(FMP_KEY && FMP_KEY !== 'demo') {
     try {
       const profileR = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json());
       const profile = Array.isArray(profileR) ? profileR[0] : null;
       if(profile?.range) {
-        // Use 52w range from profile to enrich the technical estimate
         const parts = profile.range.split('-');
         const low52w  = parseFloat(parts[0]);
         const high52w = parseFloat(parts[1]);
-        if(low52w > 0 && high52w > 0) {
-          targets = { ...estimatePriceTargets(ticker, currentPrice), low52w, high52w, isReal: false };
+        if(low52w > 0 && high52w > 0) targets = { ...targets, low52w, high52w };
+      }
+    } catch(e) {}
+  }
+
+  // Enriquecer con recomendaciones reales de analistas vía Finnhub
+  if(FINNHUB_KEY) {
+    try {
+      const url  = `https://finnhub.io/api/v1/stock/recommendation?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`;
+      const resp = await fetch(url);
+      const recs = await resp.json();
+      if(Array.isArray(recs) && recs.length) {
+        const latest = recs[0];
+        const buy  = (latest.buy  || 0) + (latest.strongBuy  || 0);
+        const hold = latest.hold  || 0;
+        const sell = (latest.sell || 0) + (latest.strongSell || 0);
+        if(buy + hold + sell > 0) {
+          targets = { ...targets, buyCount: buy, holdCount: hold, sellCount: sell, isReal: true };
         }
       }
     } catch(e) {}
   }
 
-  // Fallback: estimate from technical analysis + ATR projection
-  if(!targets) {
-    targets = estimatePriceTargets(ticker, currentPrice);
-  }
   return targets;
 }
 
@@ -1636,9 +1686,10 @@ const ANTHROPIC_VERSION = '2023-06-01';
 const CHAT_MAX_HISTORY = 20;
 
 // ── STATE ──
-let API_KEY  = localStorage.getItem('av_key')   || '';
-let FMP_KEY  = localStorage.getItem('fmp_key')  || '';
-let FRED_KEY = localStorage.getItem('fred_key') || '';
+let API_KEY      = localStorage.getItem('av_key')       || '';
+let FMP_KEY      = localStorage.getItem('fmp_key')      || '';
+let FRED_KEY     = localStorage.getItem('fred_key')     || '';
+let FINNHUB_KEY  = localStorage.getItem('finnhub_key')  || '';
 let TG_TOKEN = ''; // legacy — ya no se usa
 let TG_CHAT_ID = '';
 
@@ -1648,7 +1699,7 @@ let THRESHOLDS = JSON.parse(localStorage.getItem('pip_thresholds') || JSON.strin
 const WATCHLIST = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU','BTC','ETH'];
 let LAST_SCORES = JSON.parse(localStorage.getItem('lastScores') || '{}');
 let MONITOR_INTERVAL = null;
-let IS_DEMO = !API_KEY;
+let IS_DEMO = !API_KEY && !FINNHUB_KEY;
 let POSITIONS = JSON.parse(localStorage.getItem('pip_positions') || 'null');
 let RESULTS_CACHE = {};
 let ACTIVE_ALERTS = [];
@@ -2596,6 +2647,9 @@ function renderConfig() {
   const fredEl = document.getElementById('fredKeyDisplay');
   if(fredEl) fredEl.textContent = FRED_KEY ? FRED_KEY.slice(0,8)+'...' : 'No configurada';
   if(fredEl) fredEl.style.color = FRED_KEY ? 'var(--green)' : 'var(--text2)';
+  const fhEl = document.getElementById('finnhubKeyDisplay');
+  if(fhEl) fhEl.textContent = FINNHUB_KEY ? FINNHUB_KEY.slice(0,8)+'...' : 'No configurada';
+  if(fhEl) fhEl.style.color = FINNHUB_KEY ? 'var(--green)' : 'var(--text2)';
   const antInp = document.getElementById('anthropicKeyInp');
   if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
@@ -2634,6 +2688,19 @@ function saveFmpKey() {
   document.getElementById('fmpKeyDisplay').textContent = k.slice(0,8)+'...';
   document.getElementById('fmpKeyDisplay').style.color = 'var(--green)';
   showToast('FMP API key guardada ✓');
+}
+
+function saveFinnhubKey() {
+  const k = document.getElementById('finnhubKeyInp').value.trim();
+  if(!k) { alert('Ingresá tu Finnhub API Key'); return; }
+  FINNHUB_KEY = k;
+  IS_DEMO = false;
+  localStorage.setItem('finnhub_key', k);
+  document.getElementById('finnhubKeyDisplay').textContent = k.slice(0,8)+'...';
+  document.getElementById('finnhubKeyDisplay').style.color = 'var(--green)';
+  document.getElementById('modeBadge').textContent = '● REAL';
+  document.getElementById('modeBadge').className = 'mode-badge mode-real';
+  showToast('Finnhub key guardada — modo REAL activado ✓');
 }
 
 function saveFredKey() {
@@ -3288,6 +3355,9 @@ function renderResults(r){
     </div>
   </div>
 
+  <!-- INSIDER TRANSACTIONS -->
+  <div id="layer-insiders"></div>
+
   <!-- NARRATIVE ANALYST -->
   <div class="narrative-card" id="layer-narrative">
     <div class="narrative-header">
@@ -3637,6 +3707,47 @@ function renderFundamentals(data, ticker) {
   `;
 }
 
+function renderInsiders(txns, ticker) {
+  if(!txns || !txns.length) return '';
+  const fmtVal = v => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(0)}K` : `$${v.toFixed(0)}`;
+  const rows = txns.map(t => {
+    const isBuy  = t.type === 'Compra';
+    const color  = isBuy ? '#3fb950' : '#f85149';
+    return `<tr>
+      <td style="color:var(--text2);font-size:11px">${t.date}</td>
+      <td style="color:#fff;font-size:11px">${t.name}</td>
+      <td style="color:var(--muted);font-size:10px">${t.title}</td>
+      <td style="color:${color};font-weight:700;font-size:11px">${t.type}</td>
+      <td style="color:var(--text2);font-size:11px;text-align:right">${t.shares.toLocaleString()}</td>
+      <td style="color:${color};font-size:11px;text-align:right">${fmtVal(t.value)}</td>
+    </tr>`;
+  }).join('');
+  const buyCount  = txns.filter(t => t.type === 'Compra').length;
+  const sellCount = txns.filter(t => t.type === 'Venta').length;
+  const signal = buyCount > sellCount ? '<span style="color:#3fb950">▲ Insiders comprando</span>' : buyCount < sellCount ? '<span style="color:#f85149">▼ Insiders vendiendo</span>' : '<span style="color:var(--muted)">Mixto</span>';
+  return `
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px">// TRANSACCIONES DE INSIDERS</span>
+      <span style="font-size:11px;margin-left:auto">${signal}</span>
+      <span style="font-size:9px;color:var(--muted);background:var(--bg3);border-radius:4px;padding:2px 6px">Finnhub</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:6px;letter-spacing:1px">FECHA</th>
+          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:6px;letter-spacing:1px">NOMBRE</th>
+          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:6px;letter-spacing:1px">CARGO</th>
+          <th style="text-align:left;font-size:9px;color:var(--muted);padding-bottom:6px;letter-spacing:1px">TIPO</th>
+          <th style="text-align:right;font-size:9px;color:var(--muted);padding-bottom:6px;letter-spacing:1px">ACCIONES</th>
+          <th style="text-align:right;font-size:9px;color:var(--muted);padding-bottom:6px;letter-spacing:1px">VALOR</th>
+        </tr></thead>
+        <tbody style="font-family:var(--mono)">${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 function renderNews(newsArr) {
   if(!newsArr || !newsArr.length) return '<div class="loading-inline">Sin noticias disponibles.</div>';
   const posCount = newsArr.filter(n=>n.sentiment.label==='pos').length;
@@ -3782,6 +3893,38 @@ function renderRisk(r, bt, data) {
 }
 
 async function fetchNews(ticker) {
+  // Finnhub company-news (primario)
+  if(FINNHUB_KEY && !IS_DEMO) {
+    try {
+      const to   = new Date().toISOString().slice(0,10);
+      const from = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
+      const url  = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+      const res  = await fetch(url);
+      const items = await res.json();
+      if(Array.isArray(items) && items.length) {
+        const POSITIVE = ['surge','soar','beat','record','rally','gain','buy','upgrade','outperform','growth','profit','revenue'];
+        const NEGATIVE = ['fall','drop','miss','loss','cut','downgrade','concern','risk','decline','weak','layoff','fine','lawsuit'];
+        return items.slice(0, 8).map(item => {
+          const text = (item.headline + ' ' + (item.summary || '')).toLowerCase();
+          const posHits = POSITIVE.filter(w => text.includes(w)).length;
+          const negHits = NEGATIVE.filter(w => text.includes(w)).length;
+          const score = (posHits - negHits) / Math.max(posHits + negHits, 1);
+          const label = score > 0.1 ? 'pos' : score < -0.1 ? 'neg' : 'neu';
+          const sentText = label === 'pos' ? 'Positivo' : label === 'neg' ? 'Negativo' : 'Neutro';
+          const pct = Math.round(Math.abs(score) * 100);
+          const time = item.datetime ? new Date(item.datetime * 1000).toISOString().slice(0,10) : '—';
+          return {
+            title: item.headline,
+            source: item.source,
+            url: item.url || '#',
+            time,
+            sentiment: { label, text: sentText, score: pct }
+          };
+        });
+      }
+    } catch(e) {}
+  }
+  // Fallback: Alpha Vantage
   if(!API_KEY || IS_DEMO) return null;
   try {
     const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${encodeURIComponent(ticker)}&limit=10&apikey=${API_KEY}`;
@@ -3796,13 +3939,7 @@ async function fetchNews(ticker) {
       const pct   = Math.round(Math.abs(score) * 100);
       const pub   = item.time_published || '';
       const time  = pub ? pub.slice(0,4)+'-'+pub.slice(4,6)+'-'+pub.slice(6,8) : '—';
-      return {
-        title: item.title,
-        source: item.source,
-        url: item.url || '#',
-        time,
-        sentiment: { label, text, score: pct }
-      };
+      return { title: item.title, source: item.source, url: item.url || '#', time, sentiment: { label, text, score: pct } };
     });
   } catch(e) { return null; }
 }
@@ -3810,7 +3947,19 @@ async function fetchNews(ticker) {
 async function fetchMacro() {
   const proxies = { spy: 'SPY', vxx: 'VXX', tlt: 'TLT', uup: 'UUP' };
   const results = {};
-  if(API_KEY && !IS_DEMO) {
+  // Primario: Finnhub quote (60 calls/min)
+  if(FINNHUB_KEY && !IS_DEMO) {
+    try {
+      const fetches = Object.entries(proxies).map(([k, sym]) =>
+        fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`)
+          .then(r => r.json()).then(d => ({ k, price: d.c })).catch(() => ({ k, price: null }))
+      );
+      const res = await Promise.all(fetches);
+      res.forEach(({ k, price }) => { if(price) results[k] = price; });
+    } catch(e) {}
+  }
+  // Fallback: Alpha Vantage
+  if(!Object.keys(results).length && API_KEY && !IS_DEMO) {
     try {
       const fetches = Object.entries(proxies).map(([k, sym]) =>
         fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${API_KEY}`)
@@ -3859,15 +4008,25 @@ async function fetchBenchmark(ticker, sector, tickerCloses, tickerLabels) {
   if(!el) return;
 
   let benchCloses = null;
-  if(API_KEY && !IS_DEMO) {
+  // Primario: Finnhub candle
+  if(FINNHUB_KEY && !IS_DEMO) {
+    try {
+      const to   = Math.floor(Date.now() / 1000);
+      const from = to - (150 * 24 * 60 * 60);
+      const url  = `https://finnhub.io/api/v1/stock/candle?symbol=${benchTicker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+      const res  = await fetch(url);
+      const d    = await res.json();
+      if(d.s === 'ok' && d.c?.length) benchCloses = d.c;
+    } catch(e) {}
+  }
+  // Fallback: Alpha Vantage
+  if(!benchCloses && API_KEY && !IS_DEMO) {
     try {
       const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${benchTicker}&outputsize=compact&apikey=${API_KEY}`;
       const res = await fetch(url);
       const json = await res.json();
       const ts = json['Time Series (Daily)'];
-      if(ts) {
-        benchCloses = Object.entries(ts).slice(0, 130).reverse().map(([, v]) => parseFloat(v['4. close']));
-      }
+      if(ts) benchCloses = Object.entries(ts).slice(0, 130).reverse().map(([, v]) => parseFloat(v['4. close']));
     } catch(e) {}
   }
 
@@ -4013,7 +4172,15 @@ async function loadAllLayers(r, data) {
   const sector = fundData?.profile?.sector || r.sector || 'Technology';
   await fetchBenchmark(r.ticker, sector, data.closes, data.labels);
 
-  // Layer 7: Claude Narrative — reutiliza fundData ya cargado en Layer 1
+  // Layer 7: Insider transactions (Finnhub)
+  const insidersEl = document.getElementById('layer-insiders');
+  if(insidersEl && FINNHUB_KEY) {
+    insidersEl.innerHTML = '<div class="loading-inline"><span class="spin-sm"></span>Cargando transacciones internas...</div>';
+    const insidersData = await fetchInsiders(r.ticker);
+    insidersEl.innerHTML = renderInsiders(insidersData, r.ticker);
+  }
+
+  // Layer 8: Claude Narrative — reutiliza fundData ya cargado en Layer 1
   const narrativeEl = document.getElementById('layer-narrative');
   if(narrativeEl) {
     await fetchClaudeNarrative(r, fundData, narrativeEl);
@@ -4185,7 +4352,7 @@ async function run(){
   const ticker=document.getElementById('tickerInp').value.trim().toUpperCase();
   if(!ticker){showErr('Ingresá un ticker (ej: AAPL, TSLA, SPY)');return;}
   // Ensure demo mode if no key
-  if(!API_KEY) { IS_DEMO = true; }
+  if(!API_KEY && !FINNHUB_KEY) { IS_DEMO = true; }
   const btn=document.getElementById('analyzeBtn');
   btn.disabled=true;
   btn.textContent='⏳ ANALIZANDO...';
@@ -4263,23 +4430,72 @@ let RADAR_PRICES = JSON.parse(localStorage.getItem('pip_radar_prices') || '{}');
 let RADAR_LAST_AI = localStorage.getItem('pip_radar_ai_date') || '';
 
 async function fetchRadarPrice(ticker) {
-  if(!API_KEY || IS_DEMO) return null;
+  if(IS_DEMO) return null;
   const todayISO = new Date().toISOString().slice(0,10);
   if(RADAR_PRICES[ticker] && RADAR_PRICES[ticker].date === todayISO) {
     return RADAR_PRICES[ticker].price;
   }
+  // Primario: Finnhub quote
+  if(FINNHUB_KEY) {
+    try {
+      const url  = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`;
+      const resp = await fetch(url);
+      const d    = await resp.json();
+      if(d.c && d.c > 0) {
+        const price  = d.c;
+        const change = d.dp || 0;
+        RADAR_PRICES[ticker] = { price, change, date: todayISO };
+        localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
+        return price;
+      }
+    } catch(e) {}
+  }
+  // Fallback: Alpha Vantage
+  if(!API_KEY) return null;
   try {
-    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`;
+    const url  = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`;
     const resp = await fetch(url);
     const data = await resp.json();
     if(data['Note'] || data['Information']) return null;
     const quote = data['Global Quote'];
     if(!quote || !quote['05. price']) return null;
-    const price = parseFloat(quote['05. price']);
+    const price  = parseFloat(quote['05. price']);
     const change = parseFloat(quote['10. change percent']?.replace('%','') || '0');
     RADAR_PRICES[ticker] = { price, change, date: todayISO };
     localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
     return price;
+  } catch(e) { return null; }
+}
+
+async function fetchInsiders(ticker) {
+  if(!FINNHUB_KEY || IS_DEMO) return null;
+  try {
+    const url  = `https://finnhub.io/api/v1/stock/insider-transactions?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`;
+    const resp = await fetch(url);
+    const d    = await resp.json();
+    const txns = d.data;
+    if(!Array.isArray(txns) || !txns.length) return null;
+    return txns.slice(0, 10).map(t => ({
+      name:   t.name || '—',
+      title:  t.reportedTitle || '',
+      type:   t.transactionCode === 'P' ? 'Compra' : t.transactionCode === 'S' ? 'Venta' : t.transactionCode,
+      shares: t.share || 0,
+      price:  t.price || 0,
+      value:  t.value || 0,
+      date:   t.transactionDate || '—',
+    }));
+  } catch(e) { return null; }
+}
+
+async function fetchCryptoPrices() {
+  try {
+    const url  = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd';
+    const resp = await fetch(url);
+    const d    = await resp.json();
+    return {
+      btc: d?.bitcoin?.usd  || null,
+      eth: d?.ethereum?.usd || null,
+    };
   } catch(e) { return null; }
 }
 
@@ -4841,6 +5057,13 @@ function clearChat() {
 // Auto-resize textarea
 document.addEventListener('DOMContentLoaded', () => {
   fetchMacroData();
+  // Actualizar precios de BTC/ETH desde CoinGecko al arrancar
+  fetchCryptoPrices().then(prices => {
+    if(!prices) return;
+    if(prices.btc) { KNOWN_PRICES_USD['BTC'] = prices.btc; KNOWN_PRICES['BTC'] = prices.btc; }
+    if(prices.eth) { KNOWN_PRICES_USD['ETH'] = prices.eth; KNOWN_PRICES['ETH'] = prices.eth; }
+    renderPortfolio();
+  });
   const inp = document.getElementById('chatInp');
   if(inp) {
     const wrap = document.getElementById('chatInputWrap');
