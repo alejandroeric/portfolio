@@ -1267,8 +1267,9 @@ function analyze(data){
 }
 
 async function fetchAV(ticker, tf) {
-  // Candles históricos: Alpha Vantage (Finnhub free no incluye stock/candle)
-  // Fallback: Alpha Vantage
+  // El análisis técnico requiere datos históricos OHLCV de Alpha Vantage.
+  // Finnhub plan gratuito no incluye candles históricos.
+  if(!API_KEY) throw new Error('El análisis técnico requiere Alpha Vantage. Configurá tu key de AV en ⚙ CONFIG (gratis, 25 análisis/día). Finnhub se usa para noticias, analistas e insiders.');
   const fn = tf === 'weekly' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
   const url = `https://www.alphavantage.co/query?function=${fn}&symbol=${encodeURIComponent(ticker)}&outputsize=compact&apikey=${API_KEY}`;
   let data;
