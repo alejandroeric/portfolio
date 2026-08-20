@@ -2606,15 +2606,6 @@ function buildAlerts() {
       });
     }
 
-    // Earnings próximos hardcodeados (fechas conocidas)
-    if(p.ticker==='ACN') {
-      const daysTo = Math.ceil((new Date('2026-06-18') - new Date()) / 86400000);
-      if(daysTo > 0) ACTIVE_ALERTS.push({type:'yel', title:'ACN — Earnings el 18 de Junio', body:`Accenture reporta en ${daysTo} días. P&L actual: ${pnlSign}${pnlAbs}%. Momento clave para decidir si mantener o salir.`, time:`${daysTo} días`});
-    }
-    if(p.ticker==='ADBE') {
-      const daysTo = Math.ceil((new Date('2026-06-11') - new Date()) / 86400000);
-      if(daysTo > 0) ACTIVE_ALERTS.push({type:'yel', title:'ADBE — Earnings el 11 de Junio', body:`Adobe reporta en ${daysTo} días. P&L actual: ${pnlSign}${pnlAbs}%. EPS esperado $5.67.`, time:`${daysTo} días`});
-    }
 
     // Ganancias importantes para tomar
     if(pnlPct > 15 && dec.action === 'REDUCIR') {
