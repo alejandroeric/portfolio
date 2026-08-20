@@ -3371,7 +3371,7 @@ function renderFundamentals(data, ticker) {
       <div class="fsub">${c.sub}</div>
     </div>`).join('')}
   </div>
-  ${p.description ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text2);line-height:1.7;"><strong style="color:#fff">${p.companyName||ticker}</strong> — ${p.description.slice(0,300)}...</div>` : ''}
+  ${p.description ? `<div id="companyDescBox" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text2);line-height:1.7;"><strong style="color:#fff">${p.companyName||ticker}</strong> — <span id="companyDescText">${p.description.slice(0,300)}...</span></div>` : ''}
   `;
 }
 
@@ -3461,6 +3461,35 @@ function renderNews(newsArr) {
   </div>`;
 }
 
+async function translateCompanyDesc(description) {
+  const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
+  if(!ANTHROPIC_KEY || !description) return;
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        messages: [{
+          role: 'user',
+          content: `Traducí este texto al español rioplatense. Mantené nombres propios y cifras. Devolvé SOLO el texto traducido, sin comillas ni texto adicional:\n\n${description.slice(0, 300)}`
+        }]
+      })
+    });
+    const data = await resp.json();
+    if(data.error) return;
+    const translated = data.content[0].text.trim();
+    const el = document.getElementById('companyDescText');
+    if(el && translated) el.textContent = translated + '...';
+  } catch(e) {}
+}
+
 async function translateNewsTitles(container, newsData) {
   const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
   if(!ANTHROPIC_KEY || !newsData || !newsData.length) return;
@@ -3514,12 +3543,12 @@ function renderMacro(macro, ticker, sector) {
   <div class="macro-grid">
     ${items.map(m=>{
       const MACRO_TIPS = {
-        'S&P 500':      `S&P 500 — Índice de referencia del mercado americano — Mide las 500 empresas más grandes de EE.UU. Si sube, el mercado está en modo "risk-on" (apetito por acciones). Si cae más del 5% en poco tiempo, puede arrastrar a todos los sectores.`,
-        'VIX':          `VIX — Índice de Volatilidad ("Índice del miedo") — Mide la volatilidad esperada del S&P 500 para los próximos 30 días. Por debajo de 20: mercado tranquilo, buen momento para entrar. Entre 20-30: nerviosismo. Por encima de 30: pánico, alta volatilidad, mayor riesgo pero también oportunidades.`,
-        'TREASURY 10Y': `Treasury 10Y — Tasa libre de riesgo de EE.UU. — Es la tasa de referencia global. Cuando sube, el dinero "barato" se encarece y las valuaciones de empresas tech/growth caen (porque los flujos futuros valen menos). Por debajo de 4%: favorable para acciones. Por encima de 4.5%: presión sobre múltiplos.`,
-        'FED RATE':     `Fed Rate — Tasa de política monetaria de la Reserva Federal — Controla el costo del dinero en EE.UU. Tasas bajas favorecen el crédito y el crecimiento. Tasas altas frenan la economía para bajar la inflación. Impacta directo en valuaciones de growth y en el dólar.`,
-        'DXY':          `DXY — Índice del Dólar Americano — Mide la fortaleza del USD frente a una canasta de monedas (EUR, JPY, GBP, CAD, SEK, CHF). DXY alto: dólar fuerte, presión sobre materias primas y emergentes. DXY bajo: dólar débil, favorable para commodities y mercados emergentes.`,
-        'PCE CORE':     `PCE Core — Inflación preferida por la Fed — Es el índice de inflación que la Reserva Federal usa para tomar decisiones. Excluye alimentos y energía (volátiles). Por debajo del 2.5%: inflación controlada. Por encima del 3%: la Fed mantiene tasas altas más tiempo, presión sobre acciones.`,
+        'S&P 500':         `S&P 500 — Índice de referencia del mercado americano — Mide las 500 empresas más grandes de EE.UU. Si sube sostenidamente, el mercado está en modo "risk-on". Una caída mayor al 10% desde máximos se llama corrección; mayor al 20%, mercado bajista. Casi todas las acciones siguen su dirección.`,
+        'VIX':             `VIX — Índice del Miedo — Mide la volatilidad esperada del S&P 500 en los próximos 30 días. Menos de 15: calma total, mercado confiado. Entre 15 y 20: tranquilo. Entre 20 y 30: nerviosismo, precaución. Más de 30: pánico, ventas indiscriminadas. Históricamente, VIX alto es oportunidad de compra para el paciente.`,
+        'TREASURY 10Y':    `Treasury 10Y — Tasa libre de riesgo de EE.UU. — Es el bono del Tesoro americano a 10 años. Cuando sube, las valuaciones de acciones tech y growth caen porque los flujos futuros valen menos descontados a tasa alta. Menos de 4%: contexto favorable para acciones. Entre 4% y 4.5%: neutro. Más de 4.5%: presión real sobre múltiplos P/E.`,
+        'DÓLAR':           `Dólar (DXY) — Índice de fortaleza del dólar — Mide el USD contra euro, yen, libra y otras monedas. Dólar fuerte (DXY > 104) perjudica a empresas americanas con ventas internacionales y a emergentes con deuda en USD. Dólar débil favorece commodities y mercados como el latinoamericano.`,
+        'FEAR & GREED':    `Fear & Greed — Sentimiento del mercado (0 a 100) — Índice compuesto que mide si los inversores actúan por miedo o codicia. 0-25: miedo extremo, el mercado está sobrevendido, puede ser oportunidad. 25-50: miedo. 50-75: codicia. 75-100: codicia extrema, señal de que el mercado puede estar sobrecomprado.`,
+        'S&P YTD':         `S&P YTD — Rendimiento anual del S&P 500 — Muestra cuánto subió o bajó el índice desde el 1° de enero del año en curso. Es el benchmark contra el que se mide cualquier inversión: si tu cartera rinde menos que el S&P YTD, hubiera sido mejor comprar un ETF como el SPY.`,
       };
       const tipKey = Object.keys(MACRO_TIPS).find(k => m.label.toUpperCase().includes(k.toUpperCase()));
       const tipAttr = tipKey ? `data-tip="${MACRO_TIPS[tipKey]}"` : '';
@@ -3833,6 +3862,8 @@ async function loadAllLayers(r, data) {
     fundEl.innerHTML = '<div class="loading-inline"><span class="spin-sm"></span>Cargando fundamentales...</div>';
     fundData = await fetchFundamentals(r.ticker);
     fundEl.innerHTML = renderFundamentals(fundData, r.ticker);
+    // Traducir descripción de empresa al español
+    if(fundData?.profile?.description) translateCompanyDesc(fundData.profile.description);
     if(fundData && fundData.ratios) {
       const fScore = calcFundamentalScore(fundData.ratios, fundData.profile||{}, fundData.income||[]);
       updateMasterScore(r, fScore, null, null, null);
