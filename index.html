@@ -513,6 +513,11 @@ canvas{max-width:100%}
 .urgent{background:rgba(255,51,102,.07);border-color:var(--red);}
 .wrap{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:20px;}
 .yellow{border-color:rgba(255,215,0,.3);}
+/* ── TOOLTIP GLOBAL ── */
+#pipTip{position:fixed;z-index:99999;max-width:260px;background:#1a1f2e;border:1px solid rgba(100,160,255,.3);border-radius:9px;padding:10px 13px;pointer-events:none;opacity:0;transition:opacity .15s;box-shadow:0 6px 24px rgba(0,0,0,.6);}
+#pipTip .tip-title{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--accent);margin-bottom:5px;font-weight:700;}
+#pipTip .tip-body{font-size:11px;color:var(--text2);line-height:1.6;}
+[data-tip]{cursor:help;}
 </style>
 </head>
 <body>
@@ -533,11 +538,11 @@ canvas{max-width:100%}
 <!-- MACRO STRIP (visible everywhere) -->
 <div style="padding:8px 14px 0;max-width:1000px;margin:0 auto">
   <div class="macro-strip" id="macroStrip">
-    <div class="mc"><div class="mc-l">VIX</div><div class="mc-v" id="macroVIX">16.7</div><div class="mc-h" id="macroVIXh">&lt;20 tranquilo</div></div>
-    <div class="mc"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" id="macroT10Y">4.56%</div><div class="mc-h">bono libre de riesgo</div></div>
-    <div class="mc"><div class="mc-l">DXY</div><div class="mc-v" id="macroDXY">98.4</div><div class="mc-h">↑ USD fuerte</div></div>
-    <div class="mc"><div class="mc-l">FED RATE</div><div class="mc-v" id="macroFED">3.75%</div><div class="mc-h">tasa objetivo Fed</div></div>
-    <div class="mc"><div class="mc-l">PCE CORE</div><div class="mc-v" id="macroPCE">3.2%</div><div class="mc-h">meta Fed: 2%</div></div>
+    <div class="mc" data-tip="VIX"><div class="mc-l">VIX</div><div class="mc-v" id="macroVIX">16.7</div><div class="mc-h" id="macroVIXh">&lt;20 tranquilo</div></div>
+    <div class="mc" data-tip="TREASURY 10Y"><div class="mc-l">TREASURY 10Y</div><div class="mc-v" id="macroT10Y">4.56%</div><div class="mc-h">bono libre de riesgo</div></div>
+    <div class="mc" data-tip="DXY"><div class="mc-l">DXY</div><div class="mc-v" id="macroDXY">98.4</div><div class="mc-h">↑ USD fuerte</div></div>
+    <div class="mc" data-tip="FED RATE"><div class="mc-l">FED RATE</div><div class="mc-v" id="macroFED">3.75%</div><div class="mc-h">tasa objetivo Fed</div></div>
+    <div class="mc" data-tip="PCE CORE"><div class="mc-l">PCE CORE</div><div class="mc-v" id="macroPCE">3.2%</div><div class="mc-h">meta Fed: 2%</div></div>
   </div>
 </div>
 
@@ -635,7 +640,7 @@ canvas{max-width:100%}
     <div class="kpi"><div class="kpi-lbl">VALOR TOTAL</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub" id="kpiTotalSub">calculando...</div></div>
     <div class="kpi"><div class="kpi-lbl">P&L TOTAL</div><div class="kpi-val" id="kpiPnl">—</div><div class="kpi-sub" id="kpiPnlSub">—</div></div>
     <div class="kpi"><div class="kpi-lbl">POSICIONES</div><div class="kpi-val" id="kpiPositions">—</div><div class="kpi-sub" id="kpiPosSub">—</div></div>
-    <div class="kpi"><div class="kpi-lbl">RIESGO HHI</div><div class="kpi-val" id="kpiHHI">—</div><div class="kpi-sub" id="kpiHHISub">—</div></div>
+    <div class="kpi" data-tip="RIESGO HHI"><div class="kpi-lbl">RIESGO HHI</div><div class="kpi-val" id="kpiHHI">—</div><div class="kpi-sub" id="kpiHHISub">—</div></div>
   </div>
 
   <!-- Distribución unificada -->
@@ -750,31 +755,31 @@ canvas{max-width:100%}
   <!-- FILTROS -->
   <div class="scr-filters">
     <div class="scr-filter">
-      <div class="scr-filter-label">P/E MÁXIMO</div>
+      <div class="scr-filter-label" data-tip="P/E MÁXIMO">P/E MÁXIMO</div>
       <select id="scrPE"><option value="0">Cualquiera</option><option value="15">≤ 15 (barato)</option><option value="25" selected>≤ 25</option><option value="35">≤ 35</option><option value="50">≤ 50</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">ROE MÍNIMO</div>
+      <div class="scr-filter-label" data-tip="ROE MÍNIMO">ROE MÍNIMO</div>
       <select id="scrROE"><option value="0" selected>Cualquiera</option><option value="0.08">≥ 8%</option><option value="0.15">≥ 15%</option><option value="0.20">≥ 20%</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">DEUDA/EQUITY MÁX.</div>
+      <div class="scr-filter-label" data-tip="DEUDA/EQUITY MÁX.">DEUDA/EQUITY MÁX.</div>
       <select id="scrDebt"><option value="999" selected>Cualquiera</option><option value="0.5">≤ 0.5 (baja)</option><option value="1.0">≤ 1.0</option><option value="1.5">≤ 1.5</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">FCF YIELD MÍN.</div>
+      <div class="scr-filter-label" data-tip="FCF YIELD MÍN.">FCF YIELD MÍN.</div>
       <select id="scrFCF"><option value="0" selected>Cualquiera</option><option value="0.02">≥ 2%</option><option value="0.05">≥ 5%</option><option value="0.08">≥ 8%</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">ROA MÍN.</div>
+      <div class="scr-filter-label" data-tip="ROA MÍN.">ROA MÍN.</div>
       <select id="scrGross"><option value="0" selected>Cualquiera</option><option value="0.05">≥ 5%</option><option value="0.08">≥ 8%</option><option value="0.15">≥ 15%</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">CURRENT RATIO MÍN.</div>
+      <div class="scr-filter-label" data-tip="CURRENT RATIO MÍN.">CURRENT RATIO MÍN.</div>
       <select id="scrCR"><option value="0" selected>Cualquiera</option><option value="1.0">≥ 1.0</option><option value="1.5">≥ 1.5</option><option value="2.0">≥ 2.0</option></select>
     </div>
     <div class="scr-filter">
-      <div class="scr-filter-label">SCORE TÉCNICO MÍN.</div>
+      <div class="scr-filter-label" data-tip="SCORE TÉCNICO MÍN.">SCORE TÉCNICO MÍN.</div>
       <select id="scrTech"><option value="0" selected>Cualquiera</option><option value="50">≥ 50%</option><option value="60">≥ 60%</option><option value="70">≥ 70%</option></select>
     </div>
     <div class="scr-filter">
@@ -3768,7 +3773,7 @@ function renderFundamentals(data, ticker) {
   </div>
   <div class="fund-grid-5">
     ${cards.map(c=>`
-    <div class="fcard">
+    <div class="fcard" data-tip="${c.k.toUpperCase()}">
       <div class="fk">${c.k}</div>
       <div class="fv" style="color:${c.col}">${c.v}</div>
       <div class="fsub">${c.sub}</div>
@@ -5107,6 +5112,84 @@ function clearChat() {
   if(sugs) sugs.style.display = 'flex';
   initChat();
 }
+
+// ── TOOLTIP GLOBAL ──
+(function() {
+  const tip = document.createElement('div');
+  tip.id = 'pipTip';
+  tip.innerHTML = '<div class="tip-title"></div><div class="tip-body"></div>';
+  document.body.appendChild(tip);
+
+  const TIPS = {
+    // MACRO STRIP
+    'VIX': { t:'VIX — Índice de Volatilidad', b:'Mide el miedo del mercado. <20 = tranquilo, mercado alcista. 20–30 = tensión, cuidado. >30 = pánico, caída fuerte. Cuando el VIX sube, las acciones suelen caer.' },
+    'TREASURY 10Y': { t:'Treasury 10Y — Tasa libre de riesgo', b:'Rendimiento del bono del Tesoro de EE.UU. a 10 años. Si supera 4.5%, encarece las valuaciones de acciones growth porque el dinero "seguro" compite con la bolsa.' },
+    'DXY': { t:'DXY — Índice del Dólar', b:'Fuerza del dólar vs otras monedas. >104 = dólar fuerte → malo para emergentes y commodities. <100 = dólar débil → bueno para Argentina y mercados LATAM.' },
+    'FED RATE': { t:'Fed Funds Rate — Tasa de la Fed', b:'Tasa de interés de referencia de EE.UU. Alta = crédito caro → presiona acciones tech y growth. Baja = dinero barato → impulsa la bolsa. Mirá la dirección, no solo el número.' },
+    'PCE CORE': { t:'PCE Core — Inflación de la Fed', b:'Inflación preferida por la Fed (sin alimentos ni energía). Meta: 2%. Si está por encima, la Fed no baja tasas. Directo: más inflación = tasas altas por más tiempo = bolsa presionada.' },
+    // SCREENER
+    'P/E MÁXIMO': { t:'P/E Ratio — Precio / Ganancias', b:'Cuántas veces estás pagando las ganancias anuales. <15 = barato. 15–25 = razonable. >35 = caro. Tech suele justificar más. Compará siempre dentro del mismo sector.' },
+    'ROE MÍNIMO': { t:'ROE — Retorno sobre el Patrimonio', b:'Qué tan bien usa la empresa el capital de sus accionistas para ganar dinero. >20% = excelente. 10–20% = aceptable. <10% = bajo. Warren Buffett busca >15% sostenido.' },
+    'DEUDA/EQUITY MÁX.': { t:'Deuda / Equity — Apalancamiento', b:'Cuánta deuda tiene la empresa vs su capital propio. <0.5 = muy sana. 0.5–1.5 = manejable. >1.5 = riesgo financiero, sobre todo si suben las tasas.' },
+    'FCF YIELD MÍN.': { t:'FCF Yield — Rendimiento de Caja Libre', b:'Flujo de caja libre generado como % del precio de la acción. >5% = empresa que genera caja real. Más confiable que las ganancias contables, que pueden manipularse.' },
+    'ROA MÍN.': { t:'ROA — Retorno sobre Activos', b:'Qué tan eficientemente convierte sus activos en ganancias. >8% es sólido. Útil para comparar empresas del mismo sector. Una fábrica y un banco tienen estándares muy distintos.' },
+    'CURRENT RATIO MÍN.': { t:'Current Ratio — Liquidez de Corto Plazo', b:'Activos corrientes dividido pasivos corrientes. <1 = puede no poder pagar sus deudas cortas. 1–2 = normal. >2 = muy líquida. Importante en empresas con mucha deuda corta.' },
+    'SCORE TÉCNICO MÍN.': { t:'Score Técnico — Señal del Gráfico', b:'Puntaje combinado de RSI, MACD, Squeeze Momentum y medias móviles. >60% = señal alcista, buen momento de entrada. <40% = señal bajista, esperá. Solo se calcula si el ticker pasa el filtro fundamental.' },
+    // FUNDAMENTALES DEL ANALIZADOR
+    'P/E RATIO (TTM)': { t:'P/E Ratio — Precio / Ganancias', b:'Cuántas veces estás pagando las ganancias anuales (trailing 12 meses). <15 = barato. 15–25 = razonable. >35 = caro o con alta expectativa de crecimiento. Comparar siempre en el mismo sector.' },
+    'P/B RATIO': { t:'P/B Ratio — Precio / Valor Libro', b:'Precio de la acción dividido el valor contable por acción. <1 = cotiza bajo su valor en libros (posible oportunidad). >3 = el mercado paga prima por intangibles (marca, software, patentes).' },
+    'EV/EBITDA': { t:'EV/EBITDA — Valor Empresa / Ganancias Operativas', b:'Cuánto vale la empresa (incluyendo deuda) vs sus ganancias operativas. <12 = generalmente atractivo. >20 = caro. Mejor que el P/E para comparar empresas con distinta estructura de capital.' },
+    'MARGEN NETO': { t:'Margen Neto — Rentabilidad Final', b:'Porcentaje de cada peso de ventas que se convierte en ganancia neta. >15% = muy bueno. >30% = negocio de alta calidad (ej: software). <5% = negocio de bajo margen (retail, manufactura).' },
+    'ROE': { t:'ROE — Retorno sobre el Patrimonio', b:'Qué tan bien usa la empresa el capital de sus accionistas. >15% = excelente gestión. Cuidado: un ROE muy alto puede ser por exceso de deuda, no por eficiencia real.' },
+    'DEUDA/EQUITY': { t:'Deuda / Equity — Apalancamiento Financiero', b:'Cuánta deuda tiene la empresa vs su capital propio. <0.5 = muy sana. 0.5–1.5 = manejable. >1.5 = riesgo financiero. Con tasas altas, la deuda alta es peligrosa.' },
+    'FCF YIELD': { t:'FCF Yield — Rendimiento de Caja Libre', b:'Flujo de caja libre / capitalización de mercado. >5% = genera mucha caja real. Es el indicador más difícil de manipular contablemente. Buffett lo mira mucho.' },
+    'DIVIDEND YIELD': { t:'Dividend Yield — Rendimiento por Dividendo', b:'Dividendo anual pagado como % del precio de la acción. >3% = atractivo para ingreso. 0% = reinvierte todo en crecimiento. No es malo no pagar dividendo si el negocio crece.' },
+    'REV. GROWTH YOY': { t:'Revenue Growth YoY — Crecimiento de Ingresos', b:'Crecimiento de ventas año contra año. >20% = empresa en expansión rápida. 5–20% = crecimiento sólido. <0% = contracción, señal de alerta. El motor de todo lo demás.' },
+    'MARKET CAP': { t:'Market Cap — Capitalización de Mercado', b:'Valor total de todas las acciones en circulación. Nano cap (<$300M), Small (<$2B), Mid ($2B–$10B), Large ($10B–$200B), Mega (>$200B). Impacta el riesgo y la liquidez.' },
+    'DCF VALUACIÓN': { t:'DCF — Valor Intrínseco Estimado', b:'Descuento de flujos de caja futuros. Si el precio actual está por debajo del DCF, la acción podría estar barata. Si está muy por encima, el mercado está pagando prima de crecimiento.' },
+    'BETA': { t:'Beta — Volatilidad vs el Mercado', b:'Cómo se mueve la acción vs el S&P 500. Beta 1 = se mueve igual que el mercado. >1.5 = muy volátil (amplifica subidas y bajadas). <0.5 = defensiva, poco correlacionada.' },
+    'CURRENT RATIO': { t:'Current Ratio — Liquidez de Corto Plazo', b:'Activos corrientes / Pasivos corrientes. <1 = puede no poder pagar deudas de corto plazo. 1–2 = normal. >2 = muy líquida. Crítico en empresas con mucha deuda corta.' },
+    'MARGEN BRUTO': { t:'Margen Bruto — Rentabilidad del Negocio Base', b:'(Ventas - Costo de ventas) / Ventas. >40% = negocio con alto poder de pricing (software, farma). 20–40% = normal. <20% = negocio de bajo margen (retail, commodities).' },
+    'SHORT INTEREST': { t:'Short Interest — Presión Bajista', b:'Porcentaje de acciones que están vendidas en corto (apostando a la baja). Alto short interest puede significar que los institucionales ven riesgo, o puede generar un short squeeze si la acción sube.' },
+    'PRÓX. EARNINGS': { t:'Próximos Earnings — Fecha de Resultados', b:'Cuando la empresa reporta sus resultados trimestrales. Es el evento de mayor volatilidad: una sorpresa positiva puede subir 10%+, negativa puede bajar 15%+. Definí tu estrategia antes del reporte.' },
+    'REV./ACCIÓN YOY': { t:'Revenue por Acción YoY — Crecimiento por Acción', b:'Crecimiento del ingreso por acción, ajustado por dilución. Mejor que el revenue total porque contempla si la empresa está emitiendo nuevas acciones (que diluyen al accionista).' },
+    // SCORE MAESTRO
+    'TÉCNICO': { t:'Dimensión Técnica (35%)', b:'RSI, MACD, Squeeze Momentum, medias móviles, OBV. Mide el momentum del precio y señales del gráfico.' },
+    'FUNDAMENTAL': { t:'Dimensión Fundamental (30%)', b:'P/E, ROE, margen, FCF, deuda. Mide la calidad y valuación del negocio.' },
+    'SENTIMIENTO': { t:'Dimensión Sentimiento (15%)', b:'Señales de noticias, analistas y recomendaciones institucionales.' },
+    'MACRO': { t:'Dimensión Macro (10%)', b:'VIX, tasas, DXY, S&P 500. El contexto del mercado que no controlás pero afecta todo.' },
+    'BACKTEST': { t:'Dimensión Backtest (10%)', b:'Rentabilidad histórica de la estrategia sobre el activo. Pasado no garantiza futuro, pero aporta contexto estadístico.' },
+    // HHI
+    'RIESGO HHI': { t:'HHI — Índice de Concentración', b:'Herfindahl-Hirschman Index. Mide qué tan concentrado está tu portafolio. <1500 = diversificado. 1500–2500 = concentrado moderado. >2500 = muy concentrado = más riesgo.' },
+  };
+
+  let currentTip = null;
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[data-tip]');
+    if(!el) return;
+    const key = el.dataset.tip.toUpperCase();
+    const data = TIPS[key];
+    if(!data) return;
+    currentTip = el;
+    tip.querySelector('.tip-title').textContent = data.t;
+    tip.querySelector('.tip-body').textContent = data.b;
+    tip.style.opacity = '1';
+  });
+  document.addEventListener('mouseout', e => {
+    if(!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('#pipTip')) {
+      tip.style.opacity = '0';
+      currentTip = null;
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if(tip.style.opacity === '0') return;
+    const x = e.clientX + 14;
+    const y = e.clientY + 14;
+    const w = window.innerWidth, h = window.innerHeight;
+    tip.style.left = (x + 270 > w ? x - 280 : x) + 'px';
+    tip.style.top  = (y + 120 > h ? y - 130 : y) + 'px';
+  });
+})();
 
 // Auto-resize textarea
 document.addEventListener('DOMContentLoaded', () => {
