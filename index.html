@@ -1552,10 +1552,6 @@ async function fetchFundamentals(ticker) {
   return { profile, ratios, income: [], insider: [] };
 }
 
-// fetchNewsScore not found
-
-// loadMacroData not found
-
 function calcMacroImpact(macro, sector) {
   const vix = macro.vix.value;
   const y10 = macro.treasury10.value;
@@ -1795,8 +1791,6 @@ let API_KEY      = localStorage.getItem('av_key')       || '';
 let FMP_KEY      = localStorage.getItem('fmp_key')      || '';
 let FRED_KEY     = localStorage.getItem('fred_key')     || '';
 let FINNHUB_KEY  = localStorage.getItem('finnhub_key')  || '';
-let TG_TOKEN = ''; // legacy — ya no se usa
-let TG_CHAT_ID = '';
 
 // ── NOTIFICACIONES DEL NAVEGADOR ──
 const NOTIF_DEFAULTS = { price: 3, score: 2, rsiOb: 75, rsiOs: 25 };
@@ -1887,15 +1881,6 @@ function getEffectiveMEP() {
 function bondScale(pos) {
   return (pos.type === 'bond' && pos.currency === 'ARS') ? 100 : 1;
 }
-
-const LOAD_MSGS = [
-  ['Descargando datos históricos...','OHLCV · 100 días'],
-  ['Calculando indicadores técnicos...','RSI · MACD · ADX · Squeeze'],
-  ['Analizando confluencia de señales...','10 señales independientes'],
-  ['Cargando fundamentales...','P/E · ROE · Deuda · FCF'],
-  ['Obteniendo noticias...','Sentiment scoring'],
-  ['Procesando contexto macro...','Fed · VIX · DXY · Treasury'],
-];
 
 // ── NAVIGATION ──
 function showPage(id) {
@@ -3029,10 +3014,6 @@ function pushAlert(type, ticker, title, body) {
   const icon = type === 'urgent' ? '🔴' : type === 'good' ? '🟢' : type === 'warn' ? '🟡' : '🔵';
   sendNotification(`${icon} ${title}`, body);
 }
-
-// Legacy — ya no se usa, se mantiene para no romper nada
-function saveTelegram(){ showToast('Telegram reemplazado por notificaciones del browser'); }
-async function testTelegram(){ testNotification(); }
 
 // ── POSITIONS MANAGEMENT ──
 function toggleCostLabel() {
@@ -4429,7 +4410,7 @@ Escribí el análisis en español rioplatense. Estructuralo EXACTAMENTE así (us
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: ANTHROPIC_MODEL,
         max_tokens: 1200,
         messages: [{ role: 'user', content: prompt }]
       })
