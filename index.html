@@ -3384,6 +3384,42 @@ function renderResults(r){
     </div>
   </div>
 
+  <!-- MASTER SCORE -->
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:18px 22px;margin-bottom:14px;">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent);margin-bottom:14px;">// SCORE MAESTRO — ANÁLISIS INTEGRAL</div>
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <!-- Gauge -->
+      <div style="flex-shrink:0;">
+        <svg width="140" height="85" viewBox="0 0 140 85">
+          <path d="M15,75 A60,60 0 0,1 125,75" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14" stroke-linecap="round"/>
+          <path d="M15,75 A60,60 0 0,1 125,75" fill="none" stroke="var(--accent)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 188" id="masterArc" style="transition:stroke-dasharray 1s ease,stroke .5s"/>
+          <text x="70" y="72" text-anchor="middle" font-family="monospace" font-size="24" font-weight="700" fill="currentColor" id="masterScoreVal" style="color:var(--accent)">—</text>
+          <text x="70" y="84" text-anchor="middle" font-family="monospace" font-size="9" fill="#4a6080">SCORE</text>
+        </svg>
+      </div>
+      <!-- Label + breakdown -->
+      <div style="flex:1;min-width:180px;">
+        <div id="masterScoreLabel" style="font-size:20px;font-weight:800;letter-spacing:.05em;margin-bottom:12px;font-family:var(--mono);">—</div>
+        <div style="display:flex;flex-direction:column;gap:5px;" id="masterBreakdown">
+          ${[
+            ['Técnico',     '35%', 'masterBarTech'],
+            ['Fundamental', '30%', 'masterBarFund'],
+            ['Sentimiento', '15%', 'masterBarNews'],
+            ['Macro',       '10%', 'masterBarMacro'],
+            ['Backtest',    '10%', 'masterBarBt'],
+          ].map(([lbl, peso, id]) => `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--mono);font-size:9px;color:var(--muted);width:82px;letter-spacing:.04em">${lbl.toUpperCase()}</span>
+            <div style="flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;">
+              <div id="${id}" style="height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width 1s ease;"></div>
+            </div>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--muted);width:28px;text-align:right">${peso}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- INDICATORS -->
   <div class="igrid">
     ${icard('SQUEEZE MOMENTUM',r.SC.sq.l,r.fired?'🔥 DISPARADO':r.sqNow?'🔴 ON':'🟢 OFF',r.SC.sq.d,'Momentum: '+fmt(r.momV,4),(r.momV>0?'Positivo ↑':'Negativo ↓')+' · Score '+fmt(r.SC.sq.v,1),r.SC.sq.v)}
@@ -4376,12 +4412,25 @@ function updateMasterScore(r, fundScore, sentScore, macroScore, btScore) {
   const master = calcMasterScore(techScore, fS, nS, mS, bS);
   el.textContent = master + '%';
   const masterColor = master>=75?'var(--green)':master>=60?'#7bff7b':master>=45?'var(--yellow)':master>=30?'#ff8c00':'var(--red)';
+  el.style.fill = masterColor;
   el.style.color = masterColor;
   const masterLabel = master>=75?'FUERTE COMPRA':master>=60?'COMPRAR':master>=45?'MANTENER':master>=30?'VENDER':'FUERTE VENTA';
   if(elLabel) { elLabel.textContent = masterLabel; elLabel.style.color = masterColor; }
-  // Update gauge arc
+  // Gauge arc
   const arc = document.getElementById('masterArc');
-  if(arc) arc.setAttribute('stroke-dasharray', `${(master/100)*172.8} 172.8`);
+  if(arc) { arc.setAttribute('stroke-dasharray', `${(master/100)*188} 188`); arc.style.stroke = masterColor; }
+  // Barras de breakdown
+  const bars = [
+    ['masterBarTech',  techScore],
+    ['masterBarFund',  fS],
+    ['masterBarNews',  nS],
+    ['masterBarMacro', mS],
+    ['masterBarBt',    bS],
+  ];
+  bars.forEach(([id, val]) => {
+    const b = document.getElementById(id);
+    if(b) { b.style.width = val + '%'; b.style.background = val>=60?'var(--green)':val>=40?'var(--yellow)':'var(--red)'; }
+  });
 }
 
 async function runMonitorCycle(){
