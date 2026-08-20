@@ -4423,17 +4423,6 @@ async function runMonitorCycle(){
   }
 }
 
-function updateWatchlistItem(ticker, r){
-  const pct=(r.price-r.prevClose)/r.prevClose*100;
-  const sigClass=r.vClass==='buy'?'buy':r.vClass==='sell'?'sell':'hold';
-  const sigText=r.vClass==='buy'?'COMPRAR':r.vClass==='sell'?'VENDER':'MANTENER';
-  const el=document.getElementById('wlp-'+ticker);if(el)el.textContent=fmtP(r.price);
-  const ec=document.getElementById('wlc-'+ticker);if(ec){ec.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%';ec.style.color=pct>=0?'var(--green)':'var(--red)';}
-  const es=document.getElementById('wls-'+ticker);if(es)es.textContent='Score: '+r.comp.toFixed(1)+'/10';
-  const epct=document.getElementById('wlpct-'+ticker);if(epct){epct.textContent=r.aiScore+'%';epct.style.color=r.aiScore>=60?'var(--green)':r.aiScore<=40?'var(--red)':'var(--yellow)';}
-  const esig=document.getElementById('wlsig-'+ticker);if(esig){esig.className='wl-signal '+sigClass;esig.textContent=sigText;}
-}
-
 async function run(){
   const ticker=document.getElementById('tickerInp').value.trim().toUpperCase();
   if(!ticker){showErr('Ingresá un ticker (ej: AAPL, TSLA, SPY)');return;}
