@@ -2072,9 +2072,9 @@ function generateDecision(pos) {
   // ── ACN — Accenture ──
   if(t === 'ACN') return {
     action: 'VIGILAR', urgency:'w',
-    text: `<b>Accenture cotiza un ${fmt(Math.abs(pnlPct))}% por debajo de tu precio de entrada.</b> La acción perdió más del 44% desde el máximo de 52 semanas ($321). <span class="warn-txt">Catalizador crítico: earnings el 18 de junio de 2026.</span> La empresa reportó EPS de $2.93 vs $2.84 esperado en el último trimestre — sorpresa positiva del 3.2%. Formó joint venture con Mitsubishi Chemical para IA. El precio actual ($177) está cerca del soporte técnico de 52W low ($155). <b>Estrategia: mantener hasta ver los earnings de junio. Si decepcionan, salir. Si superan expectativas, el rebote puede ser del 15-25%.</b>`,
+    text: `<b>Accenture cotiza un ${fmt(Math.abs(pnlPct))}% por debajo de tu precio de entrada.</b> La acción perdió más del 44% desde el máximo de 52 semanas ($321). La empresa reportó EPS de $2.93 vs $2.84 esperado en el último trimestre — sorpresa positiva del 3.2%. Formó joint venture con Mitsubishi Chemical para IA. <span class="warn-txt">El precio actual está cerca del soporte técnico del mínimo de 52 semanas.</span> <b>Estrategia: vigilar el próximo reporte de earnings. Si decepcionan, salir. Si superan expectativas, el rebote puede ser del 15-25%.</b>`,
     tp: price * 1.18, sl: price * 0.91, confidence: 52,
-    levels: {earn:'18 Jun 2026', obj:'$220 consenso', sl52w:'$155.82'}
+    levels: {obj:'$220 consenso', sl52w:'$155.82 soporte'}
   };
 
   // ── SPOT — Spotify ──
@@ -2096,41 +2096,41 @@ function generateDecision(pos) {
   // ── MSFT — Microsoft ──
   if(t === 'MSFT') return {
     action: 'MANTENER', urgency:'n',
-    text: `<b>Microsoft tiene una pérdida latente del ${fmt(Math.abs(pnlPct))}% desde tu entrada, pero los fundamentos no justifican salir.</b> MSFT es el líder global en IA empresarial con Azure + Copilot. El precio actual ($427) está en el rango medio de los últimos 52 semanas ($356-$555). Volumen del 28 de mayo fue 47M acciones vs promedio de 31M — señal de acumulación institucional. El consenso de 41 analistas es COMPRAR con objetivo promedio de $465 (+9% upside). Tasas restrictivas presionan las valuaciones tech, pero MSFT tiene posición de caja de $75B. <b>No tocar. Horizonte 12-18 meses para recuperar terreno hacia $465-$500.</b>`,
+    text: `<b>Microsoft tiene una pérdida latente del ${fmt(Math.abs(pnlPct))}% desde tu entrada, pero los fundamentos no justifican salir.</b> MSFT es el líder global en IA empresarial con Azure + Copilot. El consenso de analistas apunta a objetivo promedio de $465 (+9% upside desde niveles anteriores). Tasas restrictivas presionan las valuaciones tech, pero MSFT tiene posición de caja de $75B. <b>No tocar. Horizonte 12-18 meses para recuperar terreno hacia $465-$500.</b>`,
     tp: price * 1.12, sl: price * 0.87, confidence: 63,
-    levels: {obj:'$465 consenso', sl:'$380 soporte', earn:'Q4 Jul 2026'}
+    levels: {obj:'$465 consenso', sl:'$380 soporte'}
   };
 
   // ── LMT — Lockheed Martin ──
   if(t === 'LMT') return {
     action: 'MANTENER', urgency:'p',
-    text: `<b><span class="ok-txt">LMT es tu mejor posición estructural.</span> +${fmt(pnlPct)}% y el sector defensa está en máxima demanda.</b> El conflicto EE.UU.-Israel-Irán y el aumento de presupuestos NATO impulsan la demanda de F-35, misiles Patriot y sistemas THAAD. El consenso de 14 analistas es HOLD pero con precio objetivo de $595 (+12% upside desde hoy). La acción opera a 42% del rango de 52 semanas ($410-$692). <b>Mantener la posición completa. Si el contexto geopolítico escala, considerar agregar 2-3 acciones más. Stop loss en $490 para proteger ganancias.</b>`,
+    text: `<b><span class="ok-txt">LMT es tu mejor posición estructural.</span> +${fmt(pnlPct)}% y el sector defensa está en máxima demanda.</b> El conflicto EE.UU.-Israel-Irán y el aumento de presupuestos NATO impulsan la demanda de F-35, misiles Patriot y sistemas THAAD. El consenso de analistas apunta a precio objetivo de $595 con upside potencial. <b>Mantener la posición completa. Si el contexto geopolítico escala, considerar agregar 2-3 acciones más. Stop loss en $490 para proteger ganancias.</b>`,
     tp: price * 1.12, sl: price * 0.92, confidence: 71,
-    levels: {obj:'$595 consenso', sl:'$490 protección', earn:'Q2 Jul 2026'}
+    levels: {obj:'$595 consenso', sl:'$490 protección'}
   };
 
   // ── ADBE — Adobe ──
   if(t === 'ADBE') return {
     action: 'MANTENER', urgency:'n',
-    text: `<b>ADBE tiene una pérdida latente del ${fmt(Math.abs(pnlPct))}% pero hoy subió +5.53%</b> — señal de recuperación. Adobe Q1 2026: revenue +12% YoY a $6.4B (superó estimados), EPS $6.06 vs $5.86 esperado. <span class="ok-txt">La empresa anunció recompra de acciones por $25B hasta 2030 y está integrando IA generativa (Firefly + Gemini) en toda la suite Creative Cloud.</span> El objetivo de analistas es $327 promedio (+28% upside). El negocio de suscripciones traditional está bajo presión, pero AI-first está compensando. Próximos earnings: 11 de junio. <b>Mantener y esperar earnings. Si ADBE supera $270, puede acelerar hacia $300.</b>`,
+    text: `<b>ADBE tiene una pérdida latente del ${fmt(Math.abs(pnlPct))}%.</b> Adobe Q1 2026: revenue +12% YoY a $6.4B (superó estimados), EPS $6.06 vs $5.86 esperado. <span class="ok-txt">La empresa anunció recompra de acciones por $25B hasta 2030 y está integrando IA generativa (Firefly + Gemini) en toda la suite Creative Cloud.</span> El objetivo de analistas es $327 promedio como referencia de upside. El negocio de suscripciones tradicional está bajo presión, pero AI-first está compensando. <b>Mantener. Si ADBE supera $270, puede acelerar hacia $300.</b>`,
     tp: price * 1.25, sl: price * 0.88, confidence: 58,
-    levels: {obj:'$327 consenso', sl:'$224 52W low', earn:'11 Jun 2026'}
+    levels: {obj:'$327 consenso', sl:'$224 52W low'}
   };
 
   // ── MELI — MercadoLibre ──
   if(t === 'MELI') return {
     action: 'MANTENER', urgency:'n',
-    text: `<b>MELI tiene una pérdida del ${fmt(Math.abs(pnlPct))}% pero es una posición de convicción.</b> MercadoLibre reportó revenue de $8.85B (+38.79% YoY esperado para Q2) con EPS de $8.23, decepcionando ligeramente en earnings pero batiendo en revenue. <span class="warn-txt">31 analistas apuntan a un precio objetivo de $2.360 — un upside del 38.5% desde los niveles actuales.</span> MELI está en presión de venta institucional post-earnings, pero el negocio es sólido: MercadoPago creciendo, e-commerce dominante en LATAM. <b>Mantener la posición. El upside al consenso de $2.360 es significativo. Si el mercado lat am se estabiliza, esta posición tiene alto potencial. Próximos earnings: 5 de agosto.</b>`,
+    text: `<b>MELI tiene una pérdida del ${fmt(Math.abs(pnlPct))}% pero es una posición de convicción.</b> MercadoLibre reportó revenue de $8.85B con EPS de $8.23. <span class="warn-txt">31 analistas apuntan a un precio objetivo de $2.360 — upside significativo desde los niveles actuales.</span> El negocio es sólido: MercadoPago creciendo, e-commerce dominante en LATAM. <b>Mantener la posición. El upside al consenso de $2.360 es significativo. Si el mercado LATAM se estabiliza, esta posición tiene alto potencial.</b>`,
     tp: price * 1.30, sl: price * 0.84, confidence: 61,
-    levels: {obj:'$2.360 consenso (+38%)', sl:'$1.400 soporte', earn:'5 Ago 2026'}
+    levels: {obj:'$2.360 consenso', sl:'$1.400 soporte'}
   };
 
   // ── BTC ──
   if(t === 'BTC') return {
-    action: pnlPct >= 0 ? 'MANTENER' : 'MANTENER', urgency:'n',
-    text: `<b>BTC ${pnlPct >= 0 ? 'muestra una ganancia' : 'tiene una pérdida'} del ${fmt(Math.abs(pnlPct))}% desde tu entrada estimada (~$75K).</b> Bitcoin opera alrededor de $97K después de tocar el máximo histórico de ~$109K. El contexto macro es mixto: PCE Core en 3.2% mantiene la Fed restrictiva (negativo para activos de riesgo), pero Goldman Sachs anticipa 50bps de recortes en H2 2026. Tenés una posición pequeña (0.069 BTC, ~$6.7K) que representa menos del 10% del portafolio. <b>Mantener. La exposición es controlada y Bitcoin actúa como hedge de inflación. No agregar hasta ver señal técnica de ruptura sobre $100K.</b>`,
+    action: 'MANTENER', urgency:'n',
+    text: `<b>BTC ${pnlPct >= 0 ? 'muestra una ganancia' : 'tiene una pérdida'} del ${fmt(Math.abs(pnlPct))}% desde tu entrada estimada (~$75K).</b> Tenés una posición pequeña (0.069 BTC) que representa menos del 10% del portafolio. Bitcoin actúa como hedge de inflación y diversificador. <b>Mantener. La exposición es controlada. Usá el Analizador técnico para ver el precio actual y señales en tiempo real.</b>`,
     tp: 110000, sl: 82000, confidence: 55,
-    levels: {res:'$100K resistencia clave', sl:'$82K soporte', macro:'Fed recorta H2 2026'}
+    levels: {res:'$100K resistencia histórica', sl:'$82K soporte clave'}
   };
 
   // ── AO27 — Bono Argentina 2027 ──
@@ -2144,9 +2144,9 @@ function generateDecision(pos) {
   // ── AO28 — Bono Argentina 2028 ──
   if(t === 'AO28') return {
     action: 'MANTENER', urgency:'n',
-    text: `<b>AO28 — tu posición estructural en bonos argentinos.</b> Tenés 4.188 títulos generando ~US$20 de cupón mensual. El gobierno está usando el AO28 como instrumento de financiamiento activo. <span class="warn-txt">Catalizador clave: vencimiento de deuda julio 2026.</span> Si Argentina paga sin sobresaltos, el bono puede subir 8-12%. Mantener hasta ese catalizador y evaluar.`,
+    text: `<b>AO28 — tu posición estructural en bonos argentinos.</b> Tenés 4.188 títulos generando ~US$20 de cupón mensual. El gobierno está usando el AO28 como instrumento de financiamiento activo. <span class="warn-txt">Seguí el cronograma de vencimientos de deuda soberana — cada pago sin sobresaltos impulsa el precio.</span> Si Argentina mantiene el cumplimiento, el bono puede subir 8-12% adicional. Mantener y evaluar en cada vencimiento.`,
     tp: price * 1.12, sl: price * 0.91, confidence: 65,
-    levels: {cupon:'~US$20/mes', cat:'Venc. deuda Jul 2026', obj:'Subir 8-12% post-pago'}
+    levels: {cupon:'~US$20/mes', obj:'Subir 8-12% con cumplimiento soberano'}
   };
 
   // ── ETH ──
@@ -2620,7 +2620,7 @@ function buildAlerts() {
 
   // Alertas estructurales fijas
   ACTIVE_ALERTS.push({type:'blu', title:'Concentración tecnológica', body:'ACN + MSFT + ADBE + SPOT representan más del 55% del portafolio. Por encima de lo recomendable para perfil moderado-agresivo.', time:'Estructural'});
-  ACTIVE_ALERTS.push({type:'blu', title:'Fed Funds Rate 3.75% — Restrictivo', body:'Las tasas altas presionan valuaciones tech. Contexto favorable para sectores defensivos (LMT, healthcare, utilities).', time:'Jun 2026'});
+  ACTIVE_ALERTS.push({type:'blu', title:'Contexto de tasas — Seguimiento necesario', body:'Las tasas de la Fed impactan directo en valuaciones tech. Chequeá el panel MACRO para el dato actualizado. Contexto favorable para sectores defensivos (LMT, healthcare, utilities).', time:'Estructural'});
 
   const dot = document.getElementById('alertDot');
   if(dot) dot.style.display = ACTIVE_ALERTS.filter(a=>a.type==='red').length > 0 ? 'block' : 'none';
@@ -3863,7 +3863,7 @@ function renderMacro(macro, ticker, sector) {
 
   return `
   <div class="section-hdr">
-    <div class="section-title">// Contexto Macroeconómico — Mayo 2026</div>
+    <div class="section-title">// Contexto Macroeconómico — ${new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'})}</div>
     <div style="font-family:var(--mono);font-size:10px;color:var(--text2);">Actualizado: ${new Date().toLocaleTimeString('es-AR')}</div>
   </div>
   <div class="macro-grid">
@@ -4287,8 +4287,8 @@ DATOS FUNDAMENTALES:
 - DCF valuación: ${p.dcf ? '$'+Number(p.dcf).toFixed(2) : 'N/A'} vs precio actual ${r.price}
 - Sector: ${p.sector || r.sector || 'N/A'} | País: ${p.country || 'N/A'}
 
-CONTEXTO MACRO ACTUAL (Junio 2026):
-- S&P 500: ~7.520 | VIX: ~16.7 (mercado tranquilo) | Fed Rate: 3.75% | DXY: ~98
+CONTEXTO MACRO (referencia aproximada — ${new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'})}):
+- S&P 500, VIX, Fed Rate y DXY: usá tu conocimiento actualizado del mercado para este contexto
 
 Escribí el análisis en español rioplatense. Estructuralo EXACTAMENTE así (usá estas etiquetas HTML):
 
