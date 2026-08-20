@@ -558,23 +558,6 @@ canvas{max-width:100%}
     <button onclick="refreshBriefing()" style="font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↻ ACTUALIZAR</button>
   </div>
 
-  <!-- CAPITAL DISPONIBLE -->
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
-    <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);margin-bottom:10px">// CAPITAL DISPONIBLE PARA INVERTIR</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="briefingCapital">
-      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid var(--border2)">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:4px">COCOSPPA (ARS)</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)" id="briefingCocosPPAARS">—</div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:3px" id="cocosUSD">—</div>
-      </div>
-      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid var(--border2)">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:4px">COCOAUSD</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent)" id="briefingCocosUSD">—</div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--yellow);margin-top:3px">→ Candidato a AO27/AO28</div>
-      </div>
-    </div>
-  </div>
-
   <!-- CONTEXTO MACRO -->
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
     <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);margin-bottom:10px">// CONTEXTO MACRO HOY</div>
@@ -915,176 +898,11 @@ canvas{max-width:100%}
     </div>
   </div>
 
-  <!-- CAPITAL DISPONIBLE -->
-  <div class="cfg-block">
-    <div class="cfg-ttl">// CAPITAL DISPONIBLE</div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-      Actualizá tu capital disponible en Cocos. Se refleja en el BRIEFING, el portafolio y el chat con IA.
-    </div>
-    <div class="cfg-row">
-      <div style="flex:1">
-        <div class="cfg-lbl">COCOSPPA (pesos ARS)</div>
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <input class="inp" id="cocosppaARSInp" placeholder="Ej: 9410451" type="number" min="0">
-          <button class="btn btn-a" onclick="saveCapital()">GUARDAR</button>
-        </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
-          ACTUAL: <span id="cocosppaARSDisplay">—</span>
-        </div>
-      </div>
-      <div style="flex:1">
-        <div class="cfg-lbl">COCOAUSD (dólares)</div>
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <input class="inp" id="cocosUSDInp" placeholder="Ej: 4229" type="number" min="0">
-        </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
-          ACTUAL: <span id="cocosUSDDisplay">—</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ACTUALIZAR PRECIOS HOY -->
-  <div class="cfg-block">
-    <div class="cfg-ttl">// ACTUALIZAR PRECIOS HOY</div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-      Subí una captura de tu portafolio en Cocos y los precios se cargan automáticamente.
-    </div>
-
-    <!-- Upload area -->
-    <div id="imgUploadArea" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
-         onclick="document.getElementById('priceImageInput').click()"
-         ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-         ondragleave="this.style.borderColor='var(--border)'"
-         ondrop="event.preventDefault();this.style.borderColor='var(--border)';handleImageDrop(event)">
-      <div style="font-size:24px;margin-bottom:8px">📷</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--accent)">SUBIR CAPTURA DE COCOS</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Tocá para seleccionar o arrastrá la imagen</div>
-      <input type="file" id="priceImageInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
-    </div>
-
-    <!-- Preview -->
-    <div id="imgPreview" style="display:none;margin-bottom:12px">
-      <img id="imgPreviewEl" style="max-width:100%;border-radius:8px;border:1px solid var(--border);max-height:200px;object-fit:contain">
-    </div>
-
-    <!-- Status -->
-    <div id="imgReadStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:8px 12px;border-radius:7px;background:var(--bg3);border:1px solid var(--border);margin-bottom:12px">
-      <span id="imgReadStatusText">Leyendo precios...</span>
-    </div>
-
-    <!-- Manual fields (pre-filled by AI or manual) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px" id="priceUpdateGrid">
-      <div><div class="cfg-lbl">ACN (ARS)</div><input class="inp" id="upd_ACN" type="number" placeholder="ej: 3910"></div>
-      <div><div class="cfg-lbl">SPOT (ARS)</div><input class="inp" id="upd_SPOT" type="number" placeholder="ej: 26860"></div>
-      <div><div class="cfg-lbl">RBLX (ARS)</div><input class="inp" id="upd_RBLX" type="number" placeholder="ej: 35180"></div>
-      <div><div class="cfg-lbl">MSFT (ARS)</div><input class="inp" id="upd_MSFT" type="number" placeholder="ej: 22960"></div>
-      <div><div class="cfg-lbl">LMT (ARS)</div><input class="inp" id="upd_LMT" type="number" placeholder="ej: 38760"></div>
-      <div><div class="cfg-lbl">ADBE (ARS)</div><input class="inp" id="upd_ADBE" type="number" placeholder="ej: 9315"></div>
-      <div><div class="cfg-lbl">MELI (ARS)</div><input class="inp" id="upd_MELI" type="number" placeholder="ej: 21480"></div>
-      <div><div class="cfg-lbl">MU (ARS)</div><input class="inp" id="upd_MU" type="number" placeholder="ej: 287350"></div>
-      <div><div class="cfg-lbl">DÓLAR MEP (ARS)</div><input class="inp" id="upd_MEP" type="number" placeholder="ej: 1434.80"></div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-a" onclick="updatePricesHoy()">✓ GUARDAR PRECIOS</button>
-      <span id="updatePricesMsg" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></span>
-    </div>
-    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
-      Última actualización: <span id="lastPriceUpdate">—</span>
-    </div>
-  </div>
-
-  <div class="cfg-block">
-    <div class="cfg-ttl">// MIS POSICIONES</div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
-      Editá tus posiciones para que el análisis P&L sea exacto con tus precios reales de compra.
-    </div>
-    <div id="positionsCfgList"></div>
-    <button class="btn btn-a" style="margin-top:8px" onclick="openAddPosition()">+ AGREGAR POSICIÓN</button>
-  </div>
-
-  <div class="cfg-block">
-    <div class="cfg-ttl">// ALERTAS — NOTIFICACIONES DEL NAVEGADOR</div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.65">
-      Recibís una notificación push en tu celular o tablet cuando algo importante pasa en tu portafolio. Funciona con la app abierta en el browser, aunque estés en otra pestaña.
-    </div>
-
-    <!-- Estado del permiso -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
-      <div id="notifStatusDot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0"></div>
-      <div style="flex:1">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text)" id="notifStatusText">Verificando permisos...</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px" id="notifStatusSub">—</div>
-      </div>
-      <button class="btn btn-a" id="notifEnableBtn" onclick="requestNotifPermission()" style="display:none">ACTIVAR</button>
-    </div>
-
-    <!-- Umbrales -->
-    <div style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:.1em;margin-bottom:8px">UMBRALES DE ALERTA</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div>
-        <div class="cfg-lbl">CAÍDA DE PRECIO (%)</div>
-        <input class="inp" id="thrPrice" type="number" value="3" min="1" max="20" step="0.5">
-      </div>
-      <div>
-        <div class="cfg-lbl">CAMBIO DE SCORE</div>
-        <input class="inp" id="thrScore" type="number" value="2" min="1" max="5" step="0.5">
-      </div>
-      <div>
-        <div class="cfg-lbl">RSI SOBRECOMPRA</div>
-        <input class="inp" id="thrRsiOb" type="number" value="75" min="70" max="85">
-      </div>
-      <div>
-        <div class="cfg-lbl">RSI SOBREVENTA</div>
-        <input class="inp" id="thrRsiOs" type="number" value="25" min="15" max="30">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-a" onclick="saveNotifSettings()">GUARDAR UMBRALES</button>
-      <button class="btn btn-g" onclick="testNotification()">🔔 PROBAR NOTIFICACIÓN</button>
-    </div>
-    <div id="notifSaveMsg" style="font-family:var(--mono);font-size:10px;color:var(--green);margin-top:8px;display:none"></div>
-  </div>
-
   <div class="cfg-block">
     <div class="cfg-ttl">// DATOS</div>
     <div class="cfg-row">
       <button class="btn btn-d" onclick="if(confirm('¿Borrar todos los datos?'))clearAll()">BORRAR TODO</button>
       <button class="btn btn-g" onclick="exportData()">EXPORTAR JSON</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: ADD/EDIT POSITION -->
-<div class="overlay" id="posModal">
-  <div class="modal">
-    <div class="modal-ttl">// NUEVA POSICIÓN</div>
-    <div class="modal-row">
-      <div class="modal-lbl">TICKER</div>
-      <input class="inp" id="newTicker" placeholder="ej: AAPL" style="text-transform:uppercase">
-    </div>
-    <div class="modal-row">
-      <div class="modal-lbl">CANTIDAD</div>
-      <input class="inp" id="newQty" placeholder="ej: 100" type="number" min="0" step="any">
-    </div>
-    <div class="modal-row">
-      <div class="modal-lbl">MONEDA DEL PRECIO</div>
-      <select class="inp" id="newCurrency" onchange="toggleCostLabel()">
-        <option value="ARS">ARS — CEDEAR (Cocos)</option>
-        <option value="USD">USD — Crypto / ADR</option>
-      </select>
-    </div>
-    <div class="modal-row">
-      <div class="modal-lbl" id="newCostLabel">PRECIO DE COMPRA (ARS)</div>
-      <input class="inp" id="newCost" placeholder="ej: 15000" type="number" min="0" step="any">
-    </div>
-    <div class="modal-row">
-      <div class="modal-lbl">PLATAFORMA (opcional)</div>
-      <input class="inp" id="newPlatform" placeholder="ej: Cocos, BingBon">
-    </div>
-    <div class="modal-btns">
-      <button class="btn btn-a" onclick="savePosition()">GUARDAR</button>
-      <button class="btn btn-g" onclick="closePosModal()">CANCELAR</button>
     </div>
   </div>
 </div>
@@ -2640,7 +2458,6 @@ function renderAlerts() {
 
 // ── CONFIG ──
 function renderConfig() {
-  renderConfigPrices();
   const keyEl = document.getElementById('activeKeyDisplay');
   if(keyEl) keyEl.textContent = API_KEY ? API_KEY.slice(0,8)+'...' : 'Modo Demo activo';
   // Show Anthropic key status
@@ -2657,29 +2474,10 @@ function renderConfig() {
   const fhEl = document.getElementById('finnhubKeyDisplay');
   if(fhEl) fhEl.textContent = FINNHUB_KEY ? FINNHUB_KEY.slice(0,8)+'...' : 'No configurada';
   if(fhEl) fhEl.style.color = FINNHUB_KEY ? 'var(--green)' : 'var(--text2)';
-  // Capital disponible
-  const capARS = parseFloat(localStorage.getItem('pip_cocosppa_ars') || '9410451');
-  const capUSD = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
-  const arsDisp = document.getElementById('cocosppaARSDisplay');
-  if(arsDisp) { arsDisp.textContent = '$' + Math.round(capARS).toLocaleString('es-AR'); arsDisp.style.color = 'var(--green)'; }
-  const usdDisp = document.getElementById('cocosUSDDisplay');
-  if(usdDisp) { usdDisp.textContent = 'US$' + capUSD.toLocaleString('es-AR'); usdDisp.style.color = 'var(--accent)'; }
   const antInp = document.getElementById('anthropicKeyInp');
   if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
   if(avInp && API_KEY) avInp.value = API_KEY;
-  // Notificaciones — verificar estado y cargar umbrales
-  setTimeout(checkNotifStatus, 50);
-
-  const cfgList = document.getElementById('positionsCfgList');
-  if(cfgList) {
-    cfgList.innerHTML = POSITIONS.map((p,i)=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)">
-        <span style="font-family:var(--mono);font-weight:700;color:var(--accent);width:44px">${p.ticker}</span>
-        <span style="font-size:11px;color:var(--text2);flex:1">${p.qty} × $${p.costBasis} · ${p.platform||'—'}</span>
-        <button class="btn btn-d" style="font-size:9px;padding:3px 8px" onclick="deletePosition(${i})">✕</button>
-      </div>`).join('');
-  }
 }
 
 function saveAnthropicKey() {
@@ -2715,21 +2513,6 @@ function saveFinnhubKey() {
   document.getElementById('modeBadge').textContent = '● REAL';
   document.getElementById('modeBadge').className = 'mode-badge mode-real';
   showToast('Finnhub key guardada — modo REAL activado ✓');
-}
-
-function saveCapital() {
-  const ars = parseFloat(document.getElementById('cocosppaARSInp').value);
-  const usd = parseFloat(document.getElementById('cocosUSDInp').value);
-  if(isNaN(ars) && isNaN(usd)) { alert('Ingresá al menos un valor'); return; }
-  if(!isNaN(ars)) {
-    localStorage.setItem('pip_cocosppa_ars', ars);
-    const mep = getEffectiveMEP();
-    localStorage.setItem('pip_cocosppa_usd', (ars / mep).toFixed(0));
-  }
-  if(!isNaN(usd)) localStorage.setItem('pip_cocoausd', usd);
-  renderConfig();
-  renderBriefing();
-  showToast('Capital actualizado ✓');
 }
 
 function saveFredKey() {
@@ -2805,187 +2588,7 @@ function activateDemo(){
   document.getElementById('modeBadge').textContent = '◎ DEMO';
   document.getElementById('modeBadge').className = 'mode-badge mode-demo';
 }
-// ══════════════════════════════════════════════════════════════════
-//  SISTEMA DE NOTIFICACIONES DEL NAVEGADOR
-// ══════════════════════════════════════════════════════════════════
 
-function checkNotifStatus() {
-  const dot = document.getElementById('notifStatusDot');
-  const txt = document.getElementById('notifStatusText');
-  const sub = document.getElementById('notifStatusSub');
-  const btn = document.getElementById('notifEnableBtn');
-  if(!dot || !txt) return;
-
-  if(!('Notification' in window)) {
-    dot.style.background = 'var(--red)';
-    txt.textContent = 'No soportado en este browser';
-    sub.textContent = 'Usá Chrome en Android para activar notificaciones';
-    return;
-  }
-
-  if(Notification.permission === 'granted') {
-    dot.style.background = 'var(--green)';
-    dot.style.boxShadow = '0 0 6px var(--green)';
-    txt.textContent = 'Notificaciones ACTIVAS ✓';
-    sub.textContent = 'Vas a recibir alertas cuando algo importante pase en tu portafolio';
-    if(btn) btn.style.display = 'none';
-    // Cargar umbrales guardados
-    loadNotifSettings();
-  } else if(Notification.permission === 'denied') {
-    dot.style.background = 'var(--red)';
-    txt.textContent = 'Notificaciones BLOQUEADAS';
-    sub.textContent = 'Entrá a Configuración del sitio en Chrome y permitir notificaciones';
-    if(btn) btn.style.display = 'none';
-  } else {
-    dot.style.background = 'var(--yellow)';
-    txt.textContent = 'Notificaciones no activadas';
-    sub.textContent = 'Tocá ACTIVAR para empezar a recibir alertas';
-    if(btn) btn.style.display = 'block';
-  }
-}
-
-async function requestNotifPermission() {
-  if(!('Notification' in window)) {
-    showToast('Tu browser no soporta notificaciones');
-    return;
-  }
-  const result = await Notification.requestPermission();
-  checkNotifStatus();
-  if(result === 'granted') {
-    showToast('¡Notificaciones activadas! ✓');
-    sendNotification('PIP Pro — Activo ✓', 'Las alertas de portafolio están funcionando. Vas a recibir avisos de movimientos importantes.', '📊');
-  } else {
-    showToast('Permiso denegado — activá desde Configuración del sitio');
-  }
-}
-
-function sendNotification(title, body, icon = '📈') {
-  if(Notification.permission !== 'granted') return;
-  try {
-    const n = new Notification(title, {
-      body,
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%23080c10"/><text y="22" x="4" font-size="20">'+icon+'</text></svg>',
-      badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="%2300e5ff"/></svg>',
-      tag: title, // evita duplicados de la misma alerta
-      renotify: false,
-    });
-    n.onclick = () => { window.focus(); n.close(); };
-    setTimeout(() => n.close(), 8000);
-  } catch(e) { console.warn('Notif error:', e); }
-}
-
-function testNotification() {
-  if(Notification.permission !== 'granted') {
-    showToast('Primero activá las notificaciones');
-    return;
-  }
-  sendNotification(
-    '🔔 PIP Pro — Prueba exitosa',
-    'Las notificaciones funcionan correctamente. Vas a recibir alertas de tu portafolio acá.',
-    '🔔'
-  );
-  showToast('Notificación enviada — revisá tu pantalla');
-}
-
-function saveNotifSettings() {
-  const price = parseFloat(document.getElementById('thrPrice')?.value) || 3;
-  const score = parseFloat(document.getElementById('thrScore')?.value) || 2;
-  const rsiOb = parseFloat(document.getElementById('thrRsiOb')?.value) || 75;
-  const rsiOs = parseFloat(document.getElementById('thrRsiOs')?.value) || 25;
-  THRESHOLDS = { price, score, rsiOb, rsiOs };
-  localStorage.setItem('pip_thresholds', JSON.stringify(THRESHOLDS));
-  const msg = document.getElementById('notifSaveMsg');
-  if(msg) { msg.textContent = '✓ Umbrales guardados'; msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2500); }
-  showToast('Umbrales guardados ✓');
-}
-
-function loadNotifSettings() {
-  const saved = localStorage.getItem('pip_thresholds');
-  if(saved) {
-    try {
-      const t = JSON.parse(saved);
-      THRESHOLDS = { ...NOTIF_DEFAULTS, ...t };
-      const p = document.getElementById('thrPrice');
-      const s = document.getElementById('thrScore');
-      const ob = document.getElementById('thrRsiOb');
-      const os = document.getElementById('thrRsiOs');
-      if(p) p.value = THRESHOLDS.price;
-      if(s) s.value = THRESHOLDS.score;
-      if(ob) ob.value = THRESHOLDS.rsiOb;
-      if(os) os.value = THRESHOLDS.rsiOs;
-    } catch(e) {}
-  }
-}
-
-// ── pushAlert: ahora dispara notificación del browser además de la alerta interna ──
-function pushAlert(type, ticker, title, body) {
-  // Agregar a lista interna
-  const typeMap = { urgent:'red', good:'grn', warn:'yel', info:'blu' };
-  ACTIVE_ALERTS.unshift({ type: typeMap[type] || 'blu', title, body, time: new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) });
-  // Limitar a 30 alertas
-  if(ACTIVE_ALERTS.length > 30) ACTIVE_ALERTS = ACTIVE_ALERTS.slice(0, 30);
-  // Actualizar dot
-  const dot = document.getElementById('alertDot');
-  if(dot) dot.style.display = 'block';
-  // Notificación del navegador
-  const icon = type === 'urgent' ? '🔴' : type === 'good' ? '🟢' : type === 'warn' ? '🟡' : '🔵';
-  sendNotification(`${icon} ${title}`, body);
-}
-
-// ── POSITIONS MANAGEMENT ──
-function toggleCostLabel() {
-  const cur = document.getElementById('newCurrency').value;
-  const lbl = document.getElementById('newCostLabel');
-  const inp = document.getElementById('newCost');
-  if(cur === 'ARS') {
-    lbl.textContent = 'PRECIO DE COMPRA (ARS)';
-    inp.placeholder = 'ej: 15000';
-  } else {
-    lbl.textContent = 'PRECIO DE COMPRA (USD)';
-    inp.placeholder = 'ej: 185.50';
-  }
-}
-function openAddPosition(){
-  document.getElementById('newTicker').value='';
-  document.getElementById('newQty').value='';
-  document.getElementById('newCost').value='';
-  document.getElementById('newCurrency').value='ARS';
-  document.getElementById('newPlatform').value='';
-  toggleCostLabel();
-  document.getElementById('posModal').classList.add('on');
-}
-function closePosModal(){ document.getElementById('posModal').classList.remove('on'); }
-function savePosition(){
-  const ticker = document.getElementById('newTicker').value.trim().toUpperCase();
-  const qty = parseFloat(document.getElementById('newQty').value);
-  const cost = parseFloat(document.getElementById('newCost').value);
-  const currency = document.getElementById('newCurrency').value;
-  const platform = document.getElementById('newPlatform').value.trim() || 'Manual';
-  if(!ticker||!qty||!cost){alert('Completá todos los campos obligatorios');return;}
-  // Fix 4: guardar costBasisARS para CEDEARs, costBasis en USD para crypto
-  const newPos = {
-    ticker, qty,
-    costBasis: cost,
-    costBasisARS: currency === 'ARS' ? cost : null,
-    currency,
-    platform,
-    sector: 'Otros',
-    type: currency === 'ARS' ? 'stock' : 'crypto'
-  };
-  POSITIONS.push(newPos);
-  localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
-  localStorage.setItem('pip_positions_edited', new Date().toISOString());
-  closePosModal();
-  renderPortfolio();
-  showToast(`${ticker} agregado ✓`);
-}
-function deletePosition(idx){
-  if(!confirm(`¿Eliminar ${POSITIONS[idx].ticker}?`)) return;
-  POSITIONS.splice(idx,1);
-  localStorage.setItem('pip_positions',JSON.stringify(POSITIONS));
-  renderConfig();
-  showToast('Posición eliminada');
-}
 function clearAll(){
   localStorage.clear();
   location.reload();
@@ -3022,7 +2625,6 @@ function updateMacroStrip() {
   if(mepEl) mepEl.textContent = '$' + mep.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
 }
 function init() {
-  loadSavedPrices();
   updateMacroStrip(); // Fix 5: macro strip con MEP y BTC reales
   const APP_VERSION = '20260605_v25'; // MU agregado
   const storedVersion = localStorage.getItem('app_version');
@@ -4782,17 +4384,8 @@ function renderBriefing() {
     dateEl.textContent = dias[d.getDay()] + ' ' + d.getDate() + ' de ' + meses[d.getMonth()] + ' ' + d.getFullYear();
   }
 
-  // Capital disponible
+  // Actualizar MEP en el panel macro
   const MEP = getEffectiveMEP();
-  const COCOS_ARS = parseFloat(localStorage.getItem('pip_cocosppa_ars') || '9410451');
-  const COCOS_USD_SAVED = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
-  const arsEl = document.getElementById('briefingCocosPPAARS');
-  if(arsEl) arsEl.textContent = '$' + Math.round(COCOS_ARS).toLocaleString('es-AR');
-  const usdEl = document.getElementById('briefingCocosUSD');
-  if(usdEl) usdEl.textContent = 'US$' + COCOS_USD_SAVED.toLocaleString('es-AR');
-  const cocoUSD = document.getElementById('cocosUSD');
-  if(cocoUSD) cocoUSD.textContent = '≈ US$' + Math.round(COCOS_ARS/MEP).toLocaleString('es-AR') + ' al MEP ($' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ')';
-  // Actualizar también el MEP en el panel macro
   const macroMEP = document.getElementById('macroMEP');
   if(macroMEP) macroMEP.textContent = '$' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
@@ -4800,16 +4393,38 @@ function renderBriefing() {
   renderRadar();
   updateRadarPrices(); // actualiza en segundo plano sin bloquear el render
 
-  // Alertas estructurales fijas
+  // Alertas de mercado — señales dinámicas basadas en macro y radar
   const alertasEl = document.getElementById('briefingAlertas');
   if(alertasEl) {
-    const struct = [
-      { title:'Concentración tecnológica', body:'ACN + MSFT + ADBE + SPOT representan más del 55% del portafolio. Por encima de lo recomendable para perfil moderado-agresivo.' },
-      { title:'Tasas de la Fed — seguimiento necesario', body:'Las tasas de la Fed impactan directo en valuaciones tech. Chequeá el panel MACRO para el dato actualizado. Contexto favorable para sectores defensivos (LMT).' },
-    ];
-    alertasEl.innerHTML = struct.map(a => `
+    const alerts = [];
+
+    // Señal macro: VIX
+    const vixVal = parseFloat(document.getElementById('macroVIX')?.textContent?.replace(/[^\d.]/g,'') || '0');
+    if(vixVal >= 25) alerts.push({ icon:'🔴', title:'Volatilidad elevada — VIX ' + vixVal, body:'Mercado en modo defensivo. Preferí entradas escalonadas y evitá posiciones concentradas en growth. Revisá ANALIZAR para confirmación técnica antes de operar.' });
+    else if(vixVal > 0 && vixVal < 15) alerts.push({ icon:'🟢', title:'VIX en zona baja — Apetito por riesgo', body:'Condiciones favorables para posiciones en growth y tecnología. Momento para revisar el Radar y evaluar entradas.' });
+
+    // Señal macro: tasas 10Y (data viene del macro strip como texto)
+    const t10yEl = document.getElementById('macroT10Y');
+    const t10y = t10yEl ? parseFloat(t10yEl.textContent?.replace('%','') || '0') : 0;
+    if(t10y >= 4.5) alerts.push({ icon:'🟡', title:'Treasury 10Y en ' + t10y + '% — Presión sobre valuaciones', body:'Tasas altas comprimen múltiplos de empresas tech/growth. Priorizá acciones con flujo de caja positivo y valuaciones razonables (P/E < 25).' });
+
+    // Señal: acciones del radar en zona de compra
+    const enZona = RADAR_WATCHLIST.filter(r => r.currentPrice > 0 && r.currentPrice <= r.entryTarget);
+    if(enZona.length > 0) alerts.push({ icon:'🟢', title:`${enZona.map(r=>r.ticker).join(', ')} — En zona de entrada`, body:`${enZona.length === 1 ? 'Una acción del radar está' : enZona.length + ' acciones del radar están'} en o bajo el precio objetivo. Revisá el Radar de arriba para el análisis completo.` });
+
+    // Señal: sector defensivo en contexto de incertidumbre
+    const fedEl = document.getElementById('macroFed');
+    const fedRate = fedEl ? parseFloat(fedEl.textContent?.replace('%','') || '0') : 0;
+    if(fedRate >= 4.0) alerts.push({ icon:'🔵', title:'Fed Rate elevada — Ciclo restrictivo', body:'Con la Fed por encima del 4%, los sectores defensivos (utilities, salud, defensa) suelen rendir mejor. Considerá este contexto al evaluar nuevas entradas.' });
+
+    // Alerta fundamental fija: revisar earnings próximos en el screener
+    alerts.push({ icon:'🔵', title:'Señal fundamental — Usá el Screener', body:'Antes de entrar en cualquier ticker, verificá P/E, P/FCF y deuda en el Screener. Empresas con P/E < 20 y FCF positivo históricamente resisten mejor en mercados volátiles.' });
+
+    if(!alerts.length) alerts.push({ icon:'🔵', title:'Sin alertas activas', body:'El mercado no muestra señales de alerta destacadas. Revisá el Radar para oportunidades de entrada.' });
+
+    alertasEl.innerHTML = alerts.map(a => `
       <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);align-items:flex-start">
-        <div style="font-size:16px;flex-shrink:0">🔵</div>
+        <div style="font-size:15px;flex-shrink:0;margin-top:1px">${a.icon}</div>
         <div>
           <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px">${a.title}</div>
           <div style="font-size:11px;color:var(--text2);line-height:1.5">${a.body}</div>
@@ -5226,240 +4841,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-// ═══════════════════════════════════════════════════════════
-//  ACTUALIZAR PRECIOS DEL DÍA
-// ═══════════════════════════════════════════════════════════
-function updatePricesHoy() {
-  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU'];
-  let updated = 0;
-
-  tickers.forEach(t => {
-    const el = document.getElementById('upd_' + t);
-    if(el && el.value && parseFloat(el.value) > 0) {
-      KNOWN_PRICES_ARS[t] = parseFloat(el.value);
-      updated++;
-    }
-  });
-
-  // Update MEP rate
-  const mepEl = document.getElementById('upd_MEP');
-  if(mepEl && mepEl.value && parseFloat(mepEl.value) > 0) {
-    // Update MEP_RATE - need to reassign since it's const
-    window.MEP_RATE_OVERRIDE = parseFloat(mepEl.value);
-  }
-
-  // Save to localStorage — Fix 3: guardar dateISO para comparación timezone-safe
-  const savedPrices = {
-    ars: KNOWN_PRICES_ARS,
-    mep: window.MEP_RATE_OVERRIDE || MEP_RATE,
-    date: new Date().toLocaleDateString('es-AR'),
-    dateISO: new Date().toISOString().slice(0,10),
-    time: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})
-  };
-  localStorage.setItem('prices_today', JSON.stringify(savedPrices));
-
-  // Show confirmation
-  const msg = document.getElementById('updatePricesMsg');
-  const lastUpd = document.getElementById('lastPriceUpdate');
-  if(msg) {
-    msg.textContent = '✓ ' + updated + ' precios actualizados';
-    msg.style.color = 'var(--green)';
-    setTimeout(() => { if(msg) msg.textContent = ''; }, 3000);
-  }
-  if(lastUpd) lastUpd.textContent = new Date().toLocaleString('es-AR');
-
-  // Refresh portfolio and briefing with new prices
-  renderPortfolio();
-  renderBriefing();
-  renderDecisions();
-  updateMacroStrip(); // Fix 5: refrescar macro strip con MEP actualizado
-
-  showToast(updated + ' precios actualizados ✓');
-}
-
-function loadSavedPrices() {
-  const saved = localStorage.getItem('prices_today');
-  if(!saved) return;
-  try {
-    const data = JSON.parse(saved);
-    // Fix 3: comparar por ISO date (timezone-safe); mantener fallback al formato viejo
-    const todayISO = new Date().toISOString().slice(0,10);
-    const todayLoc = new Date().toLocaleDateString('es-AR');
-    const isToday = (data.dateISO === todayISO) || (!data.dateISO && data.date === todayLoc);
-    if(isToday) {
-      if(data.ars) Object.assign(KNOWN_PRICES_ARS, data.ars);
-      if(data.mep) window.MEP_RATE_OVERRIDE = data.mep;
-      const lastUpd = document.getElementById('lastPriceUpdate');
-      if(lastUpd) lastUpd.textContent = 'Hoy a las ' + (data.time || '—');
-    }
-  } catch(e) {}
-}
-
-function renderConfigPrices() {
-  // Fix 3: priorizar precios guardados hoy sobre los defaults hardcodeados
-  const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU'];
-  let savedARS = {};
-  let savedTime = null;
-  const saved = localStorage.getItem('prices_today');
-  if(saved) {
-    try {
-      const data = JSON.parse(saved);
-      const todayISO = new Date().toISOString().slice(0,10);
-      const todayLoc = new Date().toLocaleDateString('es-AR');
-      const isToday = (data.dateISO === todayISO) || (!data.dateISO && data.date === todayLoc);
-      if(isToday && data.ars) {
-        savedARS = data.ars;
-        savedTime = data.time || data.date || '—';
-      }
-    } catch(e) {}
-  }
-  tickers.forEach(t => {
-    const el = document.getElementById('upd_' + t);
-    if(el) el.value = savedARS[t] || KNOWN_PRICES_ARS[t] || '';
-  });
-  const mepEl = document.getElementById('upd_MEP');
-  if(mepEl) mepEl.value = window.MEP_RATE_OVERRIDE || MEP_RATE;
-  const lastUpd = document.getElementById('lastPriceUpdate');
-  if(lastUpd) lastUpd.textContent = savedTime ? 'Hoy a las ' + savedTime : '—';
-}
-
-
-
-
-// ═══════════════════════════════════════════════════════════
-//  LEER PRECIOS DESDE IMAGEN (Anthropic Vision)
-// ═══════════════════════════════════════════════════════════
-
-function handleImageDrop(e) {
-  const file = e.dataTransfer.files[0];
-  if(file && file.type.startsWith('image/')) processImageFile(file);
-}
-
-function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if(file) processImageFile(file);
-}
-
-async function processImageFile(file) {
-  // Show preview
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const base64 = e.target.result;
-    const preview = document.getElementById('imgPreview');
-    const previewEl = document.getElementById('imgPreviewEl');
-    if(preview && previewEl) {
-      previewEl.src = base64;
-      preview.style.display = 'block';
-    }
-    // Read prices with AI
-    await readPricesFromImage(base64, file.type);
-  };
-  reader.readAsDataURL(file);
-}
-
-async function readPricesFromImage(base64DataUrl, mimeType) {
-  const statusEl = document.getElementById('imgReadStatus');
-  const statusTxt = document.getElementById('imgReadStatusText');
-  const uploadArea = document.getElementById('imgUploadArea');
-
-  if(statusEl) statusEl.style.display = 'block';
-  if(statusTxt) statusTxt.innerHTML = '⏳ Leyendo precios de la imagen...';
-  if(uploadArea) uploadArea.style.opacity = '0.5';
-
-  const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
-  if(!ANTHROPIC_KEY) {
-    if(statusTxt) statusTxt.innerHTML = '⚠ Configurá la API key de Anthropic en CONFIG → API KEYS → ANTHROPIC';
-    if(uploadArea) uploadArea.style.opacity = '1';
-    return;
-  }
-
-  // Extract base64 data without the data URL prefix
-  const base64Data = base64DataUrl.split(',')[1];
-  // Detect real format from magic bytes (file.type and data URL prefix can lie)
-  let mediaType;
-  if (base64Data.startsWith('/9j/')) mediaType = 'image/jpeg';
-  else if (base64Data.startsWith('iVBORw')) mediaType = 'image/png';
-  else if (base64Data.startsWith('R0lGOD')) mediaType = 'image/gif';
-  else if (base64Data.startsWith('UklGR')) mediaType = 'image/webp';
-  else mediaType = mimeType || 'image/jpeg';
-
-  try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': ANTHROPIC_VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 500,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: base64Data }
-            },
-            {
-              type: 'text',
-              text: `Esta es una captura de pantalla de un portafolio en Cocos Capital (broker argentino). La tabla tiene varias columnas: ticker, cantidad, precio actual de mercado, precio promedio de compra, variación, etc.
-
-IMPORTANTE: Necesito el PRECIO ACTUAL DE MERCADO en pesos ARS (NO el precio promedio de compra). En Cocos, el precio actual suele estar en la columna "Precio" o "Cotización" — es el precio de mercado de HOY, no el costo promedio.
-
-Extraé el precio actual de mercado en ARS de estas acciones: ACN (Accenture), SPOT (Spotify), RBLX (Roblox), MSFT (Microsoft), LMT (Lockheed Martin), ADBE (Adobe), MELI (MercadoLibre), MU (Micron).
-
-Respondé SOLO con un JSON así, sin texto adicional:
-{
-  "ACN": 3910,
-  "SPOT": 26860,
-  "RBLX": 35180,
-  "MSFT": 22960,
-  "LMT": 38760,
-  "ADBE": 9315,
-  "MELI": 21480,
-  "MU": 287000
-}
-
-Si no encontrás algún ticker en la imagen, poné null para ese valor. Solo el JSON, nada más.`
-            }
-          ]
-        }]
-      })
-    });
-
-    const data = await response.json();
-    if(data.error) throw new Error(data.error.message);
-
-    const text = data.content[0].text.trim();
-    // Parse JSON response
-    const clean = text.replace(/```json|```/g, '').trim();
-    const prices = JSON.parse(clean);
-
-    // Fill in the fields
-    let filled = 0;
-    const tickers = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU'];
-    tickers.forEach(t => {
-      const el = document.getElementById('upd_' + t);
-      if(el && prices[t] && prices[t] !== null) {
-        el.value = prices[t];
-        el.style.borderColor = 'var(--green)';
-        filled++;
-      }
-    });
-
-    if(statusTxt) statusTxt.innerHTML = `✓ ${filled} precios leídos correctamente. Verificá y tocá GUARDAR.`;
-    if(statusEl) statusEl.style.background = 'rgba(63,185,80,.08)';
-    if(statusEl) statusEl.style.borderColor = 'rgba(63,185,80,.25)';
-
-  } catch(err) {
-    if(statusTxt) statusTxt.innerHTML = `⚠ Error: ${err.message}. Cargá los precios manualmente.`;
-    if(statusEl) statusEl.style.background = 'rgba(248,81,73,.08)';
-  }
-
-  if(uploadArea) uploadArea.style.opacity = '1';
-}
 
 
 
