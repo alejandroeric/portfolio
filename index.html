@@ -3998,7 +3998,9 @@ async function run(){
     data_ref = data;
     RESULTS_CACHE[ticker] = { ...result, CD: data };
     renderResults(result);
-    updateWatchlistItem(ticker,result);
+    // Actualizar precio en el Radar si el ticker está en la watchlist
+    const radarIdx = RADAR_WATCHLIST.findIndex(r => r.ticker === ticker);
+    if(radarIdx >= 0 && result.price) RADAR_WATCHLIST[radarIdx].currentPrice = result.price;
   }catch(err){clearInterval(iv);ld.classList.remove('on');showErr('⚠ '+err.message);}
   btn.disabled=false;
   btn.textContent='ANALIZAR →';
