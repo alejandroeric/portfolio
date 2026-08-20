@@ -446,12 +446,6 @@ canvas{max-width:100%}
 .macro-impact-title{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;margin-bottom:10px;}
 .mcard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 14px;position:relative;overflow:hidden;}
 .mk{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
-.monitor-bar{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.monitor-countdown{font-family:var(--mono);font-size:14px;color:var(--accent);font-weight:700;}
-.monitor-info{font-family:var(--mono);font-size:11px;color:var(--text2);flex:1;}
-.monitor-off{background:rgba(255,51,102,.1);color:var(--red);border:1px solid rgba(255,51,102,.2);}
-.monitor-on{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.2);}
-.monitor-status{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:5px;letter-spacing:.08em;}
 .msub{font-size:11px;margin-top:3px;}
 .mv{font-family:var(--mono);font-size:18px;font-weight:700;color:#fff;}
 .ndot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px;}
@@ -511,9 +505,6 @@ canvas{max-width:100%}
 .tab-badge{background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:5px;display:inline-block;}
 .tabs{display:flex;gap:0;margin-bottom:20px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto;}
 .tall{height:220px;}
-.tg-setup{background:var(--bg2);border:1px solid rgba(100,150,255,.25);border-radius:12px;padding:18px;margin-bottom:14px;}
-.tg-steps{font-size:12px;color:var(--text2);line-height:2;}
-.tg-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:#60a5fa;margin-bottom:12px;}
 .toast{position:fixed;top:20px;right:20px;z-index:9999;max-width:340px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.6);transform:translateX(400px);transition:transform .4s ease;display:flex;gap:10px;align-items:flex-start;}
 .toast-close{margin-left:auto;cursor:pointer;color:var(--muted);font-size:16px;flex-shrink:0;}
 .toast-icon{font-size:20px;flex-shrink:0;}
@@ -521,13 +512,6 @@ canvas{max-width:100%}
 .toast-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;}
 .twocol{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:14px;}
 .urgent{background:rgba(255,51,102,.07);border-color:var(--red);}
-.wl-alert{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);animation:pulse 1s infinite;flex-shrink:0;}
-.wl-chg{font-family:var(--mono);font-size:12px;min-width:65px;}
-.wl-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s;}
-.wl-pct{font-family:var(--mono);font-size:13px;font-weight:700;min-width:55px;text-align:right;}
-.wl-price{font-family:var(--mono);font-size:14px;color:var(--accent);min-width:80px;}
-.wl-signal{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:5px;font-weight:700;margin-left:auto;}
-.wl-ticker{font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;min-width:60px;}
 .wrap{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:20px;}
 .yellow{border-color:rgba(255,215,0,.3);}
 </style>
@@ -1806,28 +1790,7 @@ let data_ref = null;
 let CURRENT_RESULT = null;
 let CHARTS = {};
 
-// Fix 5: posiciones default con fecha de referencia para avisar si son viejas
-const POSITIONS_DEFAULT_DATE = '2026-06-04';
-// Pre-load with user's real portfolio if no saved positions
-if(!POSITIONS) {
-  POSITIONS = [
-    // costBasisARS = precio promedio compra en pesos (dato real de Cocos)
-    // costBasis = precio compra en USD al MEP del momento (para P&L en USD)
-    {ticker:'ACN',  qty:300,  costBasis:3616.22,  costBasisARS:3616.22,  currency:'ARS', platform:'Cocos',   sector:'IT Services',  type:'stock'},
-    {ticker:'SPOT', qty:41,   costBasis:23843.41, costBasisARS:23843.41, currency:'ARS', platform:'Cocos',   sector:'Streaming',    type:'stock'},
-    {ticker:'RBLX', qty:27,   costBasis:44100.55, costBasisARS:44100.55, currency:'ARS', platform:'Cocos',   sector:'Gaming',       type:'stock'},
-    {ticker:'MSFT', qty:30,   costBasis:19640.66, costBasisARS:19640.66, currency:'ARS', platform:'Cocos',   sector:'Technology',   type:'stock'},
-    {ticker:'LMT',  qty:9,    costBasis:38800.00, costBasisARS:38800.00, currency:'ARS', platform:'Cocos',   sector:'Defense',      type:'stock'},
-    {ticker:'ADBE', qty:30,   costBasis:7550.00,  costBasisARS:7550.00,  currency:'ARS', platform:'Cocos',   sector:'Software',     type:'stock'},
-    {ticker:'MELI', qty:69,   costBasis:21284.05, costBasisARS:21284.05, currency:'ARS', platform:'Cocos',   sector:'FinTech LATAM',type:'stock'},
-    // Fix 2: BTC costo real entre $61K-$90K — se usa promedio conservador $75K
-    {ticker:'BTC',  qty:0.069,costBasis:75000,    costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
-    {ticker:'ETH',  qty:0.463,costBasis:2800,     costBasisARS:null,     currency:'USD', platform:'BingBon', sector:'Crypto',       type:'crypto'},
-    {ticker:'AO27', qty:2930, costBasis:148215.00,costBasisARS:148215.00,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
-    {ticker:'AO28', qty:4188, costBasis:137320.77,costBasisARS:137320.77,currency:'ARS', platform:'Cocos',   sector:'Bono Soberano AR', type:'bond'},
-  ];
-  localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
-}
+// Posiciones default cargadas por init() al detectar cambio de versión
 
 // Known current prices (updated today)
 // USD prices (real market prices)
