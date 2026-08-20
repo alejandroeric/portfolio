@@ -3378,14 +3378,24 @@ function renderFundamentals(data, ticker) {
 function renderInsiders(txns, ticker) {
   if(!txns || !txns.length) return '';
   const fmtVal = v => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(0)}K` : `$${v.toFixed(0)}`;
+  const TYPE_TIPS = {
+    'Compra': 'INSIDER:COMPRA — Compró acciones en el mercado con su propio dinero. Señal alcista: un insider raramente compra si cree que el precio va a bajar.',
+    'Venta':  'INSIDER:VENTA — Vendió acciones. Puede ser por necesidad de liquidez, impuestos o diversificación. Solo es señal bajista si venden varios insiders al mismo tiempo.',
+    'A':      'INSIDER:A (Award) — Recibió acciones como compensación o bonus. No puso dinero propio. Señal neutral.',
+    'G':      'INSIDER:G (Gift) — Donó o transfirió acciones a un familiar o institución. Señal neutral.',
+    'S':      'INSIDER:S (Sale) — Vendió acciones programadas (plan 10b5-1). Venta planificada, no reactiva al precio. Señal neutral a levemente negativa.',
+    'M':      'INSIDER:M (Option Exercise) — Ejerció opciones sobre acciones. Suelen vender parte para cubrir el costo. Señal neutral.',
+    'F':      'INSIDER:F (Tax Withholding) — Entregó acciones para pagar impuestos sobre compensación. Señal neutral, es un proceso automático.',
+  };
   const rows = txns.map(t => {
     const isBuy  = t.type === 'Compra';
     const color  = isBuy ? '#3fb950' : '#f85149';
+    const tipText = TYPE_TIPS[t.type] || `INSIDER:${t.type} — Tipo de transacción interna. Verificá el significado en la documentación de Finnhub.`;
     return `<tr>
       <td style="color:var(--text2);font-size:11px">${t.date}</td>
       <td style="color:#fff;font-size:11px">${t.name}</td>
       <td style="color:var(--muted);font-size:10px">${t.title}</td>
-      <td style="color:${color};font-weight:700;font-size:11px">${t.type}</td>
+      <td style="color:${color};font-weight:700;font-size:11px;cursor:help" data-tip="${tipText}">${t.type}</td>
       <td style="color:var(--text2);font-size:11px;text-align:right">${t.shares.toLocaleString()}</td>
       <td style="color:${color};font-size:11px;text-align:right">${fmtVal(t.value)}</td>
     </tr>`;
@@ -4786,12 +4796,21 @@ function clearChat() {
   document.addEventListener('mouseover', e => {
     const el = e.target.closest('[data-tip]');
     if(!el) return;
-    const key = el.dataset.tip.toUpperCase();
+    const raw = el.dataset.tip;
+    const key = raw.toUpperCase();
     const data = TIPS[key];
-    if(!data) return;
+    let title, body;
+    if(data) {
+      title = data.t; body = data.b;
+    } else if(raw.includes(' — ')) {
+      // Texto libre con formato "TÍTULO — descripción"
+      const idx = raw.indexOf(' — ');
+      title = raw.slice(0, idx);
+      body  = raw.slice(idx + 3);
+    } else { return; }
     currentTip = el;
-    tip.querySelector('.tip-title').textContent = data.t;
-    tip.querySelector('.tip-body').textContent = data.b;
+    tip.querySelector('.tip-title').textContent = title;
+    tip.querySelector('.tip-body').textContent  = body;
     tip.style.opacity = '1';
   });
   document.addEventListener('mouseout', e => {
