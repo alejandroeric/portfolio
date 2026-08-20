@@ -1431,42 +1431,96 @@ function estimatePriceTargets(ticker, price) {
 
 function normMetrics(m) {
   if(!m) return null;
-  const pe = m.peRatioTTM || (m.earningsYieldTTM && m.earningsYieldTTM > 0 ? 1 / m.earningsYieldTTM : null);
+  // Soporte para campos de FMP y de Finnhub /stock/metric
+  const pe = m.peRatioTTM || m.peTTM || m.peNormalizedAnnual ||
+             (m.earningsYieldTTM && m.earningsYieldTTM > 0 ? 1 / m.earningsYieldTTM : null);
+  // Series anuales de Finnhub (array de {period, v}) — tomar el más reciente
+  const latestSeries = (arr) => Array.isArray(arr) && arr.length ? arr[arr.length - 1].v : null;
   return {
     peRatioTTM:                 pe,
-    priceToBookRatioTTM:        m.pbRatioTTM || m.priceToBookRatioTTM || null,
-    enterpriseValueMultipleTTM: m.enterpriseValueOverEBITDATTM || m.evToEbitdaTTM || null,
-    returnOnEquityTTM:          m.returnOnEquityTTM,
-    returnOnAssetsTTM:          m.returnOnAssetsTTM,
-    netProfitMarginTTM:         m.netProfitMarginTTM || null,
-    grossProfitMarginTTM:       m.grossProfitMarginTTM || null,
-    freeCashFlowYieldTTM:       m.freeCashFlowYieldTTM,
-    debtEquityRatioTTM:         m.debtToEquityTTM || m.netDebtToEBITDATTM || null,
-    currentRatioTTM:            m.currentRatioTTM,
-    dividendYielTTM:            m.dividendYieldTTM || m.dividendYielTTM || null,
-    revenuePerShareTTM:         m.revenuePerShareTTM || null,
+    priceToBookRatioTTM:        m.pbRatioTTM || m.priceToBookRatioTTM || m.pbAnnual || latestSeries(m.pb) || null,
+    enterpriseValueMultipleTTM: m.enterpriseValueOverEBITDATTM || m.evToEbitdaTTM || m.evEbitdaTTM || null,
+    returnOnEquityTTM:          m.returnOnEquityTTM || latestSeries(m.roe) || null,
+    returnOnAssetsTTM:          m.returnOnAssetsTTM || latestSeries(m.roa) || null,
+    netProfitMarginTTM:         m.netProfitMarginTTM || latestSeries(m.netMargin) || null,
+    grossProfitMarginTTM:       m.grossProfitMarginTTM || latestSeries(m.grossMargin) || null,
+    freeCashFlowYieldTTM:       m.freeCashFlowYieldTTM || latestSeries(m.pfcf) || null,
+    debtEquityRatioTTM:         m.debtToEquityTTM || m.netDebtToEBITDATTM || m.totalDebtToEquityAnnual || latestSeries(m.totalDebtToEquity) || null,
+    currentRatioTTM:            m.currentRatioTTM || m.currentRatioAnnual || null,
+    dividendYielTTM:            m.dividendYieldTTM || m.dividendYielTTM || m.dividendYieldIndicatedAnnual || null,
+    revenuePerShareTTM:         m.revenuePerShareTTM || m.revenuePerShareAnnual || null,
+  };
+}
+
+// Normaliza la respuesta de Finnhub /stock/metric al formato que espera normMetrics
+function normFinnhubMetrics(d) {
+  if(!d || !d.metric) return null;
+  const m = d.metric;
+  const s = d.series?.annual || {};
+  return {
+    peTTM:                    m.peTTM,
+    peNormalizedAnnual:       m.peNormalizedAnnual,
+    pbAnnual:                 m.pbAnnual,
+    evEbitdaTTM:              m.evEbitdaTTM || m['evEbitda'],
+    totalDebtToEquityAnnual:  m.totalDebtToEquityAnnual,
+    currentRatioAnnual:       m.currentRatioAnnual,
+    dividendYieldIndicatedAnnual: m.dividendYieldIndicatedAnnual,
+    revenuePerShareAnnual:    m.revenuePerShareAnnual,
+    // Series anuales
+    roe:        s.roe,
+    roa:        s.roa,
+    netMargin:  s.netMargin,
+    grossMargin:s.grossMargin,
+    pb:         s.pb,
+    pfcf:       s.pfcf,
+    totalDebtToEquity: s.totalDebtToEquity,
   };
 }
 
 async function fetchFundamentals(ticker) {
-  const base = `https://financialmodelingprep.com/stable`;
-  const k = FMP_KEY;
-  try {
-    const [profileR, metricsR] = await Promise.allSettled([
-      fetch(`${base}/profile?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
-      fetch(`${base}/key-metrics-ttm?symbol=${ticker}&apikey=${k}`).then(r=>r.json()),
-    ]);
-    const profRaw = profileR.status==='fulfilled' ? profileR.value : null;
-    const metRaw  = metricsR.status==='fulfilled'  ? metricsR.value  : null;
-    const profile = Array.isArray(profRaw) ? profRaw[0] : (profRaw && !profRaw['Error Message'] ? profRaw : null);
-    const metObj  = Array.isArray(metRaw)  ? metRaw[0]  : (metRaw  && !metRaw['Error Message']  ? metRaw  : null);
-    const ratios  = normMetrics(metObj);
-    console.log('[PIP] fetchFundamentals', ticker, { profile: !!profile, ratios, metRaw });
-    return { profile, ratios, income: [], insider: [] };
-  } catch(e) {
-    console.error('[PIP] fetchFundamentals error', ticker, e);
-    return null;
+  let profile = null;
+  let ratios  = null;
+  let source  = 'none';
+
+  // Primario: FMP
+  if(FMP_KEY) {
+    try {
+      const base = `https://financialmodelingprep.com/stable`;
+      const [profileR, metricsR] = await Promise.allSettled([
+        fetch(`${base}/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`${base}/key-metrics-ttm?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+      ]);
+      const profRaw = profileR.status==='fulfilled' ? profileR.value : null;
+      const metRaw  = metricsR.status==='fulfilled'  ? metricsR.value  : null;
+      const profObj = Array.isArray(profRaw) ? profRaw[0] : (profRaw && !profRaw['Error Message'] ? profRaw : null);
+      const metObj  = Array.isArray(metRaw)  ? metRaw[0]  : (metRaw  && !metRaw['Error Message']  ? metRaw  : null);
+      if(profObj) profile = profObj;
+      if(metObj)  { ratios = normMetrics(metObj); source = 'FMP'; }
+    } catch(e) { console.warn('[PIP] FMP error', ticker, e); }
   }
+
+  // Fallback: Finnhub /stock/metric (funciona con cualquier ticker en plan free)
+  if(!ratios && FINNHUB_KEY) {
+    try {
+      const url  = `https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(ticker)}&metric=all&token=${FINNHUB_KEY}`;
+      const resp = await fetch(url);
+      const d    = await resp.json();
+      const fhNorm = normFinnhubMetrics(d);
+      if(fhNorm) { ratios = normMetrics(fhNorm); source = 'Finnhub'; }
+      // Armar profile básico desde Finnhub si FMP no lo tiene
+      if(!profile && d.metric) {
+        profile = {
+          companyName: ticker,
+          symbol: ticker,
+          high52w: d.metric['52WeekHigh'] || null,
+          low52w:  d.metric['52WeekLow']  || null,
+        };
+      }
+    } catch(e) { console.warn('[PIP] Finnhub metric error', ticker, e); }
+  }
+
+  console.log('[PIP] fetchFundamentals', ticker, { source, profile: !!profile, ratios });
+  return { profile, ratios, income: [], insider: [] };
 }
 
 // fetchNewsScore not found
