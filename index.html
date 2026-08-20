@@ -3829,11 +3829,6 @@ function renderFundamentals(data, ticker) {
     revColor = g>10?'var(--green)':g>0?'var(--yellow)':'var(--red)';
   }
 
-  // Insider net buying
-  const insiderBuys  = insider.filter(t=>t.transactionType==='P-Purchase').length;
-  const insiderSells = insider.filter(t=>t.transactionType==='S-Sale').length;
-  const insiderSignal = insiderBuys>insiderSells?'COMPRANDO':'VENDIENDO';
-  const insiderColor  = insiderBuys>insiderSells?'var(--green)':'var(--red)';
 
   // Earnings surprise (next/last)
   const nextEarnings = p.earningsAnnouncement ? new Date(p.earningsAnnouncement).toLocaleDateString('es-AR') : '—';
@@ -3855,7 +3850,6 @@ function renderFundamentals(data, ticker) {
     { k:'DCF Valuación',     v: p.dcf?'$'+Number(p.dcf).toFixed(2):'—', sub: ratingScore, col: ratingColor },
     { k:'Beta',              v: fmt2(p.beta),                  sub: p.beta>1.5?'Alta volatilidad':'Normal', col: p.beta>1.5?'var(--red)':'var(--text)' },
     { k:'Próx. Earnings',    v: nextEarnings,                  sub: 'Fecha resultados', col:'var(--yellow)' },
-    { k:'Insiders',          v: insiderSignal,                 sub: `${insiderBuys}C / ${insiderSells}V (últimas 10 transacc.)`, col: insiderColor },
     { k:'Short Interest',    v: shortFloat,                    sub: 'Presión bajista', col: shortFloat==='Normal'?'var(--text)':'var(--red)' },
     // Nuevos ratios
     { k:'Current Ratio',    v: fmt2(r.currentRatioTTM),       sub: r.currentRatioTTM>=2?'Excelente liquidez':r.currentRatioTTM>=1?'Liquidez OK':'⚠ Riesgo liquidez', col: r.currentRatioTTM>=2?'var(--green)':r.currentRatioTTM>=1?'var(--yellow)':'var(--red)' },
