@@ -1603,6 +1603,27 @@ function runBacktest(data, r) {
   return { trades: trades.slice(-5), wins, losses, winRate, avgWin: avgWin.toFixed(2), avgLoss: avgLoss.toFixed(2), totalPnl, profitFactor, maxDD };
 }
 
+function calcMaxDrawdown(trades) {
+  let peak = 0, maxDD = 0, equity = 0;
+  trades.forEach(t => {
+    equity += parseFloat(t.pnl);
+    if(equity > peak) peak = equity;
+    const dd = peak - equity;
+    if(dd > maxDD) maxDD = dd;
+  });
+  return maxDD.toFixed(1);
+}
+
+function calcSharpe(closes) {
+  if(!closes || closes.length < 2) return null;
+  const returns = closes.slice(1).map((c, i) => (c - closes[i]) / closes[i] * 100);
+  const mean    = returns.reduce((s, r) => s + r, 0) / returns.length;
+  const std     = Math.sqrt(returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length);
+  if(std === 0) return null;
+  // Anualizado (252 días de trading)
+  return ((mean / std) * Math.sqrt(252)).toFixed(2);
+}
+
 function calcVaR(closes, confidence=0.95) {
   const returns = closes.slice(1).map((c,i)=>(c-closes[i])/closes[i]*100);
   const sorted  = [...returns].sort((a,b)=>a-b);
@@ -3398,6 +3419,18 @@ function renderResults(r){
 
   <!-- FUNDAMENTALS -->
   <div id="layer-fundamentals"></div>
+
+  <!-- NEWS & SENTIMENT -->
+  <div id="layer-news"></div>
+
+  <!-- MACRO CONTEXT -->
+  <div id="layer-macro"></div>
+
+  <!-- BACKTEST -->
+  <div id="layer-backtest"></div>
+
+  <!-- RISK -->
+  <div id="layer-risk"></div>
 
   <!-- BENCHMARK COMPARISON -->
   <div class="bench-card" id="layer-benchmark">
