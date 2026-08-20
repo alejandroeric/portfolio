@@ -480,7 +480,6 @@ canvas{max-width:100%}
 .row{display:flex;gap:10px;flex-wrap:wrap;}
 .rsub{font-size:11px;color:var(--text2);margin-top:3px;}
 .rv{font-family:var(--mono);font-size:20px;font-weight:700;color:#fff;}
-.sbadge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:5px;margin-bottom:12px;}
 .section-badge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;}
 .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .section-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;}
@@ -3110,7 +3109,6 @@ function showErr(msg){const e=document.getElementById('errBox');if(!e)return;e.i
 
 function clearErr(){const e=document.getElementById('errBox');if(e)e.style.display='none';}
 
-function showBadge(isDemo){const b=document.getElementById('modeBadge');b.innerHTML=isDemo?'<div class="sbadge demo">⚠ MODO DEMO — Datos simulados</div>':'<div class="sbadge live">● DATOS REALES — Alpha Vantage</div>';}
 
 function buildReasons(r){
   const res=[];
@@ -4406,8 +4404,8 @@ async function run(){
   let step=0;const iv=setInterval(()=>{step=(step+1)%MSGS.length;document.getElementById('ltxt').textContent=MSGS[step][0];document.getElementById('lstep').textContent=MSGS[step][1];},900);
   try{
     let data;
-    if(IS_DEMO||!API_KEY){await new Promise(r=>setTimeout(r,2200));data=genDemo(ticker);showBadge(true);}
-    else{data=await fetchAV(ticker,document.getElementById('tfSel').value);showBadge(false);}
+    if(IS_DEMO||!API_KEY){await new Promise(r=>setTimeout(r,2200));data=genDemo(ticker);document.getElementById('modeBadge').textContent='◎ DEMO';document.getElementById('modeBadge').className='mode-badge mode-demo';}
+    else{data=await fetchAV(ticker,document.getElementById('tfSel').value);document.getElementById('modeBadge').textContent='● REAL';document.getElementById('modeBadge').className='mode-badge mode-real';}
     clearInterval(iv);ld.classList.remove('on');
     const result=analyze(data);
     data_ref = data;
