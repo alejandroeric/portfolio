@@ -1752,7 +1752,6 @@ const NOTIF_DEFAULTS = { price: 3, score: 2, rsiOb: 75, rsiOs: 25 };
 let THRESHOLDS = JSON.parse(localStorage.getItem('pip_thresholds') || JSON.stringify(NOTIF_DEFAULTS));
 const WATCHLIST = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU','BTC','ETH'];
 let LAST_SCORES = JSON.parse(localStorage.getItem('lastScores') || '{}');
-let MONITOR_INTERVAL = null;
 let IS_DEMO = !API_KEY && !FINNHUB_KEY;
 let POSITIONS = JSON.parse(localStorage.getItem('pip_positions') || 'null');
 let RESULTS_CACHE = {};
@@ -4391,36 +4390,6 @@ function updateMasterScore(r, fundScore, sentScore, macroScore, btScore) {
     const b = document.getElementById(id);
     if(b) { b.style.width = val + '%'; b.style.background = val>=60?'var(--green)':val>=40?'var(--yellow)':'var(--red)'; }
   });
-}
-
-async function runMonitorCycle(){
-  for(const ticker of WATCHLIST){
-    try{
-      const data=IS_DEMO?genDemo(ticker):await fetchAV(ticker,'daily');
-      const r=analyze(data);
-      const prevScore=LAST_SCORES[ticker];
-      const prev=LAST_SCORES[ticker+'_prev'];
-      // Check price change
-      const pctChg=(r.price-r.prevClose)/r.prevClose*100;
-      if(Math.abs(pctChg)>=THRESHOLDS.price){
-        pushAlert(pctChg>0?'good':'urgent',ticker,ticker+': Movimiento de precio',`Precio ${pctChg>0?'subió':'bajó'} ${Math.abs(pctChg).toFixed(1)}% (${fmtP(r.price)})`);
-      }
-      // Check RSI extremes
-      if(r.rsiV>THRESHOLDS.rsiOb) pushAlert('warn',ticker,ticker+': RSI Sobrecomprado','RSI '+r.rsiV.toFixed(1)+' > '+THRESHOLDS.rsiOb+'. Posible corrección próxima.');
-      if(r.rsiV<THRESHOLDS.rsiOs) pushAlert('good',ticker,ticker+': RSI Sobrevendido','RSI '+r.rsiV.toFixed(1)+' < '+THRESHOLDS.rsiOs+'. Posible rebote técnico.');
-      // Check squeeze fired
-      if(r.fired) pushAlert(r.momV>0?'good':'urgent',ticker,ticker+': ¡SQUEEZE DISPARADO!','El squeeze se liberó con momentum '+(r.momV>0?'ALCISTA 🔥':'BAJISTA ❄')+'. Score: '+r.comp.toFixed(1)+'/10');
-      // Check score change
-      if(prevScore!=null && Math.abs(r.comp-prevScore)>=THRESHOLDS.score){
-        const dir=r.comp>prevScore?'mejoró':'empeoró';
-        pushAlert(r.comp>prevScore?'good':'warn',ticker,ticker+': Cambio de señal','Score técnico '+dir+' de '+prevScore.toFixed(1)+' a '+r.comp.toFixed(1));
-      }
-      LAST_SCORES[ticker]=r.comp;
-      localStorage.setItem('lastScores',JSON.stringify(LAST_SCORES));
-      updateWatchlistItem(ticker, r);
-      await new Promise(res=>setTimeout(res,IS_DEMO?200:15000)); // AV rate limit
-    }catch(e){console.warn('Monitor error for',ticker,e.message);}
-  }
 }
 
 async function run(){
