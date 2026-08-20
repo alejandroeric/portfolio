@@ -525,7 +525,6 @@ canvas{max-width:100%}
 <nav class="nav">
   <div class="nav-brand">PIP<span>/PRO</span></div>
   <button class="nav-tab active" onclick="showPage('briefing')">☀ BRIEFING</button>
-  <button class="nav-tab" onclick="showPage('decisions')">DECISIONES</button>
   <button class="nav-tab" onclick="showPage('analyzer')">ANALIZAR</button>
   <button class="nav-tab" onclick="showPage('screener')">SCREENER</button>
   <button class="nav-tab" onclick="showPage('chat')">💬 CHAT</button>
@@ -553,16 +552,10 @@ canvas{max-width:100%}
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div>
-      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent)">// BRIEFING MATUTINO</div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent)">// BRIEFING — OPORTUNIDADES DE COMPRA</div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px" id="briefingDate">—</div>
     </div>
     <button onclick="refreshBriefing()" style="font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↻ ACTUALIZAR</button>
-  </div>
-
-  <!-- SEMÁFORO DE POSICIONES -->
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
-    <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);margin-bottom:10px">// SEMÁFORO DEL PORTAFOLIO</div>
-    <div id="briefingSemaforo"></div>
   </div>
 
   <!-- CAPITAL DISPONIBLE -->
@@ -580,12 +573,6 @@ canvas{max-width:100%}
         <div style="font-family:var(--mono);font-size:10px;color:var(--yellow);margin-top:3px">→ Candidato a AO27/AO28</div>
       </div>
     </div>
-  </div>
-
-  <!-- OPORTUNIDAD DEL DÍA -->
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px" id="briefingOportunidad">
-    <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);margin-bottom:10px">// OPORTUNIDAD DEL DÍA</div>
-    <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Cargando...</div>
   </div>
 
   <!-- CONTEXTO MACRO -->
@@ -607,10 +594,13 @@ canvas{max-width:100%}
     </div>
   </div>
 
-  <!-- RADAR SEMANAL -->
+  <!-- EN ZONA DE COMPRA -->
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent)">// RADAR — RECOMENDACIONES IA</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent)">// EN ZONA DE COMPRA — RADAR IA</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px">Acciones en o cerca del precio objetivo de entrada</div>
+      </div>
       <button onclick="refreshRadar()" style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↻ NUEVO</button>
     </div>
     <div id="briefingRadar"></div>
@@ -4647,43 +4637,93 @@ function renderRadar(aiUpdated = false) {
   const radarEl = document.getElementById('briefingRadar');
   if(!radarEl) return;
 
-  // Aplicar precios cacheados
   RADAR_WATCHLIST.forEach(r => {
     if(RADAR_PRICES[r.ticker]) r.currentPrice = RADAR_PRICES[r.ticker].price;
   });
 
   const todayISO = new Date().toISOString().slice(0,10);
-  const hasFreshData = RADAR_WATCHLIST.some(r => RADAR_PRICES[r.ticker]?.date === todayISO);
   const isAIToday = RADAR_LAST_AI === todayISO;
-  const statusText = isAIToday ? '✦ Claude · Alpha Vantage' : hasFreshData ? 'Alpha Vantage' : API_KEY ? 'Actualizando...' : 'Demo';
+  const hasFreshData = RADAR_WATCHLIST.some(r => RADAR_PRICES[r.ticker]?.date === todayISO);
+  const statusText = isAIToday ? '✦ Claude · Alpha Vantage' : hasFreshData ? 'Alpha Vantage' : IS_DEMO ? 'Demo' : 'Actualizando...';
   const statusColor = isAIToday ? 'var(--accent)' : hasFreshData ? 'var(--green)' : 'var(--muted)';
 
-  radarEl.innerHTML = `
-    <div style="font-family:var(--mono);font-size:9px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
-      <span style="color:var(--muted)">RECOMENDACIONES · NYSE/NASDAQ</span>
-      <span style="color:${statusColor}">${statusText}</span>
-    </div>
-    ${RADAR_WATCHLIST.map(r => {
-      const dist = ((r.currentPrice - r.entryTarget) / r.entryTarget * 100).toFixed(1);
-      const close = Math.abs(parseFloat(dist)) < 5;
-      const below = r.currentPrice <= r.entryTarget;
-      const priceColor = below ? 'var(--green)' : 'var(--text)';
-      const cached = RADAR_PRICES[r.ticker];
-      const changeStr = cached?.change !== undefined ? (cached.change >= 0 ? '+' : '') + cached.change.toFixed(2) + '%' : '';
-      const changeColor = cached?.change >= 0 ? 'var(--green)' : 'var(--red)';
-      return `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
-          <span style="font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent);width:40px">${r.ticker}</span>
-          <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
-          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${priceColor}">$${r.currentPrice.toFixed(2)}</span>
-          ${changeStr ? `<span style="font-family:var(--mono);font-size:10px;color:${changeColor}">${changeStr}</span>` : ''}
-          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">obj: $${r.entryTarget}</span>
-          <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:${below?'rgba(63,185,80,.15)':close?'rgba(210,153,34,.12)':'rgba(139,148,158,.08)'};color:${below?'var(--green)':close?'var(--yellow)':'var(--text2)'}">
-            ${below?'✓ EN ZONA':close?'🎯 CERCA':dist+'% lejos'}
-          </span>
-        </div>
-        <div style="font-size:10px;color:var(--muted);padding:2px 0 6px 50px">${r.note}</div>`;
-    }).join('')}`;
+  // Clasificar por zona
+  const enZona = [], cerca = [], esperando = [];
+  RADAR_WATCHLIST.forEach(r => {
+    const dist = (r.currentPrice - r.entryTarget) / r.entryTarget * 100;
+    if(r.currentPrice <= r.entryTarget) enZona.push({...r, dist});
+    else if(dist < 5) cerca.push({...r, dist});
+    else esperando.push({...r, dist});
+  });
+
+  const cardEntrar = r => {
+    const cached = RADAR_PRICES[r.ticker];
+    const changeStr = cached?.change !== undefined ? (cached.change >= 0 ? '+' : '') + cached.change.toFixed(2) + '%' : '';
+    const changeColor = cached?.change >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<div style="background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:13px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--green)">${r.ticker}</span>
+        <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(63,185,80,.2);color:var(--green);font-weight:700">✓ ENTRAR</span>
+        <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">$${r.currentPrice.toFixed(2)}</span>
+        ${changeStr ? `<span style="font-family:var(--mono);font-size:10px;color:${changeColor}">${changeStr}</span>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">${r.note}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo entrada: <span style="color:var(--green)">$${r.entryTarget}</span> · Precio actual en zona ✓</div>
+        <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(63,185,80,.15);color:var(--green);cursor:pointer;font-weight:700">▶ ANALIZAR</button>
+      </div>
+    </div>`;
+  };
+
+  const cardCerca = r => {
+    const dist = r.dist.toFixed(1);
+    return `<div style="background:rgba(210,153,34,.06);border:1px solid rgba(210,153,34,.25);border-radius:10px;padding:13px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--yellow)">${r.ticker}</span>
+        <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(210,153,34,.15);color:var(--yellow);font-weight:700">🎯 CERCA</span>
+        <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)">$${r.currentPrice.toFixed(2)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">${r.note}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo: <span style="color:var(--yellow)">$${r.entryTarget}</span> · A ${dist}% del precio objetivo</div>
+        <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶ ANALIZAR</button>
+      </div>
+    </div>`;
+  };
+
+  const rowEsperando = r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text2);width:44px">${r.ticker}</span>
+      <span style="font-size:11px;color:var(--muted);flex:1">${r.name} · ${r.sector}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text)">$${r.currentPrice.toFixed(2)}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">obj: $${r.entryTarget} · ${r.dist.toFixed(1)}% lejos</span>
+      <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶</button>
+    </div>`;
+
+  let html = `<div style="font-family:var(--mono);font-size:9px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+    <span style="color:var(--muted)">NYSE/NASDAQ · Recomendaciones IA</span>
+    <span style="color:${statusColor}">${statusText}</span>
+  </div>`;
+
+  if(enZona.length) {
+    html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--green);margin-bottom:8px">▼ EN ZONA — ENTRAR AHORA (${enZona.length})</div>`;
+    html += enZona.map(cardEntrar).join('');
+  }
+  if(cerca.length) {
+    html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--yellow);margin:${enZona.length?'14px':0} 0 8px">▼ CERCA DEL OBJETIVO — VIGILAR (${cerca.length})</div>`;
+    html += cerca.map(cardCerca).join('');
+  }
+  if(esperando.length) {
+    html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);margin:${enZona.length||cerca.length?'14px':0} 0 8px">▼ ESPERANDO PRECIO (${esperando.length})</div>`;
+    html += esperando.map(rowEsperando).join('');
+  }
+  if(!RADAR_WATCHLIST.length) {
+    html += `<div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;padding:20px 0">Presioná ↻ NUEVO para generar recomendaciones con IA.</div>`;
+  }
+
+  radarEl.innerHTML = html;
 }
 
 // Semaforo logic based on real portfolio data
@@ -4742,30 +4782,7 @@ function renderBriefing() {
     dateEl.textContent = dias[d.getDay()] + ' ' + d.getDate() + ' de ' + meses[d.getMonth()] + ' ' + d.getFullYear();
   }
 
-  // Semáforo
-  const semaEl = document.getElementById('briefingSemaforo');
-  if(semaEl) {
-    const items = getSemaforoItems();
-    if(!items.length) {
-      semaEl.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--green);padding:8px 0">✓ Todo en orden. Sin alertas activas.</div>';
-    } else {
-      semaEl.innerHTML = items.map(item => `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)">
-          <div style="font-size:18px;flex-shrink:0">${item.emoji}</div>
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-              <span style="font-family:var(--mono);font-weight:700;font-size:13px;color:var(--accent)">${item.ticker}</span>
-              <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.05);color:${item.color}">${item.label}</span>
-              <span style="font-family:var(--mono);font-size:10px;color:${item.pnlPct>=0?'var(--green)':'var(--red)'}">${item.pnlPct>=0?'+':''}${item.pnlPct.toFixed(1)}%</span>
-            </div>
-            <div style="font-size:11px;color:var(--text2);line-height:1.5">${item.text}</div>
-          </div>
-          <button onclick="analyzeFromPortfolio('${item.ticker}')" style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;flex-shrink:0">▶</button>
-        </div>`).join('');
-    }
-  }
-
-  // Capital disponible - Fix 6: usar getEffectiveMEP() en lugar de hardcoded
+  // Capital disponible
   const MEP = getEffectiveMEP();
   const COCOS_ARS = parseFloat(localStorage.getItem('pip_cocosppa_ars') || '9410451');
   const COCOS_USD_SAVED = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
@@ -4779,22 +4796,7 @@ function renderBriefing() {
   const macroMEP = document.getElementById('macroMEP');
   if(macroMEP) macroMEP.textContent = '$' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-  // Oportunidad del día
-  const oppEl = document.getElementById('briefingOportunidad');
-  if(oppEl) {
-    const opp = getOportunidadDelDia();
-    oppEl.innerHTML = `
-      <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);margin-bottom:10px">// OPORTUNIDAD DEL DÍA</div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${opp.color};flex-shrink:0;width:50px">${opp.ticker}</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">${opp.titulo}</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.6">${opp.texto}</div>
-        </div>
-      </div>`;
-  }
-
-  // Radar semanal — renderizar con precios cacheados y lanzar actualización async
+  // Radar / zona de compra
   renderRadar();
   updateRadarPrices(); // actualiza en segundo plano sin bloquear el render
 
