@@ -588,12 +588,12 @@ canvas{max-width:100%}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="briefingCapital">
       <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid var(--border2)">
         <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:4px">COCOSPPA (ARS)</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">$9.410.451</div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:3px" id="cocosUSD">≈ US$6.570 al MEP</div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)" id="briefingCocosPPAARS">—</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:3px" id="cocosUSD">—</div>
       </div>
       <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid var(--border2)">
         <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:4px">COCOAUSD</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent)">US$4.229</div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent)" id="briefingCocosUSD">—</div>
         <div style="font-family:var(--mono);font-size:10px;color:var(--yellow);margin-top:3px">→ Candidato a AO27/AO28</div>
       </div>
     </div>
@@ -932,6 +932,35 @@ canvas{max-width:100%}
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
         KEY ACTIVA: <span id="fredKeyDisplay" style="color:var(--accent)">No configurada</span> ·
         <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" style="color:var(--accent)">fred.stlouisfed.org</a> · Gratis
+      </div>
+    </div>
+  </div>
+
+  <!-- CAPITAL DISPONIBLE -->
+  <div class="cfg-block">
+    <div class="cfg-ttl">// CAPITAL DISPONIBLE</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+      Actualizá tu capital disponible en Cocos. Se refleja en el BRIEFING, el portafolio y el chat con IA.
+    </div>
+    <div class="cfg-row">
+      <div style="flex:1">
+        <div class="cfg-lbl">COCOSPPA (pesos ARS)</div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <input class="inp" id="cocosppaARSInp" placeholder="Ej: 9410451" type="number" min="0">
+          <button class="btn btn-a" onclick="saveCapital()">GUARDAR</button>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+          ACTUAL: <span id="cocosppaARSDisplay">—</span>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="cfg-lbl">COCOAUSD (dólares)</div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <input class="inp" id="cocosUSDInp" placeholder="Ej: 4229" type="number" min="0">
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+          ACTUAL: <span id="cocosUSDDisplay">—</span>
+        </div>
       </div>
     </div>
   </div>
@@ -2726,6 +2755,13 @@ function renderConfig() {
   const fhEl = document.getElementById('finnhubKeyDisplay');
   if(fhEl) fhEl.textContent = FINNHUB_KEY ? FINNHUB_KEY.slice(0,8)+'...' : 'No configurada';
   if(fhEl) fhEl.style.color = FINNHUB_KEY ? 'var(--green)' : 'var(--text2)';
+  // Capital disponible
+  const capARS = parseFloat(localStorage.getItem('pip_cocosppa_ars') || '9410451');
+  const capUSD = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
+  const arsDisp = document.getElementById('cocosppaARSDisplay');
+  if(arsDisp) { arsDisp.textContent = '$' + Math.round(capARS).toLocaleString('es-AR'); arsDisp.style.color = 'var(--green)'; }
+  const usdDisp = document.getElementById('cocosUSDDisplay');
+  if(usdDisp) { usdDisp.textContent = 'US$' + capUSD.toLocaleString('es-AR'); usdDisp.style.color = 'var(--accent)'; }
   const antInp = document.getElementById('anthropicKeyInp');
   if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
@@ -2777,6 +2813,21 @@ function saveFinnhubKey() {
   document.getElementById('modeBadge').textContent = '● REAL';
   document.getElementById('modeBadge').className = 'mode-badge mode-real';
   showToast('Finnhub key guardada — modo REAL activado ✓');
+}
+
+function saveCapital() {
+  const ars = parseFloat(document.getElementById('cocosppaARSInp').value);
+  const usd = parseFloat(document.getElementById('cocosUSDInp').value);
+  if(isNaN(ars) && isNaN(usd)) { alert('Ingresá al menos un valor'); return; }
+  if(!isNaN(ars)) {
+    localStorage.setItem('pip_cocosppa_ars', ars);
+    const mep = getEffectiveMEP();
+    localStorage.setItem('pip_cocosppa_usd', (ars / mep).toFixed(0));
+  }
+  if(!isNaN(usd)) localStorage.setItem('pip_cocoausd', usd);
+  renderConfig();
+  renderBriefing();
+  showToast('Capital actualizado ✓');
 }
 
 function saveFredKey() {
@@ -4856,7 +4907,12 @@ function renderBriefing() {
 
   // Capital disponible - Fix 6: usar getEffectiveMEP() en lugar de hardcoded
   const MEP = getEffectiveMEP();
-  const COCOS_ARS = 9410451;
+  const COCOS_ARS = parseFloat(localStorage.getItem('pip_cocosppa_ars') || '9410451');
+  const COCOS_USD_SAVED = parseFloat(localStorage.getItem('pip_cocoausd') || '4229');
+  const arsEl = document.getElementById('briefingCocosPPAARS');
+  if(arsEl) arsEl.textContent = '$' + Math.round(COCOS_ARS).toLocaleString('es-AR');
+  const usdEl = document.getElementById('briefingCocosUSD');
+  if(usdEl) usdEl.textContent = 'US$' + COCOS_USD_SAVED.toLocaleString('es-AR');
   const cocoUSD = document.getElementById('cocosUSD');
   if(cocoUSD) cocoUSD.textContent = '≈ US$' + Math.round(COCOS_ARS/MEP).toLocaleString('es-AR') + ' al MEP ($' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ')';
   // Actualizar también el MEP en el panel macro
