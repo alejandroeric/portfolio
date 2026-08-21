@@ -28,7 +28,7 @@
 html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased}
 
 /* ── NAV ── */
-.nav{display:flex;align-items:center;border-bottom:1px solid var(--border);padding:0 12px;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);position:sticky;top:0;z-index:200;height:50px;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--border);padding:6px 12px;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);position:sticky;top:0;z-index:200;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .nav::-webkit-scrollbar{display:none}
 .nav-brand{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;margin-right:14px;font-weight:700;white-space:nowrap}
 .nav-brand span{color:var(--text2)}
@@ -529,7 +529,7 @@ canvas{max-width:100%}
 <body>
 <!-- NAVIGATION -->
 <nav class="nav">
-  <div class="nav-brand" style="width:100px;height:50px;overflow:hidden;border-radius:6px;flex-shrink:0"><img src="logopagina.jpg" alt="PIP Pro" style="position:relative;height:180px;width:auto;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div class="nav-brand" style="flex-shrink:0;margin-right:10px"><img src="logopagina.jpg" alt="PIP Pro" style="height:44px;width:auto;display:block"></div>
   <button class="nav-tab active" onclick="showPage('briefing')">☀ BRIEFING</button>
   <button class="nav-tab" onclick="showPage('analyzer')">ANALIZAR</button>
   <button class="nav-tab" onclick="showPage('screener')">SCREENER</button>
