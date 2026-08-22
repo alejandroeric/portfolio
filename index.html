@@ -2579,15 +2579,22 @@ async function fetchMacroData() {
   if(!fredKey) return; // sin key no hay datos
   const proxy = 'https://corsproxy.io/?';
   const results = await Promise.allSettled(
-    Object.entries(series).map(([id, sid]) =>
-      fetch(proxy + encodeURIComponent(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=5&file_type=json`))
+    Object.entries(series).map(([id, sid]) => {
+      // PCE necesita 13 meses para calcular variacion YoY
+      const limit = id === 'macroPCE' ? 14 : 5;
+      return fetch(proxy + encodeURIComponent(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=${limit}&file_type=json`))
         .then(r => r.json())
         .then(d => {
-          // Tomar el último valor no nulo (FRED usa '.' para datos faltantes)
-          const obs = (d.observations || []).find(o => o.value !== '.');
-          return { id, value: obs?.value };
-        })
-    )
+          const obs = (d.observations || []).filter(o => o.value !== '.');
+          if(id === 'macroPCE' && obs.length >= 13) {
+            // Variacion YoY: (ultimo - hace12meses) / hace12meses * 100
+            const current  = parseFloat(obs[0].value);
+            const yearAgo  = parseFloat(obs[12].value);
+            return { id, value: ((current - yearAgo) / yearAgo * 100).toFixed(1) };
+          }
+          return { id, value: obs[0]?.value };
+        });
+    })
   );
   results.forEach(r => {
     if(r.status !== 'fulfilled') return;
