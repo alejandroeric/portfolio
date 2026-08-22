@@ -2577,9 +2577,10 @@ async function fetchMacroData() {
     macroPCE:  'PCEPILFE',
   };
   if(!fredKey) return; // sin key no hay datos
+  const proxy = 'https://corsproxy.io/?';
   const results = await Promise.allSettled(
     Object.entries(series).map(([id, sid]) =>
-      fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=5&file_type=json`)
+      fetch(proxy + encodeURIComponent(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=5&file_type=json`))
         .then(r => r.json())
         .then(d => {
           // Tomar el último valor no nulo (FRED usa '.' para datos faltantes)
