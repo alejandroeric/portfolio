@@ -574,6 +574,7 @@ canvas{max-width:100%}
       </div>
       <button onclick="refreshRadar()" style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↻ NUEVO</button>
     </div>
+    <div id="radarSectorToggles" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
     <div id="briefingRadar"></div>
   </div>
 
@@ -4104,36 +4105,71 @@ function icard(name,badge,val,dir,sub1,sub2,score,pctOverride){
 //  BRIEFING MATUTINO
 // ═══════════════════════════════════════════════════════════
 
-// Radar de activos en seguimiento
-// Radar: universo de tickers disponibles en Alpha Vantage (NYSE/NASDAQ)
-// Claude elige dinámicamente cuáles mostrar según el mercado y el portafolio
+// Radar de activos en seguimiento — universo completo por sector
 const RADAR_UNIVERSE = [
-  { ticker:'GLD',  name:'Gold ETF (SPDR)',      sector:'Commodity'  },
-  { ticker:'XLE',  name:'Energy Select ETF',    sector:'Petróleo'   },
-  { ticker:'SLV',  name:'Silver ETF (iShares)', sector:'Commodity'  },
-  { ticker:'XLV',  name:'Health Care ETF',      sector:'Salud'      },
-  { ticker:'NVDA', name:'Nvidia',               sector:'IA/Semis'   },
-  { ticker:'AMD',  name:'Advanced Micro Devices',sector:'IA/Semis'  },
-  { ticker:'GDX',  name:'Gold Miners ETF',      sector:'Mineras'    },
-  { ticker:'TLT',  name:'iShares 20Y Treasury', sector:'Bonos USA'  },
-  { ticker:'EWZ',  name:'iShares Brazil ETF',   sector:'LATAM'      },
-  { ticker:'ILF',  name:'iShares Latin America',sector:'LATAM'      },
-  { ticker:'WMT',  name:'Walmart',              sector:'Consumo'    },
+  { ticker:'NVDA', name:'Nvidia',                   sector:'IA / Tecnología' },
+  { ticker:'AMD',  name:'Advanced Micro Devices',   sector:'IA / Tecnología' },
+  { ticker:'MSFT', name:'Microsoft',                sector:'IA / Tecnología' },
+  { ticker:'AAPL', name:'Apple',                    sector:'IA / Tecnología' },
+  { ticker:'META', name:'Meta Platforms',           sector:'IA / Tecnología' },
+  { ticker:'GLD',  name:'Gold ETF (SPDR)',          sector:'Commodity'       },
+  { ticker:'SLV',  name:'Silver ETF (iShares)',     sector:'Commodity'       },
+  { ticker:'GDX',  name:'Gold Miners ETF',          sector:'Commodity'       },
+  { ticker:'PDBC', name:'Invesco Commodity ETF',    sector:'Commodity'       },
+  { ticker:'DJP',  name:'Bloomberg Commodity ETN',  sector:'Commodity'       },
+  { ticker:'XLE',  name:'Energy Select ETF',        sector:'Energía'         },
+  { ticker:'XOP',  name:'Oil & Gas Exploration ETF',sector:'Energía'         },
+  { ticker:'CVX',  name:'Chevron',                  sector:'Energía'         },
+  { ticker:'XOM',  name:'ExxonMobil',               sector:'Energía'         },
+  { ticker:'MPC',  name:'Marathon Petroleum',       sector:'Energía'         },
+  { ticker:'XLV',  name:'Health Care ETF',          sector:'Salud'           },
+  { ticker:'JNJ',  name:'Johnson & Johnson',        sector:'Salud'           },
+  { ticker:'UNH',  name:'UnitedHealth Group',       sector:'Salud'           },
+  { ticker:'PFE',  name:'Pfizer',                   sector:'Salud'           },
+  { ticker:'ABBV', name:'AbbVie',                   sector:'Salud'           },
+  { ticker:'TLT',  name:'iShares 20Y Treasury',     sector:'Bonos USA'       },
+  { ticker:'IEF',  name:'iShares 7-10Y Treasury',   sector:'Bonos USA'       },
+  { ticker:'SHY',  name:'iShares 1-3Y Treasury',    sector:'Bonos USA'       },
+  { ticker:'BND',  name:'Vanguard Total Bond ETF',  sector:'Bonos USA'       },
+  { ticker:'AGG',  name:'iShares Core US Aggregate',sector:'Bonos USA'       },
+  { ticker:'EWZ',  name:'iShares Brazil ETF',       sector:'LATAM'           },
+  { ticker:'ILF',  name:'iShares Latin America',    sector:'LATAM'           },
+  { ticker:'EWW',  name:'iShares Mexico ETF',       sector:'LATAM'           },
+  { ticker:'GXG',  name:'Global X Colombia ETF',    sector:'LATAM'           },
+  { ticker:'EPU',  name:'iShares Peru ETF',         sector:'LATAM'           },
+  { ticker:'WMT',  name:'Walmart',                  sector:'Consumo'         },
+  { ticker:'COST', name:'Costco',                   sector:'Consumo'         },
+  { ticker:'PG',   name:'Procter & Gamble',         sector:'Consumo'         },
+  { ticker:'KO',   name:'Coca-Cola',                sector:'Consumo'         },
+  { ticker:'MCD',  name:'McDonald\'s',              sector:'Consumo'         },
+  { ticker:'JPM',  name:'JPMorgan Chase',           sector:'Financiero'      },
+  { ticker:'BAC',  name:'Bank of America',          sector:'Financiero'      },
+  { ticker:'GS',   name:'Goldman Sachs',            sector:'Financiero'      },
+  { ticker:'V',    name:'Visa',                     sector:'Financiero'      },
+  { ticker:'MA',   name:'Mastercard',               sector:'Financiero'      },
+  { ticker:'XLI',  name:'Industrial Select ETF',    sector:'Industrial'      },
+  { ticker:'CAT',  name:'Caterpillar',              sector:'Industrial'      },
+  { ticker:'HON',  name:'Honeywell',                sector:'Industrial'      },
+  { ticker:'DE',   name:'Deere & Company',          sector:'Industrial'      },
+  { ticker:'UPS',  name:'United Parcel Service',    sector:'Industrial'      },
 ];
+
+const RADAR_ALL_SECTORS = ['IA / Tecnología','Commodity','Energía','Salud','Bonos USA','LATAM','Consumo','Financiero','Industrial'];
+const RADAR_MAX_TICKERS = 15;
+
+// Sectores activos — persisten en localStorage
+let RADAR_ACTIVE_SECTORS = JSON.parse(localStorage.getItem('pip_radar_sectors') || '["IA / Tecnología"]');
+
+function getRadarPool() {
+  return RADAR_UNIVERSE.filter(r => RADAR_ACTIVE_SECTORS.includes(r.sector)).slice(0, RADAR_MAX_TICKERS);
+}
 
 // Lista activa del radar — se rellena con recomendaciones de Claude
 let RADAR_WATCHLIST = JSON.parse(localStorage.getItem('pip_radar_active') || '[]');
-// Si no hay recomendaciones guardadas, usar los 7 defaults
 if(!RADAR_WATCHLIST.length) {
-  RADAR_WATCHLIST = [
-    { ticker:'GLD',  name:'Gold ETF (SPDR)',       sector:'Commodity', entryTarget:210, currentPrice:230, note:'Oro en máximos históricos. Esperar corrección a $210-215.' },
-    { ticker:'XLE',  name:'Energy Select ETF',     sector:'Petróleo',  entryTarget:78,  currentPrice:85,  note:'ETF petróleo. Soporte en $78 si corrige.' },
-    { ticker:'SLV',  name:'Silver ETF (iShares)',  sector:'Commodity', entryTarget:26,  currentPrice:29,  note:'Plata rezagada vs oro. Relación históricamente alta.' },
-    { ticker:'XLV',  name:'Health Care ETF',       sector:'Salud',     entryTarget:138, currentPrice:145, note:'Defensivo. Buena cobertura ante corrección de mercado.' },
-    { ticker:'NVDA', name:'Nvidia',                sector:'IA/Semis',  entryTarget:105, currentPrice:120, note:'IA líder. Esperar pullback a soporte antes de entrar.' },
-    { ticker:'TLT',  name:'iShares 20Y Treasury',  sector:'Bonos USA', entryTarget:88,  currentPrice:92,  note:'Sube cuando Fed recorta tasas — posicionarse antes de H2 2026.' },
-    { ticker:'EWZ',  name:'iShares Brazil ETF',    sector:'LATAM',     entryTarget:28,  currentPrice:32,  note:'ETF Brasil correlacionado con Argentina. Diversificación regional.' },
-  ];
+  RADAR_WATCHLIST = getRadarPool().map(r => ({
+    ...r, entryTarget: null, currentPrice: null, note: 'Pendiente de análisis IA.'
+  }));
 }
 
 // Cache de precios del radar
@@ -4229,28 +4265,32 @@ async function fetchClaudeRadarRecommendations() {
     return `${p.ticker}(${p.sector},P&L:${pnl})`;
   }).join(', ');
 
-  const universo = RADAR_UNIVERSE.map(r => r.ticker).join(', ');
+  const pool = getRadarPool();
+  const universoConPrecios = pool.map(r => {
+    const cached = RADAR_PRICES[r.ticker];
+    const precioStr = cached?.price ? `$${cached.price.toFixed(2)}` : 'precio desconocido';
+    return `${r.ticker}(${r.sector}, precio actual: ${precioStr})`;
+  }).join(', ');
 
   const prompt = `Soy un inversor argentino con perfil moderado-agresivo, horizonte 1-3 años, estrategia de dolarización vía CEDEARs.
 
 Mis posiciones actuales: ${posResumen}
 
-Universo disponible para radar: ${universo}
+Universo disponible para radar (con precios actuales de mercado): ${universoConPrecios}
 
-Fecha: ${new Date().toLocaleDateString('es-AR')}. S&P 500 ~7520, VIX ~16.7, Fed Rate 3.75%, DXY ~98.
+Fecha: ${new Date().toLocaleDateString('es-AR')}.
 
-Elegí exactamente 7 tickers del universo que:
+Elegí entre 5 y 7 tickers del universo que:
 1. NO estén ya en mis posiciones actuales
-2. Complementen mi portafolio (no dupliquen sectores)
-3. Estén en zona de entrada interesante HOY o cerca de ella
-4. Tengan sentido para mi perfil
+2. Tengan un nivel técnico de soporte o zona de entrada clara basado en su precio actual
+3. Tengan sentido para un perfil moderado-agresivo
 
-Para cada uno dame: ticker, precio objetivo de entrada, y una nota de 1 línea explicando por qué.
+Para cada uno dame: ticker, entryTarget (nivel de soporte técnico en USD, por debajo o cerca del precio actual), y una nota de 1 línea explicando por qué ese nivel.
 
 Respondé SOLO con JSON, sin texto adicional:
 [
-  {"ticker":"GLD","entryTarget":210,"note":"Corrección esperada al soporte de $210 tras máximos históricos"},
-  {"ticker":"TLT","entryTarget":88,"note":"Sube cuando Fed recorta tasas — posicionarse antes de H2 2026"}
+  {"ticker":"NVDA","entryTarget":118,"note":"Soporte técnico en zona de $118, pullback desde máximos recientes"},
+  {"ticker":"MSFT","entryTarget":415,"note":"Soporte en media móvil de 50 días cerca de $415"}
 ]`;
 
   try {
@@ -4284,11 +4324,19 @@ async function updateRadarPrices() {
 
   const todayISO = new Date().toISOString().slice(0,10);
 
-  // 1. Pedir recomendaciones a Claude (una vez por día)
+  // 1. Actualizar precios del pool actual (para pasarlos a Claude)
+  const pool = getRadarPool();
+  if(!IS_DEMO && (API_KEY || FINNHUB_KEY)) {
+    for(let i = 0; i < pool.length; i++) {
+      const price = await fetchRadarPrice(pool[i].ticker);
+      if(i < pool.length - 1) await new Promise(res => setTimeout(res, 800));
+    }
+  }
+
+  // 2. Pedir recomendaciones a Claude (una vez por día)
   if(RADAR_LAST_AI !== todayISO) {
     const recs = await fetchClaudeRadarRecommendations();
     if(recs) {
-      // Armar RADAR_WATCHLIST con los datos del universo + recomendaciones de Claude
       RADAR_WATCHLIST = recs.map(rec => {
         const base = RADAR_UNIVERSE.find(u => u.ticker === rec.ticker) || { ticker: rec.ticker, name: rec.ticker, sector: '—' };
         return {
@@ -4303,18 +4351,20 @@ async function updateRadarPrices() {
       localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
       RADAR_LAST_AI = todayISO;
       localStorage.setItem('pip_radar_ai_date', todayISO);
-      renderRadar(true); // true = mostrar badge "IA"
+      renderRadar(true);
+    } else {
+      // Sin recomendaciones IA, mostrar el pool con precios actuales
+      RADAR_WATCHLIST = pool.map(r => ({
+        ...r,
+        entryTarget: RADAR_PRICES[r.ticker]?.price ? RADAR_PRICES[r.ticker].price * 0.95 : null,
+        currentPrice: RADAR_PRICES[r.ticker]?.price || null,
+        note: 'Análisis IA no disponible.'
+      }));
+      renderRadar(false);
     }
+    return;
   }
 
-  // 2. Actualizar precios via Alpha Vantage
-  if(!API_KEY || IS_DEMO) { renderRadar(false); return; }
-  for(let i = 0; i < RADAR_WATCHLIST.length; i++) {
-    const r = RADAR_WATCHLIST[i];
-    const price = await fetchRadarPrice(r.ticker);
-    if(price) r.currentPrice = price;
-    if(i < RADAR_WATCHLIST.length - 1) await new Promise(res => setTimeout(res, 1200));
-  }
   renderRadar(false);
 }
 
@@ -4473,6 +4523,7 @@ function renderBriefing() {
   if(macroMEP) macroMEP.textContent = '$' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   // Radar / zona de compra
+  renderSectorToggles();
   renderRadar();
   updateRadarPrices(); // actualiza en segundo plano sin bloquear el render
 
@@ -4519,6 +4570,36 @@ function renderBriefing() {
 function refreshBriefing() {
   renderBriefing();
   showToast('Briefing actualizado ✓');
+}
+
+function renderSectorToggles() {
+  const el = document.getElementById('radarSectorToggles');
+  if(!el) return;
+  el.innerHTML = RADAR_ALL_SECTORS.map(s => {
+    const active = RADAR_ACTIVE_SECTORS.includes(s);
+    return `<button onclick="toggleRadarSector('${s}')" style="font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:20px;border:1px solid ${active ? 'var(--accent)' : 'var(--border)'};background:${active ? 'var(--accent)' : 'transparent'};color:${active ? 'var(--bg)' : 'var(--text2)'};cursor:pointer;transition:all .15s">${s}</button>`;
+  }).join('');
+}
+
+function toggleRadarSector(sector) {
+  const idx = RADAR_ACTIVE_SECTORS.indexOf(sector);
+  if(idx >= 0) {
+    if(RADAR_ACTIVE_SECTORS.length === 1) return; // al menos un sector activo
+    RADAR_ACTIVE_SECTORS.splice(idx, 1);
+  } else {
+    RADAR_ACTIVE_SECTORS.push(sector);
+  }
+  localStorage.setItem('pip_radar_sectors', JSON.stringify(RADAR_ACTIVE_SECTORS));
+  renderSectorToggles();
+  // Al cambiar sectores, forzar nueva recomendación IA
+  RADAR_LAST_AI = '';
+  localStorage.removeItem('pip_radar_ai_date');
+  localStorage.removeItem('pip_radar_active');
+  RADAR_WATCHLIST = getRadarPool().map(r => ({
+    ...r, entryTarget: null, currentPrice: RADAR_PRICES[r.ticker]?.price || null, note: 'Analizando...'
+  }));
+  renderRadar(false);
+  updateRadarPrices();
 }
 
 function refreshRadar() {
