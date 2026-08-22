@@ -2448,7 +2448,10 @@ function renderAlerts() {
 // ── CONFIG ──
 function renderConfig() {
   const keyEl = document.getElementById('activeKeyDisplay');
-  if(keyEl) keyEl.textContent = API_KEY ? API_KEY.slice(0,8)+'...' : 'Modo Demo activo';
+  const avKey = localStorage.getItem('av_key') || '';
+  if(keyEl) keyEl.textContent = avKey ? avKey.slice(0,8)+'...' : 'Modo Demo activo';
+  if(keyEl) keyEl.style.color = avKey ? 'var(--green)' : 'var(--accent)';
+  if(!API_KEY && avKey) API_KEY = avKey;
   // Show Anthropic key status
   const antKey = localStorage.getItem('anthropic_key') || '';
   const antEl = document.getElementById('anthropicKeyDisplay');
