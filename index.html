@@ -4021,7 +4021,13 @@ async function loadAllLayers(r, data) {
   if(fundEl) {
     fundEl.innerHTML = '<div class="loading-inline"><span class="spin-sm"></span>Cargando fundamentales...</div>';
     fundData = await fetchFundamentals(r.ticker);
-    fundEl.innerHTML = renderFundamentals(fundData, r.ticker);
+    const bymaWarning = r.isBYMA
+      ? `<div style="background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.35);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-family:var(--mono);font-size:10px;color:#ffb400;line-height:1.5">
+           FUNDAMENTALES ESTIMADOS — Cobertura limitada para acciones BYMA.<br>
+           Los datos pueden corresponder al ADR en NYSE, no a la acción local en ARS.
+         </div>`
+      : '';
+    fundEl.innerHTML = bymaWarning + renderFundamentals(fundData, r.ticker);
     // Traducir descripción de empresa al español
     if(fundData?.profile?.description) translateCompanyDesc(fundData.profile.description);
     if(fundData && fundData.ratios) {
