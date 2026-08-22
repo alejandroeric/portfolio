@@ -4603,10 +4603,12 @@ function toggleRadarSector(sector) {
 }
 
 function refreshRadar() {
-  // Resetear cache de IA para forzar nuevas recomendaciones
+  // Resetear cache de IA y precios para forzar actualización completa
   RADAR_LAST_AI = '';
+  RADAR_PRICES = {};
   localStorage.removeItem('pip_radar_ai_date');
   localStorage.removeItem('pip_radar_active');
+  localStorage.removeItem('pip_radar_prices');
   RADAR_WATCHLIST = [];
   // Mostrar loading
   const radarEl = document.getElementById('briefingRadar');
