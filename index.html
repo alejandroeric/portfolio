@@ -2659,6 +2659,7 @@ function init() {
     document.getElementById('modeBadge').className = 'mode-badge mode-real';
   }
   buildAlerts();
+  renderConfig();
   renderBriefing();
   renderPortfolio();
   document.getElementById('tickerInp').addEventListener('keydown', e => { if(e.key==='Enter') run(); });
