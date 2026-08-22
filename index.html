@@ -1377,7 +1377,6 @@ function calcMacroImpact(macro, sector) {
     { name: 'Tasas de interés (10Y '+macro.treasury10.value+'%)', score: ratesSens, label: ratesSens>=60?'FAVORABLE':'PRESIÓN' },
     { name: 'Sentimiento (Fear&Greed '+macro.fearGreed.value+')', score: liquiditySens, label: liquiditySens>=60?'FAVORABLE':'CAUTO' },
     { name: 'Dólar DXY ('+macro.dxy.value+')', score: dollarSens, label: dollarSens>=60?'FAVORABLE':'NEUTRAL' },
-    { name: 'Momentum mercado (S&P YTD +'+macro.sp500ytd.value+'%)', score: 68, label: 'FAVORABLE' },
   ];
 }
 
@@ -1611,13 +1610,8 @@ let CHARTS = {};
 
 // Known current prices (updated today)
 // USD prices (real market prices)
-const KNOWN_PRICES_USD = {
-  ACN:177.70, SPOT:510.58, RBLX:46.83, MSFT:427.78,
-  LMT:530.35, ADBE:255.58, MELI:1704.01,
-  BTC:97000, ETH:2460,
-  NVDA:1100, AAPL:192, SPY:545, QQQ:470,
-  AMZN:210, META:580, GLD:230, TSLA:175,
-};
+// Precios USD — se actualizan al arrancar via fetchPortfolioPrices() (Finnhub) y fetchCryptoPrices() (CoinGecko)
+const KNOWN_PRICES_USD = {};
 
 // ARS prices from Cocos (CEDEARs priced in pesos)
 const KNOWN_PRICES_ARS = {
@@ -3786,7 +3780,6 @@ async function fetchMacro() {
     treasury10: { label: 'Treasury 10Y',     value: y10Est,    note: y10Est > 4.5 ? 'Tasas altas — presión' : 'Tasas moderadas',    status: y10Est > 4.5 ? 'risk' : 'safe' },
     dxy:        { label: 'Dólar (DXY)',      value: dxyEst,    note: dxyEst > 104 ? 'Dólar fuerte — presión' : 'Dólar neutro',      status: dxyEst > 104 ? 'warn' : 'safe' },
     fearGreed:  { label: 'Fear & Greed',     value: fgEst,     note: fgEst > 60 ? 'Codicia' : fgEst > 40 ? 'Neutro' : 'Miedo',     status: fgEst > 60 ? 'warn' : fgEst > 40 ? 'safe' : 'risk' },
-    sp500ytd:   { label: 'S&P YTD',          value: 12.4,      note: 'Rendimiento anual estimado',                                  status: 'safe' },
   };
 }
 
@@ -4299,6 +4292,33 @@ async function fetchCryptoPrices() {
   } catch(e) { return null; }
 }
 
+async function fetchPortfolioPrices() {
+  if(!FINNHUB_KEY) return;
+  // Tickers USD únicos del portfolio (excluir crypto — ya los trae fetchCryptoPrices)
+  const crypto = new Set(['BTC','ETH','BTC.X','ETH.X']);
+  const tickers = [...new Set(
+    POSITIONS.filter(p => p.currency !== 'ARS' && !crypto.has(p.ticker)).map(p => p.ticker)
+  )];
+  if(!tickers.length) return;
+  // Llamadas paralelas a Finnhub /quote
+  const results = await Promise.allSettled(
+    tickers.map(t =>
+      fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(t)}&token=${FINNHUB_KEY}`)
+        .then(r => r.json())
+        .then(d => ({ ticker: t, price: d.c || null }))
+    )
+  );
+  let updated = false;
+  results.forEach(r => {
+    if(r.status === 'fulfilled' && r.value.price) {
+      KNOWN_PRICES_USD[r.value.ticker] = r.value.price;
+      KNOWN_PRICES[r.value.ticker]     = r.value.price;
+      updated = true;
+    }
+  });
+  if(updated) renderPortfolio();
+}
+
 async function fetchClaudeRadarRecommendations() {
   const antKey = localStorage.getItem('anthropic_key') || '';
   if(!antKey || !isValidAnthropicKey(antKey)) return null;
@@ -4720,16 +4740,9 @@ RENTA FIJA:
 - AO28: 4.188 títulos · genera ~US$20/mes de cupón
 - AO27: 2.930 títulos · vence Oct 2027 antes de elecciones
 
-RADAR:
-- BIOX entrada $0.39 (hoy ~$0.41) · GLD esperar $210-215 · GGAL si riesgo país < 500
-- Earnings ADBE: 11 jun · Earnings ACN: 18 jun
-
-DECISIONES ACTIVAS:
-- RBLX: SALIR urgente (−25%) · SPOT: REDUCIR 30-40%
-
-MACRO (junio 2026):
-- S&P 500: ~7.520 · VIX: 16.7 · Fed Rate: 3.75% · PCE Core: 3.2%
-- Riesgo país AR: ~510pts · Dólar MEP: $${mepDisplay}
+MACRO (${new Date().toLocaleDateString('es-AR', {month:'long', year:'numeric'})}):
+- VIX: ${document.getElementById('macroVIX')?.textContent||'—'} · Treasury 10Y: ${document.getElementById('macroT10Y')?.textContent||'—'} · Fed Rate: ${document.getElementById('macroFED')?.textContent||'—'} · PCE Core: ${document.getElementById('macroPCE')?.textContent||'—'}
+- Dólar MEP: $${mepDisplay}
 
 INSTRUCCIONES:
 - Respondé siempre en español, directo y conciso
@@ -5045,6 +5058,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if(prices.eth) { KNOWN_PRICES_USD['ETH'] = prices.eth; KNOWN_PRICES['ETH'] = prices.eth; }
     renderPortfolio();
   });
+  // Actualizar precios USD del portfolio desde Finnhub al arrancar
+  fetchPortfolioPrices();
   const inp = document.getElementById('chatInp');
   if(inp) {
     const wrap = document.getElementById('chatInputWrap');
