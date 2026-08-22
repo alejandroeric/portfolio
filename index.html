@@ -2643,7 +2643,7 @@ function init() {
   if(!positionsDate) {
     console.info(`[PIP] Posiciones cargadas desde default del ${POSITIONS_DEFAULT_DATE}. Editá en CONFIG → MIS POSICIONES para personalizar.`);
   }
-  if(API_KEY){
+  if(API_KEY || FINNHUB_KEY){
     IS_DEMO = false;
     document.getElementById('modeBadge').textContent = '● REAL';
     document.getElementById('modeBadge').className = 'mode-badge mode-real';
