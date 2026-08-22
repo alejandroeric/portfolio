@@ -1171,16 +1171,17 @@ async function fetchPriceTargets(ticker, currentPrice) {
 
 function estimatePriceTargets(ticker, price) {
   // Known approximate analyst targets for major tickers (May 2026)
+  // Targets de analistas ago-2026 — solo como fallback si Finnhub no responde
   const knownTargets = {
-    AAPL: { low:185, avg:232, high:275, low52w:169, high52w:260, buyCount:28, holdCount:8,  sellCount:2  },
+    AAPL: { low:196, avg:237, high:275, low52w:169, high52w:260, buyCount:28, holdCount:8,  sellCount:2  },
     MSFT: { low:390, avg:472, high:545, low52w:380, high52w:548, buyCount:35, holdCount:5,  sellCount:1  },
-    NVDA: { low:850, avg:1180,high:1500,low52w:790, high52w:1532,buyCount:40, holdCount:4,  sellCount:1  },
+    NVDA: { low:115, avg:168, high:220, low52w:86,  high52w:220, buyCount:40, holdCount:4,  sellCount:1  },
     TSLA: { low:150, avg:290, high:430, low52w:138, high52w:480, buyCount:15, holdCount:12, sellCount:10 },
     SPY:  { low:510, avg:575, high:635, low52w:483, high52w:614, buyCount:0,  holdCount:0,  sellCount:0  },
     QQQ:  { low:440, avg:505, high:575, low52w:400, high52w:540, buyCount:0,  holdCount:0,  sellCount:0  },
     AMZN: { low:195, avg:252, high:310, low52w:172, high52w:244, buyCount:40, holdCount:3,  sellCount:0  },
     META: { low:520, avg:660, high:790, low52w:450, high52w:760, buyCount:42, holdCount:5,  sellCount:1  },
-    GLD:  { low:210, avg:280, high:340, low52w:198, high52w:321, buyCount:0,  holdCount:0,  sellCount:0  },
+    GLD:  { low:290, avg:340, high:390, low52w:198, high52w:321, buyCount:0,  holdCount:0,  sellCount:0  },
     GOOGL:{ low:165, avg:205, high:245, low52w:148, high52w:207, buyCount:35, holdCount:6,  sellCount:1  },
     JPM:  { low:225, avg:268, high:310, low52w:196, high52w:288, buyCount:20, holdCount:8,  sellCount:2  },
     ACN:  { low:170, avg:215, high:260, low52w:155, high52w:384, buyCount:14, holdCount:11, sellCount:2  },
@@ -1191,6 +1192,7 @@ function estimatePriceTargets(ticker, price) {
     MELI: { low:1500,avg:2360,high:2900,low52w:1580,high52w:2235,buyCount:31, holdCount:4,  sellCount:1  },
     COIN: { low:145, avg:230, high:320, low52w:155, high52w:315, buyCount:12, holdCount:8,  sellCount:5  },
     GS:   { low:490, avg:575, high:650, low52w:450, high52w:648, buyCount:18, holdCount:7,  sellCount:2  },
+    AMD:  { low:95,  avg:140, high:185, low52w:90,  high52w:210, buyCount:30, holdCount:8,  sellCount:2  },
   };
   const known = knownTargets[ticker.toUpperCase()];
   if(known) {
