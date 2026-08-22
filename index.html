@@ -2581,9 +2581,19 @@ async function fetchBYMAHistory(ticker) {
   const dateTo   = new Date().toISOString().slice(0,10);
   const dateFrom = new Date(Date.now() - 365*24*60*60*1000).toISOString().slice(0,10);
   const url = `https://api.invertironline.com/api/v2/bcba/Titulos/${encodeURIComponent(ticker)}/Cotizacion/seriehistorica/${dateFrom}/${dateTo}/ajustada`;
-  const resp = await fetch(proxy + encodeURIComponent(url), {
+  let resp = await fetch(proxy + encodeURIComponent(url), {
     headers: { 'Authorization': `Bearer ${token}` }
   });
+  // Si el token expiró, limpiar caché y reintentar con token fresco
+  if(resp.status === 401) {
+    localStorage.removeItem('iol_token');
+    const freshToken = await fetchIOLToken();
+    if(!freshToken) throw new Error('Credenciales de IOL inválidas. Verificá usuario y contraseña en CONFIG → MERCADO ARGENTINO.');
+    resp = await fetch(proxy + encodeURIComponent(url), {
+      headers: { 'Authorization': `Bearer ${freshToken}` }
+    });
+  }
+  if(!resp.ok) throw new Error(`IOL API error ${resp.status} para ${ticker}. Verificá el ticker o tus credenciales.`);
   const data = await resp.json();
   if(!Array.isArray(data) || !data.length) throw new Error(`No se encontraron datos para ${ticker} en el BYMA. Verificá el ticker.`);
   // IOL devuelve datos del más reciente al más antiguo — invertir
