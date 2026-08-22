@@ -4399,12 +4399,12 @@ function renderRadar(aiUpdated = false) {
         <span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--green)">${r.ticker}</span>
         <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(63,185,80,.2);color:var(--green);font-weight:700">✓ ENTRAR</span>
         <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
-        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">$${r.currentPrice.toFixed(2)}</span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
         ${changeStr ? `<span style="font-family:var(--mono);font-size:10px;color:${changeColor}">${changeStr}</span>` : ''}
       </div>
       <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">${r.note}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo entrada: <span style="color:var(--green)">$${r.entryTarget}</span> · Precio actual en zona ✓</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo entrada: <span style="color:var(--green)">${r.entryTarget != null ? '$'+r.entryTarget : '—'}</span> · Precio actual en zona ✓</div>
         <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(63,185,80,.15);color:var(--green);cursor:pointer;font-weight:700">▶ ANALIZAR</button>
       </div>
     </div>`;
@@ -4417,11 +4417,11 @@ function renderRadar(aiUpdated = false) {
         <span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--yellow)">${r.ticker}</span>
         <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(210,153,34,.15);color:var(--yellow);font-weight:700">🎯 CERCA</span>
         <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
-        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)">$${r.currentPrice.toFixed(2)}</span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
       </div>
       <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">${r.note}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo: <span style="color:var(--yellow)">$${r.entryTarget}</span> · A ${dist}% del precio objetivo</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo: <span style="color:var(--yellow)">${r.entryTarget != null ? '$'+r.entryTarget : '—'}</span> · A ${dist}% del precio objetivo</div>
         <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶ ANALIZAR</button>
       </div>
     </div>`;
@@ -4431,8 +4431,8 @@ function renderRadar(aiUpdated = false) {
     <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
       <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text2);width:44px">${r.ticker}</span>
       <span style="font-size:11px;color:var(--muted);flex:1">${r.name} · ${r.sector}</span>
-      <span style="font-family:var(--mono);font-size:11px;color:var(--text)">$${r.currentPrice.toFixed(2)}</span>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">obj: $${r.entryTarget} · ${r.dist.toFixed(1)}% lejos</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">obj: ${r.entryTarget != null ? '$'+r.entryTarget : '—'} · ${r.dist != null ? r.dist.toFixed(1)+'% lejos' : '—'}</span>
       <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶</button>
     </div>`;
 
