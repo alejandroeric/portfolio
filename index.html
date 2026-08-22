@@ -1249,30 +1249,29 @@ function normFinnhubMetrics(d) {
     const arr = d.series?.annual?.[key];
     return Array.isArray(arr) && arr.length ? arr[arr.length-1].v : null;
   };
+  // Finnhub devuelve márgenes/yields en escala %, normMetrics espera decimales (÷100)
+  const pct = v => v != null ? v / 100 : null;
   return {
     peTTM:                       m.peTTM || m.peNormalizedAnnual,
     peNormalizedAnnual:          m.peNormalizedAnnual,
     pbAnnual:                    m.pbAnnual || latestSeries('pb'),
-    evEbitdaTTM:                 m.currentEv != null && m.ebitdaPerShareTTM != null ? null : null, // FMP lo trae mejor
     totalDebtToEquityAnnual:     m['longTermDebt/equityAnnual'] || m.totalDebtToEquityAnnual || latestSeries('totalDebtToEquity'),
     currentRatioAnnual:          m.currentRatioAnnual || m.currentRatioQuarterly,
-    dividendYieldIndicatedAnnual: m.dividendYieldIndicatedAnnual || m.dividendYieldTTM || m['currentDividendYieldTTM'],
+    dividendYieldIndicatedAnnual: pct(m.dividendYieldIndicatedAnnual || m.dividendYieldTTM || m['currentDividendYieldTTM']),
     revenuePerShareAnnual:       m.revenuePerShareAnnual || m.revenuePerShareTTM,
-    revenueGrowthQuarterlyYoy:   m.revenueGrowthQuarterlyYoy,
+    revenueGrowthQuarterlyYoy:   pct(m.revenueGrowthQuarterlyYoy),
     marketCapitalization:        m.marketCapitalization,
     beta:                        m.beta,
-    // Márgenes — nombres que espera normMetrics
-    returnOnEquityTTM:           m.roeTTM || latestSeries('roe'),
-    netProfitMarginTTM:          m.netProfitMarginTTM || latestSeries('netMargin'),
-    grossProfitMarginTTM:        m.grossMarginTTM || m.grossMarginAnnual || latestSeries('grossMargin'),
-    // FCF yield
-    freeCashFlowYieldTTM:        m['currentEv/freeCashFlowAnnual'] ? null : (m.fcfMarginTTM || null),
+    // Márgenes — Finnhub los da en % (ej: 74.15), hay que dividir por 100
+    returnOnEquityTTM:           pct(m.roeTTM ?? latestSeries('roe')),
+    netProfitMarginTTM:          pct(m.netProfitMarginTTM ?? latestSeries('netMargin')),
+    grossProfitMarginTTM:        pct(m.grossMarginTTM ?? m.grossMarginAnnual ?? latestSeries('grossMargin')),
+    freeCashFlowYieldTTM:        pct(m.fcfMarginTTM ?? null),
     freeCashFlowPerShareTTM:     m.freeCashFlowPerShareTTM || m.cashFlowPerShareTTM,
-    // Market cap y crecimiento
-    revenueGrowthTTMYoy:         m.revenueGrowthQuarterlyYoy,
+    revenueGrowthTTMYoy:         pct(m.revenueGrowthQuarterlyYoy),
     revenuePerShareTTM:          m.revenuePerShareAnnual || m.revenuePerShareTTM,
     marketCapitalizationTTM:     m.marketCapitalization,
-    epsGrowthTTMYoy:             m.epsGrowthTTMYoy,
+    epsGrowthTTMYoy:             pct(m.epsGrowthTTMYoy),
   };
 }
 
@@ -1298,14 +1297,28 @@ async function fetchFundamentals(ticker) {
     } catch(e) { console.warn('[PIP] FMP error', ticker, e); }
   }
 
-  // Fallback: Finnhub /stock/metric (funciona con cualquier ticker en plan free)
-  if(!ratios && FINNHUB_KEY) {
+  // Finnhub /stock/metric — siempre se llama para complementar FMP
+  if(FINNHUB_KEY) {
     try {
       const url  = `https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(ticker)}&metric=all&token=${FINNHUB_KEY}`;
       const resp = await fetch(url);
       const d    = await resp.json();
       const fhNorm = normFinnhubMetrics(d);
-      if(fhNorm) { ratios = normMetrics(fhNorm); source = 'Finnhub'; }
+      if(fhNorm) {
+        const fhRatios = normMetrics(fhNorm);
+        if(!ratios) {
+          ratios = fhRatios;
+          source = 'Finnhub';
+        } else {
+          // Completar campos nulos de FMP con datos de Finnhub
+          for(const key of Object.keys(fhRatios)) {
+            if((ratios[key] == null || isNaN(ratios[key])) && fhRatios[key] != null) {
+              ratios[key] = fhRatios[key];
+            }
+          }
+          source = 'FMP+Finnhub';
+        }
+      }
       // Armar profile básico desde Finnhub si FMP no lo tiene
       if(!profile && d.metric) {
         profile = {
