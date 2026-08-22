@@ -1261,7 +1261,7 @@ function normFinnhubMetrics(d) {
     currentRatioAnnual:          m.currentRatioAnnual || m.currentRatioQuarterly,
     dividendYieldIndicatedAnnual: pct(m.dividendYieldIndicatedAnnual || m.dividendYieldTTM || m['currentDividendYieldTTM']),
     revenuePerShareAnnual:       m.revenuePerShareAnnual || m.revenuePerShareTTM,
-    revenueGrowthQuarterlyYoy:   pct(m.revenueGrowthQuarterlyYoy),
+    revenueGrowthQuarterlyYoy:   m.revenueGrowthQuarterlyYoy,  // ya en escala %, no dividir
     marketCapitalization:        m.marketCapitalization,
     beta:                        m.beta,
     // Márgenes — Finnhub los da en % (ej: 74.15), hay que dividir por 100
@@ -1270,7 +1270,7 @@ function normFinnhubMetrics(d) {
     grossProfitMarginTTM:        pct(m.grossMarginTTM ?? m.grossMarginAnnual ?? latestSeries('grossMargin')),
     freeCashFlowYieldTTM:        pct(m.fcfMarginTTM ?? null),
     freeCashFlowPerShareTTM:     m.freeCashFlowPerShareTTM || m.cashFlowPerShareTTM,
-    revenueGrowthTTMYoy:         pct(m.revenueGrowthQuarterlyYoy),
+    revenueGrowthTTMYoy:         m.revenueGrowthQuarterlyYoy,  // ya en escala %, no dividir
     revenuePerShareTTM:          m.revenuePerShareAnnual || m.revenuePerShareTTM,
     marketCapitalizationTTM:     m.marketCapitalization,
     epsGrowthTTMYoy:             pct(m.epsGrowthTTMYoy),
@@ -1314,8 +1314,12 @@ async function fetchFundamentals(ticker) {
         } else {
           // Completar campos nulos de FMP con datos de Finnhub
           for(const key of Object.keys(fhRatios)) {
-            if((ratios[key] == null || isNaN(ratios[key])) && fhRatios[key] != null) {
-              ratios[key] = fhRatios[key];
+            const cur = ratios[key];
+            const fh  = fhRatios[key];
+            if(fh == null) continue;
+            // Reemplazar si es null, NaN, o negativo cuando Finnhub da positivo (ej: deuda)
+            if(cur == null || isNaN(cur) || (cur < 0 && fh >= 0)) {
+              ratios[key] = fh;
             }
           }
           source = 'FMP+Finnhub';
