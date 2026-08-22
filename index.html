@@ -3762,20 +3762,25 @@ async function fetchMacro() {
     } catch(e) {}
   }
 
-  const spy   = results.spy   || 752.0;
-  const vxx   = results.vxx   || 16.7;
-  const tlt   = results.tlt   || 91.5;
-  const uup   = results.uup   || 25.8;
+  // Si AV falla, leer del DOM de FRED (ya actualizado al arrancar)
+  const domVix  = parseFloat(document.getElementById('macroVIX')?.textContent?.replace(/[^\d.]/g,'') || '0');
+  const domT10y = parseFloat(document.getElementById('macroT10Y')?.textContent?.replace(/[^\d.%]/g,'') || '0');
+  const domDxy  = parseFloat(document.getElementById('macroDXY')?.textContent?.replace(/[^\d.]/g,'') || '0');
 
-  // Derive macro values from proxies
-  const vixEst    = Math.round(vxx * 1.05 * 10) / 10;
-  const y10Est    = parseFloat((10 - (tlt - 82) * 0.08).toFixed(2));
-  const dxyEst    = parseFloat((uup * 3.82).toFixed(1));
-  const sp500Est  = parseFloat((spy * 10).toFixed(0));
-  const fgEst     = Math.max(10, Math.min(90, Math.round(100 - vixEst * 2.5)));
+  const spy   = results.spy  || null;
+  const vxx   = results.vxx  || null;
+  const tlt   = results.tlt  || null;
+  const uup   = results.uup  || null;
+
+  // Derivar valores macro: preferir DOM de FRED, luego calcular desde ETFs, nunca usar valor fijo
+  const vixEst   = domVix  || (vxx ? Math.round(vxx * 1.05 * 10) / 10 : 20);
+  const y10Est   = domT10y || (tlt ? parseFloat((10 - (tlt - 82) * 0.08).toFixed(2)) : 4.5);
+  const dxyEst   = domDxy  || (uup ? parseFloat((uup * 3.82).toFixed(1)) : 100);
+  const sp500Est = spy     ? parseFloat((spy * 10).toFixed(0)) : null;
+  const fgEst    = Math.max(10, Math.min(90, Math.round(100 - vixEst * 2.5)));
 
   return {
-    sp500:      { label: 'S&P 500',         value: sp500Est,  note: sp500Est > 5000 ? 'Tendencia alcista' : 'Presión vendedora',   status: sp500Est > 5000 ? 'safe' : 'warn' },
+    sp500:      { label: 'S&P 500',         value: sp500Est,  note: sp500Est ? (sp500Est > 5000 ? 'Tendencia alcista' : 'Presión vendedora') : 'Sin dato', status: sp500Est > 5000 ? 'safe' : 'warn' },
     vix:        { label: 'VIX (volatilidad)',value: vixEst,    note: vixEst < 20 ? 'Mercado tranquilo' : vixEst < 30 ? 'Moderado' : 'Alta volatilidad', status: vixEst < 20 ? 'safe' : vixEst < 30 ? 'warn' : 'risk' },
     treasury10: { label: 'Treasury 10Y',     value: y10Est,    note: y10Est > 4.5 ? 'Tasas altas — presión' : 'Tasas moderadas',    status: y10Est > 4.5 ? 'risk' : 'safe' },
     dxy:        { label: 'Dólar (DXY)',      value: dxyEst,    note: dxyEst > 104 ? 'Dólar fuerte — presión' : 'Dólar neutro',      status: dxyEst > 104 ? 'warn' : 'safe' },
