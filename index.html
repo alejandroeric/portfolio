@@ -2580,48 +2580,45 @@ async function fetchIOLToken() {
 }
 
 async function fetchBYMAHistory(ticker) {
-  localStorage.removeItem('iol_token'); // siempre token fresco para datos
-  const token = await fetchIOLToken();
-  console.log('[IOL] token obtenido:', token ? token.slice(0,30)+'...' : 'NULL');
-  if(!token) throw new Error('Credenciales de IOL inválidas. Verificá usuario y contraseña en CONFIG → MERCADO ARGENTINO.');
+  // Yahoo Finance: acciones BYMA con sufijo .BA (ej: PAMP.BA, HAVA.BA)
+  // No requiere autenticacion — API publica via corsproxy.io
   const proxy = 'https://corsproxy.io/?';
-  const dateTo   = new Date().toISOString().slice(0,10);
-  const dateFrom = new Date(Date.now() - 365*24*60*60*1000).toISOString().slice(0,10);
-  const urlSinToken = `https://api.invertironline.com/api/v2/bcba/Titulos/${encodeURIComponent(ticker)}/Cotizacion/seriehistorica/${dateFrom}/${dateTo}/ajustada`;
-  const urlConToken = urlSinToken + `?access_token=${encodeURIComponent(token)}`;
-  // Intento 1: token en header
-  console.log('[IOL] fetch #1 url:', urlSinToken);
-  let resp = await fetch(proxy + encodeURIComponent(urlSinToken), {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  console.log('[IOL] fetch #1 status:', resp.status);
-  // Intento 2: token como query param
-  if(resp.status === 401) {
-    console.log('[IOL] fetch #2 con token en URL');
-    resp = await fetch(proxy + encodeURIComponent(urlConToken));
-    console.log('[IOL] fetch #2 status:', resp.status);
+  const symbol = ticker.toUpperCase() + '.BA';
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`;
+  let resp, json;
+  try {
+    resp = await fetch(proxy + encodeURIComponent(url));
+    json = await resp.json();
+  } catch(e) {
+    throw new Error(`Sin datos para ${ticker} en BYMA. Verificá tu conexión.`);
   }
-  if(!resp.ok) {
-    const errBody = await resp.text().catch(()=>'');
-    console.log('[IOL] error body:', errBody.slice(0,200));
-    throw new Error(`IOL API error ${resp.status} para ${ticker}. Re-ingresá tus credenciales en CONFIG → MERCADO ARGENTINO.`);
+  const result = json?.chart?.result?.[0];
+  if(!result || json?.chart?.error) {
+    throw new Error(`"${ticker}" no encontrado en el BYMA. Verificá el ticker (ej: PAMP, HAVA, GGAL, YPFD).`);
   }
-  const data = await resp.json();
-  if(!Array.isArray(data) || !data.length) throw new Error(`No se encontraron datos para ${ticker} en el BYMA. Verificá el ticker.`);
-  // IOL devuelve datos del más reciente al más antiguo — invertir
-  const sorted = [...data].reverse();
+  const meta      = result.meta;
+  const ts        = result.timestamp || [];
+  const quote     = result.indicators?.quote?.[0] || {};
+  const adjClose  = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
+  if(!ts.length) throw new Error(`Sin datos históricos para ${ticker}.`);
+  // Filtrar entradas con datos completos
+  const valid = ts.map((t,i) => ({
+    t, o: quote.open?.[i], h: quote.high?.[i], l: quote.low?.[i],
+    c: adjClose[i] ?? quote.close?.[i], v: quote.volume?.[i]
+  })).filter(d => d.c != null && d.c > 0);
+  if(valid.length < 30) throw new Error(`Datos insuficientes para ${ticker} (${valid.length} barras). El ticker puede no cotizar en BYMA.`);
   return {
     ticker: ticker.toUpperCase(),
-    currency: 'ARS',
+    currency: meta.currency || 'ARS',
     exchange: 'BCBA',
-    currentPrice: sorted[sorted.length-1].ultimoPrecio,
-    previousClose: sorted[sorted.length-2]?.ultimoPrecio || sorted[sorted.length-1].ultimoPrecio,
-    timestamps: sorted.map(d => d.fecha.slice(0,10)),
-    opens:   sorted.map(d => d.apertura),
-    highs:   sorted.map(d => d.maximo),
-    lows:    sorted.map(d => d.minimo),
-    closes:  sorted.map(d => d.ultimoPrecio),
-    volumes: sorted.map(d => d.volumen),
+    currentPrice: meta.regularMarketPrice || valid[valid.length-1].c,
+    previousClose: meta.previousClose || valid[valid.length-2]?.c || valid[valid.length-1].c,
+    timestamps: valid.map(d => new Date(d.t * 1000).toISOString().slice(0,10)),
+    opens:   valid.map(d => d.o),
+    highs:   valid.map(d => d.h),
+    lows:    valid.map(d => d.l),
+    closes:  valid.map(d => d.c),
+    volumes: valid.map(d => d.v || 0),
     isBYMA: true,
   };
 }
