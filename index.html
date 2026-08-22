@@ -2582,22 +2582,30 @@ async function fetchIOLToken() {
 async function fetchBYMAHistory(ticker) {
   localStorage.removeItem('iol_token'); // siempre token fresco para datos
   const token = await fetchIOLToken();
+  console.log('[IOL] token obtenido:', token ? token.slice(0,30)+'...' : 'NULL');
   if(!token) throw new Error('Credenciales de IOL inválidas. Verificá usuario y contraseña en CONFIG → MERCADO ARGENTINO.');
   const proxy = 'https://corsproxy.io/?';
   const dateTo   = new Date().toISOString().slice(0,10);
   const dateFrom = new Date(Date.now() - 365*24*60*60*1000).toISOString().slice(0,10);
-  // URL con token como query param (fallback si el proxy descarta el header Authorization)
-  const urlConToken = `https://api.invertironline.com/api/v2/bcba/Titulos/${encodeURIComponent(ticker)}/Cotizacion/seriehistorica/${dateFrom}/${dateTo}/ajustada?access_token=${encodeURIComponent(token)}`;
   const urlSinToken = `https://api.invertironline.com/api/v2/bcba/Titulos/${encodeURIComponent(ticker)}/Cotizacion/seriehistorica/${dateFrom}/${dateTo}/ajustada`;
+  const urlConToken = urlSinToken + `?access_token=${encodeURIComponent(token)}`;
   // Intento 1: token en header
+  console.log('[IOL] fetch #1 url:', urlSinToken);
   let resp = await fetch(proxy + encodeURIComponent(urlSinToken), {
     headers: { 'Authorization': `Bearer ${token}` }
   });
-  // Intento 2: token como query param (por si el proxy descarta Authorization)
+  console.log('[IOL] fetch #1 status:', resp.status);
+  // Intento 2: token como query param
   if(resp.status === 401) {
+    console.log('[IOL] fetch #2 con token en URL');
     resp = await fetch(proxy + encodeURIComponent(urlConToken));
+    console.log('[IOL] fetch #2 status:', resp.status);
   }
-  if(!resp.ok) throw new Error(`IOL API error ${resp.status} para ${ticker}. Re-ingresá tus credenciales en CONFIG → MERCADO ARGENTINO.`);
+  if(!resp.ok) {
+    const errBody = await resp.text().catch(()=>'');
+    console.log('[IOL] error body:', errBody.slice(0,200));
+    throw new Error(`IOL API error ${resp.status} para ${ticker}. Re-ingresá tus credenciales en CONFIG → MERCADO ARGENTINO.`);
+  }
   const data = await resp.json();
   if(!Array.isArray(data) || !data.length) throw new Error(`No se encontraron datos para ${ticker} en el BYMA. Verificá el ticker.`);
   // IOL devuelve datos del más reciente al más antiguo — invertir
