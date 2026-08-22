@@ -1,5 +1,5 @@
-const CACHE = 'pip-v3';
-const ASSETS = ['/portfolio/', '/portfolio/index.html', '/portfolio/logopagina.jpg', '/portfolio/logoapp.jpg'];
+const CACHE = 'pip-v4';
+const ASSETS = ['/portfolio/logopagina.jpg', '/portfolio/logoapp.jpg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
@@ -12,5 +12,11 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  // index.html siempre desde la red — nunca desde cache
+  if(e.request.url.includes('/portfolio/') && !e.request.url.match(/\.(jpg|png|ico|svg|js|css)$/)) {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    return;
+  }
+  // Assets estáticos: cache first
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
 });
