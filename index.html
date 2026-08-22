@@ -4285,6 +4285,21 @@ async function fetchInsiders(ticker) {
   } catch(e) { return null; }
 }
 
+async function fetchMEP() {
+  try {
+    const resp = await fetch('https://dolarapi.com/v1/dolares/bolsa');
+    const d    = await resp.json();
+    const rate = d?.venta || d?.compra || null;
+    if(rate && rate > 0) {
+      window.MEP_RATE_OVERRIDE = rate;
+      renderPortfolio();
+      const el = document.getElementById('macroMEP');
+      if(el) el.textContent = '$' + rate.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
+      console.log('[PIP] MEP actualizado desde DolarAPI:', rate);
+    }
+  } catch(e) { console.warn('[PIP] DolarAPI MEP error', e); }
+}
+
 async function fetchCryptoPrices() {
   try {
     const url  = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd';
@@ -5065,6 +5080,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Actualizar precios USD del portfolio desde Finnhub al arrancar
   fetchPortfolioPrices();
+  // Actualizar dólar MEP desde DolarAPI al arrancar
+  fetchMEP();
   const inp = document.getElementById('chatInp');
   if(inp) {
     const wrap = document.getElementById('chatInputWrap');
