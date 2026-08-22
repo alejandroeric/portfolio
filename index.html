@@ -889,6 +889,22 @@ canvas{max-width:100%}
   </div>
 
   <div class="cfg-block">
+    <div class="cfg-ttl">// MERCADO ARGENTINO (BYMA)</div>
+    <div class="cfg-row" style="flex-direction:column;gap:8px">
+      <div class="cfg-lbl">INVERTIRONLINE (acciones y CEDEARs del BYMA)</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input class="inp" id="iolUserInp" placeholder="Usuario IOL (email)" type="text" autocomplete="off" style="flex:1">
+        <input class="inp" id="iolPassInp" placeholder="Contraseña IOL" type="password" autocomplete="off" style="flex:1">
+        <button class="btn btn-a" onclick="saveIOLCredentials()">GUARDAR</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:2px">
+        ESTADO: <span id="iolStatusDisplay" style="color:var(--accent)">No configurado</span> ·
+        <a href="https://www.invertironline.com" target="_blank" style="color:var(--accent)">invertironline.com</a> · Cuenta gratis
+      </div>
+    </div>
+  </div>
+
+  <div class="cfg-block">
     <div class="cfg-ttl">// DATOS</div>
     <div class="cfg-row">
       <button class="btn btn-d" onclick="if(confirm('¿Borrar todos los datos?'))clearAll()">BORRAR TODO</button>
@@ -2519,6 +2535,83 @@ function renderConfig() {
   if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
   if(avInp && avKey) avInp.value = avKey;
+
+  // IOL status
+  const iolUser = localStorage.getItem('iol_user') || '';
+  const iolEl = document.getElementById('iolStatusDisplay');
+  if(iolEl) { iolEl.textContent = iolUser ? `Configurado (${iolUser})` : 'No configurado'; iolEl.style.color = iolUser ? 'var(--green)' : 'var(--text2)'; }
+}
+
+function saveIOLCredentials() {
+  const user = document.getElementById('iolUserInp').value.trim();
+  const pass = document.getElementById('iolPassInp').value.trim();
+  if(!user || !pass) { alert('Ingresá usuario y contraseña de IOL'); return; }
+  localStorage.setItem('iol_user', user);
+  localStorage.setItem('iol_pass', pass);
+  const el = document.getElementById('iolStatusDisplay');
+  if(el) { el.textContent = `Configurado (${user})`; el.style.color = 'var(--green)'; }
+  showToast('Credenciales IOL guardadas ✓');
+}
+
+async function fetchIOLToken() {
+  const user = localStorage.getItem('iol_user');
+  const pass = localStorage.getItem('iol_pass');
+  if(!user || !pass) return null;
+  // Token cacheado por 14 minutos (expira en 15)
+  const cached = JSON.parse(localStorage.getItem('iol_token') || 'null');
+  if(cached && Date.now() < cached.expires) return cached.token;
+  try {
+    const proxy = 'https://corsproxy.io/?';
+    const resp = await fetch(proxy + encodeURIComponent('https://api.invertironline.com/token'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&grant_type=password`,
+    });
+    const d = await resp.json();
+    if(!d.access_token) return null;
+    localStorage.setItem('iol_token', JSON.stringify({ token: d.access_token, expires: Date.now() + 14*60*1000 }));
+    return d.access_token;
+  } catch(e) { console.warn('[PIP] IOL token error', e); return null; }
+}
+
+async function fetchBYMAHistory(ticker) {
+  const token = await fetchIOLToken();
+  if(!token) throw new Error('Configurá tu cuenta de InvertirOnline en ⚙ CONFIG para analizar acciones del BYMA.');
+  const proxy = 'https://corsproxy.io/?';
+  const dateTo   = new Date().toISOString().slice(0,10);
+  const dateFrom = new Date(Date.now() - 365*24*60*60*1000).toISOString().slice(0,10);
+  const url = `https://api.invertironline.com/api/v2/bcba/Titulos/${encodeURIComponent(ticker)}/Cotizacion/seriehistorica/${dateFrom}/${dateTo}/ajustada`;
+  const resp = await fetch(proxy + encodeURIComponent(url), {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const data = await resp.json();
+  if(!Array.isArray(data) || !data.length) throw new Error(`No se encontraron datos para ${ticker} en el BYMA. Verificá el ticker.`);
+  // IOL devuelve datos del más reciente al más antiguo — invertir
+  const sorted = [...data].reverse();
+  return {
+    ticker: ticker.toUpperCase(),
+    currency: 'ARS',
+    exchange: 'BCBA',
+    currentPrice: sorted[sorted.length-1].ultimoPrecio,
+    previousClose: sorted[sorted.length-2]?.ultimoPrecio || sorted[sorted.length-1].ultimoPrecio,
+    timestamps: sorted.map(d => d.fecha.slice(0,10)),
+    opens:   sorted.map(d => d.apertura),
+    highs:   sorted.map(d => d.maximo),
+    lows:    sorted.map(d => d.minimo),
+    closes:  sorted.map(d => d.ultimoPrecio),
+    volumes: sorted.map(d => d.volumen),
+    isBYMA: true,
+  };
+}
+
+function isBYMATicker(ticker) {
+  // Tickers del BYMA son letras sin punto, típicamente 2-5 chars
+  // Los tickers USD suelen tener punto (BRK.B) o son conocidos
+  const usTickers = new Set(['NVDA','AAPL','MSFT','AMZN','META','GOOGL','TSLA','SPY','QQQ','GLD','JPM','AMGN','AMD','ADBE','MELI','COIN','GS','LMT','SPOT','RBLX','ACN','BTC','ETH','TLT','VXX','UUP','ABBV','JNJ','PFE','UNH','AXP','SQ','PYPL','NU']);
+  if(usTickers.has(ticker.toUpperCase())) return false;
+  // Si tiene punto es ticker US (BRK.B, etc.)
+  if(ticker.includes('.')) return false;
+  return true;
 }
 
 function saveAnthropicKey() {
@@ -4132,8 +4225,14 @@ async function run(){
   let step=0;const iv=setInterval(()=>{step=(step+1)%MSGS.length;document.getElementById('ltxt').textContent=MSGS[step][0];document.getElementById('lstep').textContent=MSGS[step][1];},900);
   try{
     let data;
-    if(IS_DEMO||!API_KEY){await new Promise(r=>setTimeout(r,2200));data=genDemo(ticker);document.getElementById('modeBadge').textContent='◎ DEMO';document.getElementById('modeBadge').className='mode-badge mode-demo';}
-    else{data=await fetchAV(ticker,document.getElementById('tfSel').value);document.getElementById('modeBadge').textContent='● REAL';document.getElementById('modeBadge').className='mode-badge mode-real';}
+    if(isBYMATicker(ticker)){
+      data=await fetchBYMAHistory(ticker);
+      document.getElementById('modeBadge').textContent='● REAL';document.getElementById('modeBadge').className='mode-badge mode-real';
+    } else if(IS_DEMO||!API_KEY){
+      await new Promise(r=>setTimeout(r,2200));data=genDemo(ticker);document.getElementById('modeBadge').textContent='◎ DEMO';document.getElementById('modeBadge').className='mode-badge mode-demo';
+    } else {
+      data=await fetchAV(ticker,document.getElementById('tfSel').value);document.getElementById('modeBadge').textContent='● REAL';document.getElementById('modeBadge').className='mode-badge mode-real';
+    }
     clearInterval(iv);ld.classList.remove('on');
     const result=analyze(data);
     data_ref = data;
