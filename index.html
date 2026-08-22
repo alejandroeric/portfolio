@@ -2639,10 +2639,6 @@ function init() {
     localStorage.setItem('pip_positions', JSON.stringify(POSITIONS));
   }
   // Fix 5: mostrar aviso si las posiciones son del default (sin edición del usuario)
-  const positionsDate = localStorage.getItem('pip_positions_edited');
-  if(!positionsDate) {
-    console.info(`[PIP] Posiciones cargadas desde default del ${POSITIONS_DEFAULT_DATE}. Editá en CONFIG → MIS POSICIONES para personalizar.`);
-  }
   if(API_KEY || FINNHUB_KEY){
     IS_DEMO = false;
     document.getElementById('modeBadge').textContent = '● REAL';
