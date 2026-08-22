@@ -1134,16 +1134,29 @@ function genDemo(ticker){
 async function fetchPriceTargets(ticker, currentPrice) {
   let targets = estimatePriceTargets(ticker, currentPrice);
 
-  // Enriquecer con rango 52w de FMP
+  // Enriquecer con rango 52w y precios objetivo reales de FMP
   if(FMP_KEY && FMP_KEY !== 'demo') {
     try {
-      const profileR = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json());
+      const [profileR, ptR] = await Promise.all([
+        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/price-target-consensus?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+      ]);
       const profile = Array.isArray(profileR) ? profileR[0] : null;
       if(profile?.range) {
         const parts = profile.range.split('-');
         const low52w  = parseFloat(parts[0]);
         const high52w = parseFloat(parts[1]);
         if(low52w > 0 && high52w > 0) targets = { ...targets, low52w, high52w };
+      }
+      const pt = Array.isArray(ptR) ? ptR[0] : ptR;
+      if(pt?.targetLow || pt?.targetConsensus || pt?.targetHigh) {
+        targets = {
+          ...targets,
+          low: pt.targetLow      || targets.low,
+          avg: pt.targetConsensus || targets.avg,
+          high: pt.targetHigh    || targets.high,
+          isReal: true,
+        };
       }
     } catch(e) {}
   }
@@ -3371,7 +3384,6 @@ function renderFundamentals(data, ticker) {
   const cards = [
     { k:'P/E Ratio (TTM)',   v: fmt2(pe),                     sub: peNote,     col: peColor },
     { k:'P/B Ratio',         v: fmt2(r.priceToBookRatioTTM),  sub: 'Precio/Valor libro', col:'var(--text)' },
-    { k:'EV/EBITDA',         v: fmt2(r.enterpriseValueMultipleTTM), sub: '<12 = atractivo', col: r.enterpriseValueMultipleTTM<12?'var(--green)':'var(--yellow)' },
     { k:'Margen Neto',       v: fmtPct(r.netProfitMarginTTM), sub: 'Rentabilidad', col: r.netProfitMarginTTM>0.15?'var(--green)':r.netProfitMarginTTM>0?'var(--yellow)':'var(--red)' },
     { k:'ROE',               v: fmtPct(r.returnOnEquityTTM),  sub: '>15% = excelente', col: r.returnOnEquityTTM>0.15?'var(--green)':'var(--yellow)' },
     { k:'Deuda/Equity',      v: fmt2(dte),                     sub: dteNote,    col: dteColor },
@@ -3379,14 +3391,10 @@ function renderFundamentals(data, ticker) {
     { k:'Dividend Yield',    v: fmtPct(r.dividendYielTTM),     sub: 'Rendimiento div.', col:'var(--text)' },
     { k:'Rev. Growth YoY',   v: revGrowth,                    sub: 'Crecimiento ingresos', col: revColor },
     { k:'Market Cap',        v: fmtB(p.mktCap || (r.marketCapitalizationTTM ? r.marketCapitalizationTTM*1e6 : null)), sub: p.sector||'—', col:'var(--text)' },
-    { k:'DCF Valuación',     v: p.dcf?'$'+Number(p.dcf).toFixed(2):'—', sub: ratingScore, col: ratingColor },
     { k:'Beta',              v: fmt2(p.beta),                  sub: p.beta>1.5?'Alta volatilidad':'Normal', col: p.beta>1.5?'var(--red)':'var(--text)' },
     { k:'Próx. Earnings',    v: nextEarnings,                  sub: 'Fecha resultados', col:'var(--yellow)' },
-    { k:'Short Interest',    v: shortFloat,                    sub: 'Presión bajista', col: shortFloat==='Normal'?'var(--text)':'var(--red)' },
-    // Nuevos ratios
     { k:'Current Ratio',    v: fmt2(r.currentRatioTTM),       sub: r.currentRatioTTM>=2?'Excelente liquidez':r.currentRatioTTM>=1?'Liquidez OK':'⚠ Riesgo liquidez', col: r.currentRatioTTM>=2?'var(--green)':r.currentRatioTTM>=1?'var(--yellow)':'var(--red)' },
     { k:'Margen Bruto',     v: fmtPct(r.grossProfitMarginTTM), sub: r.grossProfitMarginTTM>0.4?'Excelente':r.grossProfitMarginTTM>0.2?'Aceptable':'Bajo', col: r.grossProfitMarginTTM>0.4?'var(--green)':r.grossProfitMarginTTM>0.2?'var(--yellow)':'var(--red)' },
-    { k:'Rev./Acción YoY',  v: (() => { if(income.length>=2&&income[0]?.revenue&&income[1]?.revenue&&income[0]?.weightedAverageShsOut&&income[1]?.weightedAverageShsOut){ const r0=income[0].revenue/income[0].weightedAverageShsOut; const r1=income[1].revenue/income[1].weightedAverageShsOut; const g=(r0-r1)/Math.abs(r1)*100; return g.toFixed(1)+'%'; } return 'N/A'; })(), sub: 'Crecimiento por acción', col: (() => { if(income.length>=2&&income[0]?.revenue&&income[1]?.revenue&&income[0]?.weightedAverageShsOut&&income[1]?.weightedAverageShsOut){ const r0=income[0].revenue/income[0].weightedAverageShsOut; const r1=income[1].revenue/income[1].weightedAverageShsOut; const g=(r0-r1)/Math.abs(r1)*100; return g>10?'var(--green)':g>0?'var(--yellow)':'var(--red)'; } return 'var(--text)'; })() },
   ];
 
   const fundamentalScore = calcFundamentalScore(r, p, income);
