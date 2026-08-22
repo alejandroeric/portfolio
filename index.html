@@ -1244,24 +1244,35 @@ function normMetrics(m) {
 function normFinnhubMetrics(d) {
   if(!d || !d.metric) return null;
   const m = d.metric;
-  const s = d.series?.annual || {};
+  // Extraer última entrada de series anuales si existe
+  const latestSeries = (key) => {
+    const arr = d.series?.annual?.[key];
+    return Array.isArray(arr) && arr.length ? arr[arr.length-1].v : null;
+  };
   return {
-    peTTM:                    m.peTTM,
-    peNormalizedAnnual:       m.peNormalizedAnnual,
-    pbAnnual:                 m.pbAnnual,
-    evEbitdaTTM:              m.evEbitdaTTM || m['evEbitda'],
-    totalDebtToEquityAnnual:  m.totalDebtToEquityAnnual,
-    currentRatioAnnual:       m.currentRatioAnnual,
-    dividendYieldIndicatedAnnual: m.dividendYieldIndicatedAnnual,
-    revenuePerShareAnnual:    m.revenuePerShareAnnual,
-    // Series anuales
-    roe:        s.roe,
-    roa:        s.roa,
-    netMargin:  s.netMargin,
-    grossMargin:s.grossMargin,
-    pb:         s.pb,
-    pfcf:       s.pfcf,
-    totalDebtToEquity: s.totalDebtToEquity,
+    peTTM:                       m.peTTM || m.peNormalizedAnnual,
+    peNormalizedAnnual:          m.peNormalizedAnnual,
+    pbAnnual:                    m.pbAnnual || latestSeries('pb'),
+    evEbitdaTTM:                 m.currentEv != null && m.ebitdaPerShareTTM != null ? null : null, // FMP lo trae mejor
+    totalDebtToEquityAnnual:     m['longTermDebt/equityAnnual'] || m.totalDebtToEquityAnnual || latestSeries('totalDebtToEquity'),
+    currentRatioAnnual:          m.currentRatioAnnual || m.currentRatioQuarterly,
+    dividendYieldIndicatedAnnual: m.dividendYieldIndicatedAnnual || m.dividendYieldTTM || m['currentDividendYieldTTM'],
+    revenuePerShareAnnual:       m.revenuePerShareAnnual || m.revenuePerShareTTM,
+    revenueGrowthQuarterlyYoy:   m.revenueGrowthQuarterlyYoy,
+    marketCapitalization:        m.marketCapitalization,
+    beta:                        m.beta,
+    // Márgenes — nombres que espera normMetrics
+    returnOnEquityTTM:           m.roeTTM || latestSeries('roe'),
+    netProfitMarginTTM:          m.netProfitMarginTTM || latestSeries('netMargin'),
+    grossProfitMarginTTM:        m.grossMarginTTM || m.grossMarginAnnual || latestSeries('grossMargin'),
+    // FCF yield
+    freeCashFlowYieldTTM:        m['currentEv/freeCashFlowAnnual'] ? null : (m.fcfMarginTTM || null),
+    freeCashFlowPerShareTTM:     m.freeCashFlowPerShareTTM || m.cashFlowPerShareTTM,
+    // Market cap y crecimiento
+    revenueGrowthTTMYoy:         m.revenueGrowthQuarterlyYoy,
+    revenuePerShareTTM:          m.revenuePerShareAnnual || m.revenuePerShareTTM,
+    marketCapitalizationTTM:     m.marketCapitalization,
+    epsGrowthTTMYoy:             m.epsGrowthTTMYoy,
   };
 }
 
@@ -3320,12 +3331,15 @@ function renderFundamentals(data, ticker) {
   else if(dte<1.5){dteColor='var(--yellow)';dteNote='Moderada';}
   else{dteColor='var(--red)';dteNote='Alta deuda';}
 
-  // Revenue growth
+  // Revenue growth — FMP usa income array, Finnhub lo da directo en ratios
   let revGrowth = '—', revColor='var(--text)';
   if(income.length>=2 && income[0].revenue && income[1].revenue) {
     const g = (income[0].revenue - income[1].revenue) / Math.abs(income[1].revenue) * 100;
     revGrowth = g.toFixed(1)+'%';
     revColor = g>10?'var(--green)':g>0?'var(--yellow)':'var(--red)';
+  } else if(r.revenueGrowthTTMYoy != null) {
+    revGrowth = r.revenueGrowthTTMYoy.toFixed(1)+'%';
+    revColor = r.revenueGrowthTTMYoy>10?'var(--green)':r.revenueGrowthTTMYoy>0?'var(--yellow)':'var(--red)';
   }
 
 
@@ -3345,7 +3359,7 @@ function renderFundamentals(data, ticker) {
     { k:'FCF Yield',         v: fmtPct(r.freeCashFlowYieldTTM), sub: 'Free Cash Flow', col: r.freeCashFlowYieldTTM>0.05?'var(--green)':'var(--yellow)' },
     { k:'Dividend Yield',    v: fmtPct(r.dividendYielTTM),     sub: 'Rendimiento div.', col:'var(--text)' },
     { k:'Rev. Growth YoY',   v: revGrowth,                    sub: 'Crecimiento ingresos', col: revColor },
-    { k:'Market Cap',        v: fmtB(p.mktCap),                sub: p.sector||'—', col:'var(--text)' },
+    { k:'Market Cap',        v: fmtB(p.mktCap || (r.marketCapitalizationTTM ? r.marketCapitalizationTTM*1e6 : null)), sub: p.sector||'—', col:'var(--text)' },
     { k:'DCF Valuación',     v: p.dcf?'$'+Number(p.dcf).toFixed(2):'—', sub: ratingScore, col: ratingColor },
     { k:'Beta',              v: fmt2(p.beta),                  sub: p.beta>1.5?'Alta volatilidad':'Normal', col: p.beta>1.5?'var(--red)':'var(--text)' },
     { k:'Próx. Earnings',    v: nextEarnings,                  sub: 'Fecha resultados', col:'var(--yellow)' },
