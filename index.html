@@ -2459,19 +2459,28 @@ function renderConfig() {
   const antEl = document.getElementById('anthropicKeyDisplay');
   if(antEl) antEl.textContent = antKey ? antKey.slice(0,14)+'...' : 'No configurada';
   if(antEl) antEl.style.color = antKey ? 'var(--green)' : 'var(--text2)';
+  const fmpKeyLS = localStorage.getItem('fmp_key') || '';
+  if(!FMP_KEY && fmpKeyLS) FMP_KEY = fmpKeyLS;
   const fmpEl = document.getElementById('fmpKeyDisplay');
-  if(fmpEl) fmpEl.textContent = FMP_KEY ? FMP_KEY.slice(0,8)+'...' : 'No configurada';
-  if(fmpEl) fmpEl.style.color = FMP_KEY ? 'var(--green)' : 'var(--text2)';
+  if(fmpEl) fmpEl.textContent = fmpKeyLS ? fmpKeyLS.slice(0,8)+'...' : 'No configurada';
+  if(fmpEl) fmpEl.style.color = fmpKeyLS ? 'var(--green)' : 'var(--text2)';
+
+  const fredKeyLS = localStorage.getItem('fred_key') || '';
+  if(!FRED_KEY && fredKeyLS) FRED_KEY = fredKeyLS;
   const fredEl = document.getElementById('fredKeyDisplay');
-  if(fredEl) fredEl.textContent = FRED_KEY ? FRED_KEY.slice(0,8)+'...' : 'No configurada';
-  if(fredEl) fredEl.style.color = FRED_KEY ? 'var(--green)' : 'var(--text2)';
+  if(fredEl) fredEl.textContent = fredKeyLS ? fredKeyLS.slice(0,8)+'...' : 'No configurada';
+  if(fredEl) fredEl.style.color = fredKeyLS ? 'var(--green)' : 'var(--text2)';
+
+  const fhKeyLS = localStorage.getItem('finnhub_key') || '';
+  if(!FINNHUB_KEY && fhKeyLS) FINNHUB_KEY = fhKeyLS;
   const fhEl = document.getElementById('finnhubKeyDisplay');
-  if(fhEl) fhEl.textContent = FINNHUB_KEY ? FINNHUB_KEY.slice(0,8)+'...' : 'No configurada';
-  if(fhEl) fhEl.style.color = FINNHUB_KEY ? 'var(--green)' : 'var(--text2)';
+  if(fhEl) fhEl.textContent = fhKeyLS ? fhKeyLS.slice(0,8)+'...' : 'No configurada';
+  if(fhEl) fhEl.style.color = fhKeyLS ? 'var(--green)' : 'var(--text2)';
+
   const antInp = document.getElementById('anthropicKeyInp');
   if(antInp && antKey) antInp.value = antKey;
   const avInp = document.getElementById('avKeyInp');
-  if(avInp && API_KEY) avInp.value = API_KEY;
+  if(avInp && avKey) avInp.value = avKey;
 }
 
 function saveAnthropicKey() {
