@@ -2916,9 +2916,10 @@ function renderPriceTargets(targets, currentPrice, currency) {
   if(countEl) {
     const isReal = targets.isReal;
     countEl.textContent = (isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
-    countEl.style.color = isReal ? '#ffffff' : '#ffffff';
-    countEl.style.background = isReal ? 'rgba(63,185,80,0.15)' : 'rgba(210,153,34,0.15)';
-    countEl.style.border = `1px solid ${isReal ? 'rgba(63,185,80,0.6)' : 'rgba(210,153,34,0.6)'}`;
+    countEl.style.color = isReal ? '#0a1a0f' : '#1a1400';
+    countEl.style.background = isReal ? '#3fb950' : '#d29922';
+    countEl.style.border = 'none';
+    countEl.style.fontWeight = '700';
     countEl.style.borderRadius = '4px';
     countEl.style.padding = '2px 8px';
   }
