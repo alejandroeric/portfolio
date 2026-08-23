@@ -3019,7 +3019,7 @@ function renderResults(r){
         <span style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent);">// PROYECCIÓN ANALISTAS</span>
         <span style="font-family:var(--mono);font-size:9px;color:var(--muted);" id="analystCount">cargando...</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;" id="priceTargetGrid">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;" id="priceTargetGrid">
         ${['Precio actual','Obj. mínimo','Obj. consenso','Obj. máximo','Upside potencial'].map(l=>`
         <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
           <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em;margin-bottom:4px;">${l.toUpperCase()}</div>
