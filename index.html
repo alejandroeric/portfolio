@@ -4507,15 +4507,20 @@ Fecha: ${new Date().toLocaleDateString('es-AR')}.
 
 Elegí entre 5 y 7 tickers del universo que:
 1. NO estén ya en mis posiciones actuales
-2. Tengan un nivel técnico de soporte o zona de entrada clara basado en su precio actual
-3. Tengan sentido para un perfil moderado-agresivo
+2. Tengan un soporte técnico real e identificable (zona de demanda histórica, media móvil de 50 o 200 días, nivel de Fibonacci, mínimo relevante reciente)
+3. Tengan fundamentales que justifiquen la inversión: earnings growth, margen en expansión, balance sólido, valuación razonable vs sector, o catalizador próximo identificable
+4. Tengan sentido para un perfil moderado-agresivo
 
-Para cada uno dame: ticker, entryTarget (nivel de soporte técnico en USD, por debajo o cerca del precio actual), y una nota de 1 línea explicando por qué ese nivel.
+REGLA CRÍTICA para entryTarget: el nivel debe ser un soporte técnico real, NO el precio actual menos un pequeño porcentaje. El entryTarget debe estar al menos un 5% por debajo del precio actual. Si el soporte más cercano está a menos del 5%, usá el siguiente soporte relevante. El objetivo es identificar DÓNDE comprar, no confirmar que ya está caro.
+
+REGLA para fundamental: justificá en 1 línea por qué el negocio vale la pena (ej: "EPS creciendo 40% YoY, margen bruto en expansión", "FCF positivo, deuda baja, pipeline de productos fuerte", "Valuación 20% bajo el sector con ROE >15%"). No pongas texto genérico — si no hay fundamento claro, no incluyas el ticker.
+
+Para cada uno dame: ticker, entryTarget, note (nivel técnico), y fundamental (razón fundamental).
 
 Respondé SOLO con JSON, sin texto adicional:
 [
-  {"ticker":"NVDA","entryTarget":118,"note":"Soporte técnico en zona de $118, pullback desde máximos recientes"},
-  {"ticker":"MSFT","entryTarget":415,"note":"Soporte en media móvil de 50 días cerca de $415"}
+  {"ticker":"NVDA","entryTarget":118,"note":"Media móvil de 200 días en zona $118, soporte clave post-rally IA","fundamental":"Revenue creciendo 122% YoY, margen operativo en expansión, dominancia en chips para IA"},
+  {"ticker":"MSFT","entryTarget":390,"note":"Zona de demanda histórica $385-$395, confluencia con MM50","fundamental":"Cloud Azure +29% YoY, FCF $74B anual, dividendo creciente por 20 años"}
 ]`;
 
   try {
@@ -4570,7 +4575,8 @@ async function updateRadarPrices() {
           sector: base.sector,
           entryTarget: rec.entryTarget,
           currentPrice: RADAR_PRICES[base.ticker]?.price || rec.entryTarget * 1.05,
-          note: rec.note
+          note: rec.note,
+          fundamental: rec.fundamental || ''
         };
       });
       localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
@@ -4608,11 +4614,12 @@ function renderRadar(aiUpdated = false) {
   const statusColor = isAIToday ? 'var(--accent)' : hasFreshData ? 'var(--green)' : 'var(--muted)';
 
   // Clasificar por zona
-  const enZona = [], cerca = [], esperando = [];
+  const enZona = [], cerca = [], vigilar = [], esperando = [];
   RADAR_WATCHLIST.forEach(r => {
     const dist = (r.currentPrice - r.entryTarget) / r.entryTarget * 100;
     if(r.currentPrice <= r.entryTarget) enZona.push({...r, dist});
-    else if(dist < 5) cerca.push({...r, dist});
+    else if(dist < 8) cerca.push({...r, dist});
+    else if(dist < 15) vigilar.push({...r, dist});
     else esperando.push({...r, dist});
   });
 
@@ -4628,7 +4635,8 @@ function renderRadar(aiUpdated = false) {
         <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
         ${changeStr ? `<span style="font-family:var(--mono);font-size:10px;color:${changeColor}">${changeStr}</span>` : ''}
       </div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">${r.note}</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:6px">${r.note}</div>
+      ${r.fundamental ? `<div style="font-family:var(--mono);font-size:9px;color:var(--green);background:rgba(63,185,80,.07);border-radius:4px;padding:4px 8px;margin-bottom:10px">📊 ${r.fundamental}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo entrada: <span style="color:var(--green)">${r.entryTarget != null ? '$'+r.entryTarget : '—'}</span> · Precio actual en zona ✓</div>
         <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(63,185,80,.15);color:var(--green);cursor:pointer;font-weight:700">▶ ANALIZAR</button>
@@ -4645,13 +4653,24 @@ function renderRadar(aiUpdated = false) {
         <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
         <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
       </div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">${r.note}</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:6px">${r.note}</div>
+      ${r.fundamental ? `<div style="font-family:var(--mono);font-size:9px;color:var(--yellow);background:rgba(210,153,34,.07);border-radius:4px;padding:4px 8px;margin-bottom:10px">📊 ${r.fundamental}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Objetivo: <span style="color:var(--yellow)">${r.entryTarget != null ? '$'+r.entryTarget : '—'}</span> · A ${dist}% del precio objetivo</div>
         <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶ ANALIZAR</button>
       </div>
     </div>`;
   };
+
+  const rowVigilar = r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);width:44px">${r.ticker}</span>
+      <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border-radius:4px;background:rgba(100,180,255,.1);color:#64b4ff;font-weight:700">👁 VIGILAR</span>
+      <span style="font-size:11px;color:var(--muted);flex:1">${r.name} · ${r.sector}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">obj: ${r.entryTarget != null ? '$'+r.entryTarget : '—'} · ${r.dist != null ? r.dist.toFixed(1)+'% lejos' : '—'}</span>
+      <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶</button>
+    </div>`;
 
   const rowEsperando = r => `
     <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
@@ -4675,8 +4694,12 @@ function renderRadar(aiUpdated = false) {
     html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--yellow);margin:${enZona.length?'14px':0} 0 8px">▼ CERCA DEL OBJETIVO — VIGILAR (${cerca.length})</div>`;
     html += cerca.map(cardCerca).join('');
   }
+  if(vigilar.length) {
+    html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:#64b4ff;margin:${enZona.length||cerca.length?'14px':0} 0 8px">▼ VIGILAR — EN SEGUIMIENTO (${vigilar.length})</div>`;
+    html += vigilar.map(rowVigilar).join('');
+  }
   if(esperando.length) {
-    html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);margin:${enZona.length||cerca.length?'14px':0} 0 8px">▼ ESPERANDO PRECIO (${esperando.length})</div>`;
+    html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);margin:${enZona.length||cerca.length||vigilar.length?'14px':0} 0 8px">▼ ESPERANDO PRECIO (${esperando.length})</div>`;
     html += esperando.map(rowEsperando).join('');
   }
   if(!RADAR_WATCHLIST.length) {
@@ -4807,13 +4830,9 @@ function renderSectorToggles() {
 }
 
 function toggleRadarSector(sector) {
-  const idx = RADAR_ACTIVE_SECTORS.indexOf(sector);
-  if(idx >= 0) {
-    if(RADAR_ACTIVE_SECTORS.length === 1) return; // al menos un sector activo
-    RADAR_ACTIVE_SECTORS.splice(idx, 1);
-  } else {
-    RADAR_ACTIVE_SECTORS.push(sector);
-  }
+  // Single-select: activar solo el sector elegido
+  if(RADAR_ACTIVE_SECTORS.length === 1 && RADAR_ACTIVE_SECTORS[0] === sector) return;
+  RADAR_ACTIVE_SECTORS = [sector];
   localStorage.setItem('pip_radar_sectors', JSON.stringify(RADAR_ACTIVE_SECTORS));
   renderSectorToggles();
   // Al cambiar sectores, forzar nueva recomendación IA
