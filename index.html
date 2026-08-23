@@ -2913,7 +2913,15 @@ function renderPriceTargets(targets, currentPrice, currency) {
 
   // Analyst count
   const countEl = document.getElementById('analystCount');
-  if(countEl) countEl.textContent = (targets.isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
+  if(countEl) {
+    const isReal = targets.isReal;
+    countEl.textContent = (isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
+    countEl.style.color = isReal ? '#ffffff' : '#ffffff';
+    countEl.style.background = isReal ? 'rgba(63,185,80,0.15)' : 'rgba(210,153,34,0.15)';
+    countEl.style.border = `1px solid ${isReal ? 'rgba(63,185,80,0.6)' : 'rgba(210,153,34,0.6)'}`;
+    countEl.style.borderRadius = '4px';
+    countEl.style.padding = '2px 8px';
+  }
 
   // 52W range bar
   const range = targets.high52w - targets.low52w;
