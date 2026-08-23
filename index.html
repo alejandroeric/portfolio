@@ -3771,12 +3771,12 @@ function renderRisk(r, bt, data) {
     <div class="section-title">// Gestión de Riesgo y Tamaño de Posición</div>
   </div>
   <div class="risk-grid">
-    <div class="rcard"><div class="rk">VaR 95% (diario)</div><div class="rv" style="color:var(--red)">-${var95}%</div><div class="rsub">Pérdida máx. esperada 95% días</div></div>
-    <div class="rcard"><div class="rk">VaR 99% (diario)</div><div class="rv" style="color:var(--red)">-${var99}%</div><div class="rsub">Pérdida máx. esperada 99% días</div></div>
-    <div class="rcard"><div class="rk">Sharpe Ratio (anual)</div><div class="rv" style="color:${parseFloat(sharpe)>=1?'var(--green)':parseFloat(sharpe)>=0?'var(--yellow)':'var(--red)'}">${sharpe}</div><div class="rsub">&gt;1.0 = buena relación riesgo/retorno</div></div>
-    <div class="rcard"><div class="rk">ATR% (volatilidad)</div><div class="rv" style="color:var(--yellow)">${atrPct}%</div><div class="rsub">Rango diario promedio</div></div>
-    <div class="rcard"><div class="rk">Kelly Criterion</div><div class="rv" style="color:var(--accent)">${kellyPct}%</div><div class="rsub">Del capital total</div></div>
-    <div class="rcard"><div class="rk">Half-Kelly (recomendado)</div><div class="rv" style="color:var(--green)">${halfKellyPct}%</div><div class="rsub">Conservador y óptimo</div></div>
+    <div class="rcard" data-tip="VAR 95% (DIARIO)"><div class="rk">VaR 95% (diario)</div><div class="rv" style="color:var(--red)">-${var95}%</div><div class="rsub">Pérdida máx. esperada 95% días</div></div>
+    <div class="rcard" data-tip="VAR 99% (DIARIO)"><div class="rk">VaR 99% (diario)</div><div class="rv" style="color:var(--red)">-${var99}%</div><div class="rsub">Pérdida máx. esperada 99% días</div></div>
+    <div class="rcard" data-tip="SHARPE RATIO (ANUAL)"><div class="rk">Sharpe Ratio (anual)</div><div class="rv" style="color:${parseFloat(sharpe)>=1?'var(--green)':parseFloat(sharpe)>=0?'var(--yellow)':'var(--red)'}">${sharpe}</div><div class="rsub">&gt;1.0 = buena relación riesgo/retorno</div></div>
+    <div class="rcard" data-tip="ATR% (VOLATILIDAD)"><div class="rk">ATR% (volatilidad)</div><div class="rv" style="color:var(--yellow)">${atrPct}%</div><div class="rsub">Rango diario promedio</div></div>
+    <div class="rcard" data-tip="KELLY CRITERION"><div class="rk">Kelly Criterion</div><div class="rv" style="color:var(--accent)">${kellyPct}%</div><div class="rsub">Del capital total</div></div>
+    <div class="rcard" data-tip="HALF-KELLY (RECOMENDADO)"><div class="rk">Half-Kelly (recomendado)</div><div class="rv" style="color:var(--green)">${halfKellyPct}%</div><div class="rsub">Conservador y óptimo</div></div>
   </div>
   <div class="kelly-calc">
     <div class="kelly-title">// Calculadora de Tamaño de Posición</div>
@@ -5154,6 +5154,13 @@ function clearChat() {
     'SHORT INTEREST': { t:'Short Interest — Presión Bajista', b:'Porcentaje de acciones que están vendidas en corto (apostando a la baja). Alto short interest puede significar que los institucionales ven riesgo, o puede generar un short squeeze si la acción sube.' },
     'PRÓX. EARNINGS': { t:'Próximos Earnings — Fecha de Resultados', b:'Cuando la empresa reporta sus resultados trimestrales. Es el evento de mayor volatilidad: una sorpresa positiva puede subir 10%+, negativa puede bajar 15%+. Definí tu estrategia antes del reporte.' },
     'REV./ACCIÓN YOY': { t:'Revenue por Acción YoY — Crecimiento por Acción', b:'Crecimiento del ingreso por acción, ajustado por dilución. Mejor que el revenue total porque contempla si la empresa está emitiendo nuevas acciones (que diluyen al accionista).' },
+    // GESTIÓN DE RIESGO
+    'VAR 95% (DIARIO)': { t:'VaR 95% — Value at Risk diario', b:'El 95% de los días, tu pérdida máxima no debería superar este porcentaje. Si el VaR es -2%, significa que solo 1 de cada 20 días esperás perder más del 2%. Se calcula sobre los retornos históricos del activo.' },
+    'VAR 99% (DIARIO)': { t:'VaR 99% — Worst case diario', b:'Escenario más extremo: solo 1 de cada 100 días esperás perder más de este porcentaje. Es el "peor día probable" estadísticamente. Útil para dimensionar el riesgo máximo en jornadas de alta volatilidad.' },
+    'SHARPE RATIO (ANUAL)': { t:'Sharpe Ratio — Retorno ajustado por riesgo', b:'Cuánto retorno extra obtenés por cada unidad de riesgo asumido. >1.0 = buena relación riesgo/retorno. >2.0 = excelente. <0 = el activo rinde menos que la tasa libre de riesgo. A mayor Sharpe, más eficiente es el activo.' },
+    'ATR% (VOLATILIDAD)': { t:'ATR% — Rango verdadero promedio', b:'El rango de movimiento diario promedio del precio, expresado como porcentaje. Un ATR de 2% significa que el precio sube o baja ~2% por día. Te ayuda a calibrar stops y targets: un stop muy ajustado en un activo de alto ATR va a saltar por ruido.' },
+    'KELLY CRITERION': { t:'Kelly Criterion — Tamaño óptimo teórico', b:'Fórmula matemática que calcula el porcentaje del capital a arriesgar para maximizar el crecimiento a largo plazo, basándose en tu tasa de victorias y la relación ganancia/pérdida. Es el máximo teórico — en la práctica se usa Half-Kelly para reducir la volatilidad del portafolio.' },
+    'HALF-KELLY (RECOMENDADO)': { t:'Half-Kelly — Tamaño conservador óptimo', b:'La mitad del Kelly Criterion. Es el tamaño de posición recomendado para operadores reales: captura la mayor parte del crecimiento óptimo pero reduce a la mitad la volatilidad y el riesgo de ruina. Regla de oro del money management profesional.' },
     // SCORE MAESTRO
     'TÉCNICO': { t:'Dimensión Técnica (35%)', b:'RSI, MACD, Squeeze Momentum, medias móviles, OBV. Mide el momentum del precio y señales del gráfico.' },
     'FUNDAMENTAL': { t:'Dimensión Fundamental (30%)', b:'P/E, ROE, margen, FCF, deuda. Mide la calidad y valuación del negocio.' },
