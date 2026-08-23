@@ -132,8 +132,9 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 .conf-lbl{font-family:var(--mono);font-size:9px;color:var(--text2)}
 
 /* ── MACRO STRIP ── */
-.macro-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:14px;-ms-overflow-style:none;scrollbar-width:none}
-.macro-strip::-webkit-scrollbar{display:none}
+.macro-strip{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:2px;margin-bottom:14px;}
+@media(min-width:600px){.macro-strip{flex-wrap:nowrap;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}}
+@media(min-width:600px){.macro-strip::-webkit-scrollbar{display:none}}
 .mc{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:7px 12px;white-space:nowrap;flex-shrink:0}
 .mc-l{font-family:var(--mono);font-size:8px;color:var(--text2);letter-spacing:.08em}
 .mc-v{font-family:var(--mono);font-size:12px;font-weight:700;margin-top:2px}
@@ -407,7 +408,7 @@ canvas{max-width:100%}
 .full{grid-column:1/-1;}
 .fund-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;}
 .fund-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
-.fund-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px;}
+.fund-grid-5{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:10px;}
 .fund-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
 .fund-section{margin-bottom:14px;}
 .fund-sub{font-size:11px;color:var(--text2);margin-top:3px;}
