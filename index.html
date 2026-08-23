@@ -895,7 +895,7 @@ canvas{max-width:100%}
       <div style="display:flex;gap:8px;margin-top:4px">
         <input class="inp" id="iolUserInp" placeholder="Usuario IOL (email)" type="text" autocomplete="off" style="flex:1">
         <div style="position:relative;flex:1;display:flex;">
-          <input class="inp" id="iolPassInp" placeholder="Contraseña IOL" type="password" autocomplete="off" style="flex:1;padding-right:36px">
+          <input class="inp" id="iolPassInp" placeholder="Contraseña IOL" type="password" autocomplete="new-password" style="flex:1;padding-right:36px">
           <button onclick="const i=document.getElementById('iolPassInp');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;color:var(--text2);padding:0">👁</button>
         </div>
         <button class="btn btn-a" onclick="saveIOLCredentials()">GUARDAR</button>
