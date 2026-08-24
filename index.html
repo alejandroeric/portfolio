@@ -4675,15 +4675,21 @@ async function runRadarScreener() {
   const radarEl = document.getElementById('briefingRadar');
   if(!radarEl) return;
 
-  // Barra de progreso
-  radarEl.innerHTML = `
-    <div style="padding:16px 0">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px" id="radarProgressLabel">Escaneando mercado... 0/${allTickers.length} tickers</div>
-      <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
-        <div id="radarProgressBar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div>
-      </div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px">Calculando RSI14 y SMA50 con datos reales de Alpha Vantage (~2 min primera vez)</div>
-    </div>`;
+  // Solo mostrar barra de progreso si hay tickers que realmente necesitan descargarse
+  const needsFetch = allTickers.filter(r => {
+    const c = RADAR_PRICES[r.ticker];
+    return !(c && c.date === todayISO && c.rsi14 != null);
+  });
+  if(needsFetch.length > 0) {
+    radarEl.innerHTML = `
+      <div style="padding:16px 0">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px" id="radarProgressLabel">Escaneando mercado... 0/${allTickers.length} tickers</div>
+        <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
+          <div id="radarProgressBar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px">Calculando RSI14 y SMA50 con datos reales de Alpha Vantage (~2 min primera vez)</div>
+      </div>`;
+  }
 
   const setProgress = (done) => {
     const pct = (done / allTickers.length * 100).toFixed(0);
