@@ -835,23 +835,23 @@ canvas{max-width:100%}
     <div class="cfg-row" style="margin-bottom:12px">
       <div style="flex:1">
         <div class="cfg-lbl">ALPHA VANTAGE (datos de mercado)</div>
-        <div style="display:flex;gap:8px;margin-top:4px">
+        <form autocomplete="off" onsubmit="return false" style="display:flex;gap:8px;margin-top:4px">
           <input class="inp" id="avKeyInp" placeholder="Alpha Vantage API Key" type="password" autocomplete="new-password">
-          <button class="btn btn-a" onclick="saveKey()">GUARDAR</button>
-          <button class="btn btn-y" onclick="activateDemo()">DEMO</button>
-        </div>
+          <button type="button" class="btn btn-a" onclick="saveKey()">GUARDAR</button>
+          <button type="button" class="btn btn-y" onclick="activateDemo()">DEMO</button>
+        </form>
         <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
-          KEY ACTIVA: <span id="activeKeyDisplay" style="color:var(--accent)">Modo Demo</span> · 
+          KEY ACTIVA: <span id="activeKeyDisplay" style="color:var(--accent)">Modo Demo</span> ·
           <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color:var(--accent)">Obtener gratis</a>
         </div>
       </div>
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">ANTHROPIC (análisis narrativo + chat)</div>
-      <div style="display:flex;gap:8px;margin-top:4px">
+      <form autocomplete="off" onsubmit="return false" style="display:flex;gap:8px;margin-top:4px">
         <input class="inp" id="anthropicKeyInp" placeholder="sk-ant-..." type="password" autocomplete="new-password">
-        <button class="btn btn-a" onclick="saveAnthropicKey()">GUARDAR</button>
-      </div>
+        <button type="button" class="btn btn-a" onclick="saveAnthropicKey()">GUARDAR</button>
+      </form>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
         KEY ACTIVA: <span id="anthropicKeyDisplay" style="color:var(--accent)">No configurada</span> ·
         <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>
@@ -859,10 +859,10 @@ canvas{max-width:100%}
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FINANCIAL MODELING PREP (fundamentales detallados)</div>
-      <div style="display:flex;gap:8px;margin-top:4px">
+      <form autocomplete="off" onsubmit="return false" style="display:flex;gap:8px;margin-top:4px">
         <input class="inp" id="fmpKeyInp" placeholder="FMP API Key" type="password" autocomplete="new-password">
-        <button class="btn btn-a" onclick="saveFmpKey()">GUARDAR</button>
-      </div>
+        <button type="button" class="btn btn-a" onclick="saveFmpKey()">GUARDAR</button>
+      </form>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
         KEY ACTIVA: <span id="fmpKeyDisplay" style="color:var(--accent)">No configurada</span> ·
         <a href="https://financialmodelingprep.com/developer/docs" target="_blank" style="color:var(--accent)">financialmodelingprep.com</a> · Plan gratis disponible
@@ -870,10 +870,10 @@ canvas{max-width:100%}
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FINNHUB (precios, noticias, analistas, insiders — reemplaza Alpha Vantage)</div>
-      <div style="display:flex;gap:8px;margin-top:4px">
+      <form autocomplete="off" onsubmit="return false" style="display:flex;gap:8px;margin-top:4px">
         <input class="inp" id="finnhubKeyInp" placeholder="Finnhub API Key" type="password" autocomplete="new-password">
-        <button class="btn btn-a" onclick="saveFinnhubKey()">GUARDAR</button>
-      </div>
+        <button type="button" class="btn btn-a" onclick="saveFinnhubKey()">GUARDAR</button>
+      </form>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
         KEY ACTIVA: <span id="finnhubKeyDisplay" style="color:var(--accent)">No configurada</span> ·
         <a href="https://finnhub.io/register" target="_blank" style="color:var(--accent)">finnhub.io</a> · 60 llamadas/min gratis
@@ -881,10 +881,10 @@ canvas{max-width:100%}
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FRED API (datos macro: VIX, Treasury, Fed Rate, DXY, PCE)</div>
-      <div style="display:flex;gap:8px;margin-top:4px">
+      <form autocomplete="off" onsubmit="return false" style="display:flex;gap:8px;margin-top:4px">
         <input class="inp" id="fredKeyInp" placeholder="FRED API Key" type="password" autocomplete="new-password">
-        <button class="btn btn-a" onclick="saveFredKey()">GUARDAR</button>
-      </div>
+        <button type="button" class="btn btn-a" onclick="saveFredKey()">GUARDAR</button>
+      </form>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
         KEY ACTIVA: <span id="fredKeyDisplay" style="color:var(--accent)">No configurada</span> ·
         <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" style="color:var(--accent)">fred.stlouisfed.org</a> · Gratis
