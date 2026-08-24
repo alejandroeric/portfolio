@@ -4589,18 +4589,30 @@ Respondé SOLO con JSON, sin texto adicional:
       },
       body: JSON.stringify({
         model: ANTHROPIC_MODEL,
-        max_tokens: 400,
+        max_tokens: 900,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await response.json();
-    if(data.error) return null;
+    if(data.error) {
+      console.warn('Radar IA error:', data.error);
+      showToast('⚠ Radar IA: ' + (data.error.message || 'error de API'));
+      return null;
+    }
     const text = data.content[0].text.trim();
     const clean = text.replace(/```json|```/g,'').trim();
-    const recs = JSON.parse(clean);
+    let recs;
+    try { recs = JSON.parse(clean); } catch(e) {
+      console.warn('Radar IA: respuesta no es JSON válido:', text.slice(0,200));
+      showToast('⚠ Radar IA: respuesta incompleta, usando precios de referencia');
+      return null;
+    }
     if(!Array.isArray(recs) || !recs.length) return null;
     return recs;
-  } catch(e) { return null; }
+  } catch(e) {
+    console.warn('Radar IA fetch error:', e);
+    return null;
+  }
 }
 
 async function updateRadarPrices() {
@@ -4620,6 +4632,11 @@ async function updateRadarPrices() {
 
   // 2. Pedir recomendaciones a Claude (una vez por día)
   if(RADAR_LAST_AI !== todayISO) {
+    // Verificar que al menos algunos precios llegaron antes de llamar a Claude
+    const preciosDisponibles = pool.filter(r => RADAR_PRICES[r.ticker]?.price).length;
+    if(preciosDisponibles === 0 && (API_KEY || FINNHUB_KEY)) {
+      showToast('⏳ Esperando precios de mercado para análisis IA...');
+    }
     const recs = await fetchClaudeRadarRecommendations();
     if(recs) {
       RADAR_WATCHLIST = recs.map(rec => {
@@ -4639,13 +4656,14 @@ async function updateRadarPrices() {
       localStorage.setItem('pip_radar_ai_date', todayISO);
       renderRadar(true);
     } else {
-      // Sin recomendaciones IA, mostrar el pool con precios actuales
+      // Sin recomendaciones IA — mostrar pool sin objetivos falsos
       RADAR_WATCHLIST = pool.map(r => ({
         ...r,
-        entryTarget: RADAR_PRICES[r.ticker]?.price ? RADAR_PRICES[r.ticker].price * 0.95 : null,
+        entryTarget: null,
         currentPrice: RADAR_PRICES[r.ticker]?.price || null,
-        note: 'Análisis IA no disponible.'
+        note: 'Análisis IA no disponible. Actualizá el Radar para obtener niveles técnicos reales.'
       }));
+      showToast('⚠ Análisis IA no disponible — verificá tu clave Anthropic en CONFIG');
       renderRadar(false);
     }
     return;
