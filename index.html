@@ -4619,15 +4619,16 @@ Respondé SOLO con JSON, sin texto adicional:
 
 function calculateRSI(closes, period = 14) {
   if(closes.length < period + 1) return null;
+  // Paso 1: promedio inicial (primeras `period` variaciones)
   let gains = 0, losses = 0;
-  for(let i = closes.length - period; i < closes.length; i++) {
+  for(let i = 1; i <= period; i++) {
     const diff = closes[i] - closes[i - 1];
     if(diff > 0) gains += diff; else losses -= diff;
   }
   let avgGain = gains / period;
   let avgLoss = losses / period;
-  // Wilder smoothing hacia atrás
-  for(let i = closes.length - period - 1; i >= 1; i--) {
+  // Paso 2: Wilder smoothing hacia adelante
+  for(let i = period + 1; i < closes.length; i++) {
     const diff = closes[i] - closes[i - 1];
     const g = diff > 0 ? diff : 0;
     const l = diff < 0 ? -diff : 0;
@@ -4645,10 +4646,13 @@ function calculateSMA(closes, period) {
 }
 
 async function fetchUSStockHistory(ticker) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const proxy = 'https://corsproxy.io/?';
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?interval=1d&range=1y`;
-    const resp = await fetch(proxy + encodeURIComponent(url));
+    const resp = await fetch(proxy + encodeURIComponent(url), { signal: controller.signal });
+    clearTimeout(timeout);
     const json = await resp.json();
     const result = json?.chart?.result?.[0];
     if(!result) return null;
@@ -4663,7 +4667,7 @@ async function fetchUSStockHistory(ticker) {
       change: meta.regularMarketChangePercent || 0,
       closes
     };
-  } catch(e) { return null; }
+  } catch(e) { clearTimeout(timeout); return null; }
 }
 
 // ── SCREENER TÉCNICO REAL ───────────────────────────────────
@@ -4711,7 +4715,7 @@ async function runRadarScreener() {
     }));
     batchRes.forEach(res => { if(res.status === 'fulfilled' && res.value) screened.push(res.value); });
     setProgress(Math.min(i + BATCH, allTickers.length));
-    if(i + BATCH < allTickers.length) await new Promise(res => setTimeout(res, 400));
+    if(i + BATCH < allTickers.length) await new Promise(res => setTimeout(res, 150));
   }
 
   localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
