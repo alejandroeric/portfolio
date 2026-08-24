@@ -4693,22 +4693,31 @@ async function runRadarScreener() {
     if(bar) bar.style.width = pct + '%';
   };
 
-  // Fetch secuencial con Alpha Vantage: 13s entre requests para respetar límite 5 req/min
+  // Fetch secuencial con Alpha Vantage: usa caché del día, solo descarga lo que falta
   const screened = [];
+  let fetchCount = 0;
   for(let i = 0; i < allTickers.length; i++) {
     const r = allTickers[i];
+    const cached = RADAR_PRICES[r.ticker];
+    if(cached && cached.date === todayISO && cached.rsi14 != null) {
+      screened.push({ ...r, price: cached.price, change: cached.change, rsi14: cached.rsi14, sma50: cached.sma50, distSMA50: cached.distSMA50 });
+      setProgress(i + 1);
+      continue;
+    }
+    // No está en caché: esperar 13s si no es el primer fetch (rate limit AV)
+    if(fetchCount > 0) await new Promise(res => setTimeout(res, 13000));
     try {
       const data = await fetchUSStockHistory(r.ticker);
       if(data) {
-        const rsi14    = calculateRSI(data.closes);
-        const sma50    = calculateSMA(data.closes, 50);
+        const rsi14     = calculateRSI(data.closes);
+        const sma50     = calculateSMA(data.closes, 50);
         const distSMA50 = sma50 ? (data.price - sma50) / sma50 * 100 : null;
         RADAR_PRICES[r.ticker] = { price: data.price, change: data.change, date: todayISO, rsi14, sma50, distSMA50 };
         screened.push({ ...r, price: data.price, change: data.change, rsi14, sma50, distSMA50 });
       }
     } catch(e) {}
+    fetchCount++;
     setProgress(i + 1);
-    if(i + 1 < allTickers.length) await new Promise(res => setTimeout(res, 13000));
   }
 
   localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
