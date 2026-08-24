@@ -4852,9 +4852,13 @@ function renderRadar(aiUpdated = false) {
   const statusText = isAIToday ? '✦ Claude · Alpha Vantage' : hasFreshData ? 'Alpha Vantage' : IS_DEMO ? 'Demo' : 'Actualizando...';
   const statusColor = isAIToday ? 'var(--accent)' : hasFreshData ? 'var(--green)' : 'var(--muted)';
 
-  // Clasificar por zona
-  const enZona = [], cerca = [], vigilar = [], esperando = [];
+  // Clasificar por zona — tickers sin entryTarget van a lista separada
+  const enZona = [], cerca = [], vigilar = [], esperando = [], sinObjetivo = [];
   RADAR_WATCHLIST.forEach(r => {
+    if(r.entryTarget == null || r.entryTarget <= 0 || r.currentPrice == null) {
+      sinObjetivo.push({...r, dist: null});
+      return;
+    }
     const dist = (r.currentPrice - r.entryTarget) / r.entryTarget * 100;
     if(r.currentPrice <= r.entryTarget) enZona.push({...r, dist});
     else if(dist < 8) cerca.push({...r, dist});
@@ -4950,6 +4954,22 @@ function renderRadar(aiUpdated = false) {
   if(esperando.length) {
     html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);margin:${enZona.length||cerca.length||vigilar.length?'14px':0} 0 8px">▼ ESPERANDO PRECIO (${esperando.length})</div>`;
     html += esperando.map(rowEsperando).join('');
+  }
+  if(sinObjetivo.length) {
+    const anyReal = enZona.length || cerca.length || vigilar.length || esperando.length;
+    html += `<div style="margin-top:${anyReal?'14px':'0'}">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--yellow);background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.2);border-radius:8px;padding:8px 12px;margin-bottom:8px">
+        ⚠ Sin análisis técnico — Yahoo Finance no disponible. Precios vía Finnhub/AV. Tocá ↻ NUEVO para reintentar cuando haya conexión.
+      </div>`;
+    html += sinObjetivo.map(r => `
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text2);width:44px">${r.ticker}</span>
+        <span style="font-size:11px;color:var(--muted);flex:1">${r.name} · ${r.sector}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">sin RSI/SMA</span>
+        <button onclick="analyzeFromPortfolio('${r.ticker}')" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">▶</button>
+      </div>`).join('');
+    html += `</div>`;
   }
   if(!RADAR_WATCHLIST.length) {
     html += `<div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;padding:20px 0">Presioná ↻ NUEVO para generar recomendaciones con IA.</div>`;
