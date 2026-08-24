@@ -4714,7 +4714,7 @@ async function runRadarScreener() {
     if(bar) bar.style.width = pct + '%';
   };
 
-  // Fetch en lotes de 4 para no saturar corsproxy
+  // Fetch secuencial con Finnhub para respetar rate limit (60 req/min)
   const screened = [];
   const BATCH = 4;
   for(let i = 0; i < allTickers.length; i += BATCH) {
@@ -4731,7 +4731,7 @@ async function runRadarScreener() {
     }));
     batchRes.forEach(res => { if(res.status === 'fulfilled' && res.value) screened.push(res.value); });
     setProgress(Math.min(i + BATCH, allTickers.length));
-    if(i + BATCH < allTickers.length) await new Promise(res => setTimeout(res, 150));
+    if(i + BATCH < allTickers.length) await new Promise(res => setTimeout(res, 500));
   }
 
   localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
@@ -4765,28 +4765,30 @@ Respondé SOLO con JSON: [{"ticker":"X","entryTarget":0,"note":"...","fundamenta
         const resp = await fetch(ANTHROPIC_API_URL, {
           method:'POST',
           headers:{'Content-Type':'application/json','x-api-key':antKey,'anthropic-version':ANTHROPIC_VERSION,'anthropic-dangerous-direct-browser-access':'true'},
-          body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 900, messages:[{role:'user',content:prompt}] })
+          body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 1500, messages:[{role:'user',content:prompt}] })
         });
         const data = await resp.json();
         if(!data.error) {
           const clean = data.content[0].text.trim().replace(/```json|```/g,'').trim();
-          const recs = JSON.parse(clean);
-          if(Array.isArray(recs) && recs.length) {
-            RADAR_WATCHLIST = recs.map(rec => {
-              const base = fallback.find(f => f.ticker === rec.ticker) || { ticker: rec.ticker, name: rec.ticker, sector: '—' };
-              return { ticker: base.ticker, name: base.name, sector: base.sector,
-                entryTarget: rec.entryTarget, currentPrice: base.price,
-                note: rec.note + ' ⚠ Sin RSI/SMA (Yahoo Finance no disponible)',
-                fundamental: rec.fundamental || '', rsi14: null, sma200: null };
-            });
-            localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
-            RADAR_LAST_AI = todayISO;
-            localStorage.setItem('pip_radar_ai_date', todayISO);
-            renderRadar(true);
-            return;
-          }
-        }
-      } catch(e) {}
+          try {
+            const recs = JSON.parse(clean);
+            if(Array.isArray(recs) && recs.length) {
+              RADAR_WATCHLIST = recs.map(rec => {
+                const base = fallback.find(f => f.ticker === rec.ticker) || { ticker: rec.ticker, name: rec.ticker, sector: '—' };
+                return { ticker: base.ticker, name: base.name, sector: base.sector,
+                  entryTarget: rec.entryTarget, currentPrice: base.price,
+                  note: rec.note, fundamental: rec.fundamental || '',
+                  rsi14: null, sma200: null };
+              });
+              localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
+              RADAR_LAST_AI = todayISO;
+              localStorage.setItem('pip_radar_ai_date', todayISO);
+              renderRadar(true);
+              return;
+            }
+          } catch(e) { console.warn('Radar fallback JSON error:', e); }
+        } else { console.warn('Radar fallback Claude error:', data.error?.message); }
+      } catch(e) { console.warn('Radar fallback fetch error:', e); }
     }
     // Sin Claude: mostrar precios sin objetivo
     RADAR_WATCHLIST = fallback.map(r => ({
@@ -4851,7 +4853,7 @@ Respondé SOLO con JSON, sin texto extra:
       const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'x-api-key':antKey, 'anthropic-version':ANTHROPIC_VERSION, 'anthropic-dangerous-direct-browser-access':'true' },
-        body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 900, messages: [{ role:'user', content: prompt }] })
+        body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 1500, messages: [{ role:'user', content: prompt }] })
       });
       const data = await response.json();
       if(!data.error) {
