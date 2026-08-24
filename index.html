@@ -4646,6 +4646,26 @@ function calculateSMA(closes, period) {
 }
 
 async function fetchUSStockHistory(ticker) {
+  // Primario: Finnhub candles (sin proxy, directo, más confiable)
+  if(FINNHUB_KEY) {
+    try {
+      const to   = Math.floor(Date.now() / 1000);
+      const from = to - 365 * 24 * 3600;
+      const url  = `https://finnhub.io/api/v1/stock/candle?symbol=${ticker.toUpperCase()}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const resp = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      const json = await resp.json();
+      if(json.s === 'ok' && json.c && json.c.length >= 50) {
+        const closes = json.c.filter(c => c > 0);
+        const price  = closes[closes.length - 1];
+        const prev   = closes[closes.length - 2] || price;
+        return { price, change: (price - prev) / prev * 100, closes };
+      }
+    } catch(e) {}
+  }
+  // Fallback: Yahoo Finance via corsproxy
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
@@ -4662,11 +4682,7 @@ async function fetchUSStockHistory(ticker) {
     const adjClose = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
     const closes = ts.map((t, i) => adjClose[i] ?? quote.close?.[i]).filter(c => c != null && c > 0);
     if(closes.length < 50) return null;
-    return {
-      price: meta.regularMarketPrice || closes[closes.length - 1],
-      change: meta.regularMarketChangePercent || 0,
-      closes
-    };
+    return { price: meta.regularMarketPrice || closes[closes.length-1], change: meta.regularMarketChangePercent || 0, closes };
   } catch(e) { clearTimeout(timeout); return null; }
 }
 
