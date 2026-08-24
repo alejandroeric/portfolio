@@ -254,6 +254,26 @@ canvas{max-width:100%}
 .scr-score-chip{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;}
 .scr-result-action{margin-left:auto;}
 
+/* ── USER WATCHLIST ── */
+.uw-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.uw-ticker{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);min-width:56px;}
+.uw-name{font-size:10px;color:var(--text2);margin-top:2px;}
+.uw-price{font-family:var(--mono);font-size:14px;font-weight:700;}
+.uw-dist{font-family:var(--mono);font-size:11px;}
+.uw-actions{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.uw-btn{font-family:var(--mono);font-size:9px;padding:4px 9px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;}
+.uw-btn:hover{border-color:var(--accent);color:var(--accent);}
+.uw-btn.danger:hover{border-color:var(--red);color:var(--red);}
+.uw-btn.paused{color:var(--muted);opacity:.6;}
+.uw-add-btn{font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;transition:all .15s;}
+.uw-add-btn:hover{background:rgba(0,229,255,.1);}
+.uw-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.uw-modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:22px 24px;width:min(340px,90vw);}
+.uw-modal-title{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--accent);margin-bottom:14px;}
+.uw-modal-label{font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px;}
+.uw-modal-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-family:var(--mono);font-size:13px;color:var(--text);margin-bottom:12px;box-sizing:border-box;}
+.uw-modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+
 /* ── CORRELATION MATRIX ── */
 .corr-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .corr-table{border-collapse:collapse;font-family:var(--mono);font-size:10px;min-width:100%;}
@@ -569,6 +589,19 @@ canvas{max-width:100%}
     <button onclick="refreshBriefing()" style="font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↻ ACTUALIZAR</button>
   </div>
 
+
+  <!-- MI WATCHLIST -->
+  <div id="userWatchlistSection" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent)">// MI WATCHLIST</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px">Seguimiento de precios con objetivos de entrada</div>
+      </div>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--muted)" id="uwLastUpdate"></span>
+    </div>
+    <div id="userWatchlistCards"></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">Agregá acciones desde ANALIZAR o SCREENER</div>
+  </div>
 
   <!-- EN ZONA DE COMPRA -->
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
@@ -1622,6 +1655,7 @@ let FINNHUB_KEY  = localStorage.getItem('finnhub_key')  || '';
 const NOTIF_DEFAULTS = { price: 3, score: 2, rsiOb: 75, rsiOs: 25 };
 let THRESHOLDS = JSON.parse(localStorage.getItem('pip_thresholds') || JSON.stringify(NOTIF_DEFAULTS));
 const WATCHLIST = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU','BTC','ETH'];
+let USER_WATCHLIST = JSON.parse(localStorage.getItem('pip_user_watchlist') || '[]');
 let LAST_SCORES = JSON.parse(localStorage.getItem('lastScores') || '{}');
 let IS_DEMO = !API_KEY && !FINNHUB_KEY;
 let POSITIONS = JSON.parse(localStorage.getItem('pip_positions') || 'null');
@@ -1689,7 +1723,7 @@ function showPage(id) {
   const tabs = document.querySelectorAll('.nav-tab');
   const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, screener:4, alerts:5, chat:6, config:7};
   if(map[id] !== undefined) tabs[map[id]].classList.add('active');
-  if(id === 'briefing')  renderBriefing();
+  if(id === 'briefing')  { renderBriefing(); renderUserWatchlist(); }
   if(id === 'portfolio') renderPortfolio();
   if(id === 'decisions') renderDecisions();
   if(id === 'screener')  initScreener();
@@ -2362,7 +2396,8 @@ async function runScreener() {
         ${ts != null ? chip('Técnico', ts+'%', ts >= 60) : '<span class="scr-score-chip" style="background:rgba(139,148,158,.1);color:var(--muted);border:1px solid var(--border)">Técnico: no analizado</span>'}
         ${item.limitReached ? '<span class="scr-score-chip" style="background:rgba(210,153,34,.1);color:var(--yellow);border:1px solid rgba(210,153,34,.25)">⚠ Límite AV</span>' : ''}
       </div>
-      <div class="scr-result-action">
+      <div class="scr-result-action" style="display:flex;gap:6px;align-items:center;">
+        <button class="uw-add-btn" style="font-size:9px;padding:5px 10px" onclick="openAddToWatchlistFromScreener('${item.ticker}','${(p.companyName||item.ticker).replace(/'/g,"\\'")}',${p.price||0})">＋</button>
         <button class="btn btn-a" style="font-size:9px" onclick="analyzeFromPortfolio('${item.ticker}')">▶ ANALIZAR</button>
       </div>
     </div>`;
@@ -2823,6 +2858,8 @@ function init() {
   buildAlerts();
   renderConfig();
   renderBriefing();
+  renderUserWatchlist();
+  updateUserWatchlistPrices();
   renderPortfolio();
   document.getElementById('tickerInp').addEventListener('keydown', e => { if(e.key==='Enter') run(); });
   // Notificaciones: pedir permiso suavemente al arrancar (solo si no fue decidido aún)
@@ -3014,6 +3051,11 @@ function renderResults(r){
         <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent)">${fmtP(r.price)} ${r.currency}</div>
         <div style="font-family:var(--mono);font-size:12px;color:${chCol}">${pct>=0?'+':''}${fmt(pct)}% hoy</div>
       </div>
+    </div>
+
+    <!-- Row 1b: Watchlist button -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="uw-add-btn" onclick="openAddToWatchlist()">＋ Watchlist</button>
     </div>
 
     <!-- Row 2: Price targets + 52w range (loaded async) -->
@@ -4826,6 +4868,165 @@ function renderBriefing() {
         </div>
       </div>`).join('');
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// USER WATCHLIST
+// ══════════════════════════════════════════════════════════
+
+function saveUserWatchlist() {
+  localStorage.setItem('pip_user_watchlist', JSON.stringify(USER_WATCHLIST));
+}
+
+function openAddToWatchlist() {
+  if(!CURRENT_RESULT) return;
+  const r = CURRENT_RESULT;
+  const defaultTarget = r.price ? r.price.toFixed(2) : '';
+  showWatchlistModal(r.ticker, r.name || r.ticker, r.price || 0, defaultTarget);
+}
+
+function openAddToWatchlistFromScreener(ticker, name, price) {
+  showWatchlistModal(ticker, name, price, price ? price.toFixed(2) : '');
+}
+
+function showWatchlistModal(ticker, name, price, defaultTarget) {
+  const existing = USER_WATCHLIST.find(w => w.ticker === ticker);
+  if(existing) { showToast(`${ticker} ya está en tu Watchlist`); return; }
+
+  const modal = document.createElement('div');
+  modal.className = 'uw-modal';
+  modal.id = 'uwModal';
+  modal.innerHTML = `
+    <div class="uw-modal-box">
+      <div class="uw-modal-title">// AGREGAR A WATCHLIST</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin-bottom:4px">${ticker}</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:14px">${name}${price ? ' · Precio actual: $'+Number(price).toFixed(2) : ''}</div>
+      <div class="uw-modal-label">Precio objetivo de entrada (USD)</div>
+      <input class="uw-modal-input" id="uwTargetInput" type="number" step="0.01" min="0" value="${defaultTarget}" placeholder="ej: 120.00">
+      <div class="uw-modal-btns">
+        <button class="uw-btn" onclick="document.getElementById('uwModal').remove()">Cancelar</button>
+        <button class="btn btn-a" style="font-size:10px" onclick="confirmAddToWatchlist('${ticker}','${name.replace(/'/g,"\\'")}',${price})">＋ AGREGAR</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { const inp = document.getElementById('uwTargetInput'); if(inp) inp.focus(); }, 50);
+}
+
+function confirmAddToWatchlist(ticker, name, currentPrice) {
+  const inp = document.getElementById('uwTargetInput');
+  const target = parseFloat(inp ? inp.value : 0);
+  if(!target || target <= 0) { showToast('Ingresá un precio objetivo válido'); return; }
+
+  const today = new Date().toISOString().slice(0,10);
+  USER_WATCHLIST.push({
+    ticker: ticker.toUpperCase(),
+    name: name,
+    entryTarget: target,
+    addedDate: today,
+    active: true,
+    lastUpdated: today,
+    history: currentPrice > 0 ? [{ date: today, price: currentPrice }] : []
+  });
+  saveUserWatchlist();
+  document.getElementById('uwModal')?.remove();
+  renderUserWatchlist();
+  showToast(`${ticker} agregado a Watchlist ✓`);
+}
+
+function removeFromUserWatchlist(ticker) {
+  USER_WATCHLIST = USER_WATCHLIST.filter(w => w.ticker !== ticker);
+  saveUserWatchlist();
+  renderUserWatchlist();
+  showToast(`${ticker} eliminado de Watchlist`);
+}
+
+function toggleUserWatchlistActive(ticker) {
+  const item = USER_WATCHLIST.find(w => w.ticker === ticker);
+  if(!item) return;
+  item.active = !item.active;
+  saveUserWatchlist();
+  renderUserWatchlist();
+}
+
+function renderUserWatchlist() {
+  const section = document.getElementById('userWatchlistSection');
+  const container = document.getElementById('userWatchlistCards');
+  const lastUpEl = document.getElementById('uwLastUpdate');
+  if(!section || !container) return;
+
+  if(USER_WATCHLIST.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  if(lastUpEl) {
+    const dates = USER_WATCHLIST.filter(w => w.lastUpdated).map(w => w.lastUpdated);
+    if(dates.length) lastUpEl.textContent = 'actualizado ' + dates.sort().pop();
+  }
+
+  container.innerHTML = USER_WATCHLIST.map(item => {
+    const lastPrice = item.history.length ? item.history[item.history.length-1].price : null;
+    const dist = lastPrice && item.entryTarget ? (lastPrice - item.entryTarget) / item.entryTarget * 100 : null;
+    const distColor = dist == null ? 'var(--muted)' : dist <= 0 ? 'var(--green)' : dist < 8 ? '#7bff7b' : dist < 15 ? 'var(--yellow)' : 'var(--red)';
+    const distLabel = dist == null ? '—' : dist <= 0 ? 'EN ZONA' : `+${dist.toFixed(1)}% objetivo`;
+    const priceLabel = lastPrice ? '$' + lastPrice.toFixed(2) : '—';
+    return `
+      <div class="uw-card" style="${item.active ? '' : 'opacity:.5'}">
+        <div style="min-width:56px">
+          <div class="uw-ticker">${item.ticker}</div>
+          <div class="uw-name">${item.name}</div>
+        </div>
+        <div>
+          <div class="uw-price" style="color:${item.active ? 'var(--accent)' : 'var(--muted)'}">${priceLabel}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:2px">Obj: $${item.entryTarget.toFixed(2)}</div>
+        </div>
+        <div>
+          <div class="uw-dist" style="color:${distColor}">${distLabel}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">desde ${item.addedDate}</div>
+        </div>
+        <div class="uw-actions">
+          <button class="uw-btn${item.active ? '' : ' paused'}" onclick="toggleUserWatchlistActive('${item.ticker}')">${item.active ? '⏸ Pausar' : '▶ Activar'}</button>
+          <button class="uw-btn danger" onclick="removeFromUserWatchlist('${item.ticker}')">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function updateUserWatchlistPrices() {
+  const active = USER_WATCHLIST.filter(w => w.active);
+  if(active.length === 0) return;
+
+  const today = new Date().toISOString().slice(0,10);
+  const needsUpdate = active.filter(w => w.lastUpdated !== today);
+  if(needsUpdate.length === 0) return;
+
+  for(const item of needsUpdate) {
+    try {
+      let price = null;
+      if(isBYMATicker(item.ticker)) {
+        const data = await fetchBYMAHistory(item.ticker);
+        price = data.currentPrice;
+      } else if(FINNHUB_KEY) {
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${FINNHUB_KEY}`);
+        const j = await r.json();
+        price = j.c || null;
+      } else if(API_KEY) {
+        const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.ticker}&apikey=${API_KEY}`);
+        const j = await r.json();
+        price = parseFloat(j['Global Quote']?.['05. price']) || null;
+      }
+      if(price && price > 0) {
+        const lastEntry = item.history[item.history.length - 1];
+        if(!lastEntry || lastEntry.date !== today) {
+          item.history.push({ date: today, price: price });
+          if(item.history.length > 365) item.history.shift();
+        } else {
+          lastEntry.price = price;
+        }
+        item.lastUpdated = today;
+      }
+    } catch(e) { /* sin precio disponible */ }
+  }
+  saveUserWatchlist();
+  renderUserWatchlist();
 }
 
 function refreshBriefing() {
