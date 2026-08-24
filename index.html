@@ -4720,13 +4720,36 @@ async function runRadarScreener() {
 
   localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
 
+  // Si Yahoo Finance falló para todos, caer a precios simples via Finnhub/AV
+  if(!screened.length) {
+    radarEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:12px 0">
+      ⚠ No se pudo conectar con Yahoo Finance. Usando precios de referencia sin análisis técnico...
+    </div>`;
+    const fallback = [];
+    for(const r of allTickers) {
+      const price = await fetchRadarPrice(r.ticker);
+      if(price) fallback.push({ ...r, price, rsi14: null, sma200: null, distSMA200: null });
+    }
+    if(!fallback.length) {
+      radarEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--red);padding:12px 0">⚠ Sin datos de mercado disponibles. Verificá tu conexión y volvé a intentar.</div>`;
+      return;
+    }
+    RADAR_WATCHLIST = fallback.map(r => ({
+      ...r, entryTarget: null, currentPrice: r.price,
+      note: 'Sin análisis técnico — datos de Yahoo Finance no disponibles.',
+      fundamental: ''
+    }));
+    renderRadar(false);
+    return;
+  }
+
   // Filtro técnico: RSI < 42 y en zona de pullback (-30% a +8% del SMA200)
   let candidates = screened
     .filter(r => r.rsi14 != null && r.rsi14 < 42 && r.distSMA200 != null && r.distSMA200 > -30 && r.distSMA200 < 8)
     .sort((a, b) => a.rsi14 - b.rsi14)
     .slice(0, 8);
 
-  // Si no hay candidatos con RSI < 42, tomamos los más sobrevendidos
+  // Si no hay candidatos con RSI < 42, tomamos los más sobrevendidos del universo
   if(!candidates.length) {
     candidates = screened.filter(r => r.rsi14 != null).sort((a, b) => a.rsi14 - b.rsi14).slice(0, 5);
   }
