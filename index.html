@@ -836,7 +836,7 @@ canvas{max-width:100%}
       <div style="flex:1">
         <div class="cfg-lbl">ALPHA VANTAGE (datos de mercado)</div>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <input class="inp" id="avKeyInp" placeholder="Alpha Vantage API Key" type="password" autocomplete="off">
+          <input class="inp" id="avKeyInp" placeholder="Alpha Vantage API Key" type="password" autocomplete="new-password">
           <button class="btn btn-a" onclick="saveKey()">GUARDAR</button>
           <button class="btn btn-y" onclick="activateDemo()">DEMO</button>
         </div>
@@ -849,7 +849,7 @@ canvas{max-width:100%}
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">ANTHROPIC (análisis narrativo + chat)</div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <input class="inp" id="anthropicKeyInp" placeholder="sk-ant-..." type="password" autocomplete="off">
+        <input class="inp" id="anthropicKeyInp" placeholder="sk-ant-..." type="password" autocomplete="new-password">
         <button class="btn btn-a" onclick="saveAnthropicKey()">GUARDAR</button>
       </div>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
@@ -860,7 +860,7 @@ canvas{max-width:100%}
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FINANCIAL MODELING PREP (fundamentales detallados)</div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <input class="inp" id="fmpKeyInp" placeholder="FMP API Key" type="password" autocomplete="off">
+        <input class="inp" id="fmpKeyInp" placeholder="FMP API Key" type="password" autocomplete="new-password">
         <button class="btn btn-a" onclick="saveFmpKey()">GUARDAR</button>
       </div>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
@@ -871,7 +871,7 @@ canvas{max-width:100%}
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FINNHUB (precios, noticias, analistas, insiders — reemplaza Alpha Vantage)</div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <input class="inp" id="finnhubKeyInp" placeholder="Finnhub API Key" type="password" autocomplete="off">
+        <input class="inp" id="finnhubKeyInp" placeholder="Finnhub API Key" type="password" autocomplete="new-password">
         <button class="btn btn-a" onclick="saveFinnhubKey()">GUARDAR</button>
       </div>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
@@ -882,7 +882,7 @@ canvas{max-width:100%}
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
       <div class="cfg-lbl">FRED API (datos macro: VIX, Treasury, Fed Rate, DXY, PCE)</div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <input class="inp" id="fredKeyInp" placeholder="FRED API Key" type="password" autocomplete="off">
+        <input class="inp" id="fredKeyInp" placeholder="FRED API Key" type="password" autocomplete="new-password">
         <button class="btn btn-a" onclick="saveFredKey()">GUARDAR</button>
       </div>
       <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
@@ -2917,7 +2917,7 @@ function renderPriceTargets(targets, currentPrice, currency) {
   // Analyst count
   const countEl = document.getElementById('analystCount');
   if(countEl) {
-    const isReal = targets.isReal;
+    const isReal = targets.isReal || !!(FINNHUB_KEY) || !!(FMP_KEY);
     countEl.textContent = (isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
     countEl.style.color = isReal ? '#0a1a0f' : '#1a1400';
     countEl.style.background = isReal ? '#3fb950' : '#d29922';
