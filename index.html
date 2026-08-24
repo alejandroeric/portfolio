@@ -4615,62 +4615,201 @@ Respondé SOLO con JSON, sin texto adicional:
   }
 }
 
-async function updateRadarPrices() {
+// ── CÁLCULOS TÉCNICOS ──────────────────────────────────────
+
+function calculateRSI(closes, period = 14) {
+  if(closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for(let i = closes.length - period; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if(diff > 0) gains += diff; else losses -= diff;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  // Wilder smoothing hacia atrás
+  for(let i = closes.length - period - 1; i >= 1; i--) {
+    const diff = closes[i] - closes[i - 1];
+    const g = diff > 0 ? diff : 0;
+    const l = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+  }
+  if(avgLoss === 0) return 100;
+  return 100 - (100 / (1 + avgGain / avgLoss));
+}
+
+function calculateSMA(closes, period) {
+  if(closes.length < period) return null;
+  const slice = closes.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / period;
+}
+
+async function fetchUSStockHistory(ticker) {
+  try {
+    const proxy = 'https://corsproxy.io/?';
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?interval=1d&range=1y`;
+    const resp = await fetch(proxy + encodeURIComponent(url));
+    const json = await resp.json();
+    const result = json?.chart?.result?.[0];
+    if(!result) return null;
+    const meta = result.meta;
+    const ts = result.timestamp || [];
+    const quote = result.indicators?.quote?.[0] || {};
+    const adjClose = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
+    const closes = ts.map((t, i) => adjClose[i] ?? quote.close?.[i]).filter(c => c != null && c > 0);
+    if(closes.length < 50) return null;
+    return {
+      price: meta.regularMarketPrice || closes[closes.length - 1],
+      change: meta.regularMarketChangePercent || 0,
+      closes
+    };
+  } catch(e) { return null; }
+}
+
+// ── SCREENER TÉCNICO REAL ───────────────────────────────────
+
+async function runRadarScreener() {
+  const todayISO = new Date().toISOString().slice(0,10);
+  if(RADAR_LAST_AI === todayISO && RADAR_WATCHLIST.length) { renderRadar(false); return; }
+
+  const allTickers = RADAR_UNIVERSE.filter(r => RADAR_ACTIVE_SECTORS.includes(r.sector));
   const radarEl = document.getElementById('briefingRadar');
   if(!radarEl) return;
 
-  const todayISO = new Date().toISOString().slice(0,10);
+  // Barra de progreso
+  radarEl.innerHTML = `
+    <div style="padding:16px 0">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px" id="radarProgressLabel">Escaneando mercado... 0/${allTickers.length} tickers</div>
+      <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
+        <div id="radarProgressBar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px">Calculando RSI y SMA200 con datos reales de mercado</div>
+    </div>`;
 
-  // 1. Actualizar precios del pool actual (para pasarlos a Claude)
-  const pool = getRadarPool();
-  if(!IS_DEMO && (API_KEY || FINNHUB_KEY)) {
-    for(let i = 0; i < pool.length; i++) {
-      const price = await fetchRadarPrice(pool[i].ticker);
-      if(i < pool.length - 1) await new Promise(res => setTimeout(res, 800));
-    }
+  const setProgress = (done) => {
+    const pct = (done / allTickers.length * 100).toFixed(0);
+    const lbl = document.getElementById('radarProgressLabel');
+    const bar = document.getElementById('radarProgressBar');
+    if(lbl) lbl.textContent = `Escaneando mercado... ${done}/${allTickers.length} tickers`;
+    if(bar) bar.style.width = pct + '%';
+  };
+
+  // Fetch en lotes de 4 para no saturar corsproxy
+  const screened = [];
+  const BATCH = 4;
+  for(let i = 0; i < allTickers.length; i += BATCH) {
+    const batch = allTickers.slice(i, i + BATCH);
+    const batchRes = await Promise.allSettled(batch.map(async r => {
+      const data = await fetchUSStockHistory(r.ticker);
+      if(!data) return null;
+      const rsi14 = calculateRSI(data.closes);
+      const sma200 = calculateSMA(data.closes, 200);
+      const sma50  = calculateSMA(data.closes, 50);
+      const distSMA200 = sma200 ? (data.price - sma200) / sma200 * 100 : null;
+      RADAR_PRICES[r.ticker] = { price: data.price, change: data.change, date: todayISO, rsi14, sma200, sma50, distSMA200 };
+      return { ...r, price: data.price, change: data.change, rsi14, sma200, sma50, distSMA200 };
+    }));
+    batchRes.forEach(res => { if(res.status === 'fulfilled' && res.value) screened.push(res.value); });
+    setProgress(Math.min(i + BATCH, allTickers.length));
+    if(i + BATCH < allTickers.length) await new Promise(res => setTimeout(res, 400));
   }
 
-  // 2. Pedir recomendaciones a Claude (una vez por día)
-  if(RADAR_LAST_AI !== todayISO) {
-    // Verificar que al menos algunos precios llegaron antes de llamar a Claude
-    const preciosDisponibles = pool.filter(r => RADAR_PRICES[r.ticker]?.price).length;
-    if(preciosDisponibles === 0 && (API_KEY || FINNHUB_KEY)) {
-      showToast('⏳ Esperando precios de mercado para análisis IA...');
-    }
-    const recs = await fetchClaudeRadarRecommendations();
-    if(recs) {
-      RADAR_WATCHLIST = recs.map(rec => {
-        const base = RADAR_UNIVERSE.find(u => u.ticker === rec.ticker) || { ticker: rec.ticker, name: rec.ticker, sector: '—' };
-        return {
-          ticker: base.ticker,
-          name: base.name,
-          sector: base.sector,
-          entryTarget: rec.entryTarget,
-          currentPrice: RADAR_PRICES[base.ticker]?.price || rec.entryTarget * 1.05,
-          note: rec.note,
-          fundamental: rec.fundamental || ''
-        };
+  localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES));
+
+  // Filtro técnico: RSI < 42 y en zona de pullback (-30% a +8% del SMA200)
+  let candidates = screened
+    .filter(r => r.rsi14 != null && r.rsi14 < 42 && r.distSMA200 != null && r.distSMA200 > -30 && r.distSMA200 < 8)
+    .sort((a, b) => a.rsi14 - b.rsi14)
+    .slice(0, 8);
+
+  // Si no hay candidatos con RSI < 42, tomamos los más sobrevendidos
+  if(!candidates.length) {
+    candidates = screened.filter(r => r.rsi14 != null).sort((a, b) => a.rsi14 - b.rsi14).slice(0, 5);
+  }
+
+  // Fundamentales FMP para los candidatos
+  const fmpData = {};
+  if(FMP_KEY && candidates.length) {
+    await Promise.allSettled(candidates.map(async r => {
+      try {
+        const resp = await fetch(`https://financialmodelingprep.com/api/v3/ratios-ttm/${r.ticker}?apikey=${FMP_KEY}`);
+        const d = await resp.json();
+        if(Array.isArray(d) && d[0]) fmpData[r.ticker] = d[0];
+      } catch(e) {}
+    }));
+  }
+
+  // Llamar a Claude con datos reales
+  const antKey = localStorage.getItem('anthropic_key') || '';
+  if(antKey && isValidAnthropicKey(antKey) && candidates.length) {
+    const candidateStr = candidates.map(r => {
+      const f = fmpData[r.ticker] || {};
+      const fundStr = [
+        f.peRatioTTM        ? `P/E:${f.peRatioTTM.toFixed(1)}`                        : '',
+        f.returnOnEquityTTM ? `ROE:${(f.returnOnEquityTTM*100).toFixed(1)}%`          : '',
+        f.netProfitMarginTTM? `Margen:${(f.netProfitMarginTTM*100).toFixed(1)}%`      : '',
+        f.debtEquityRatioTTM? `D/E:${f.debtEquityRatioTTM.toFixed(2)}`                : ''
+      ].filter(Boolean).join(' ');
+      return `${r.ticker}(${r.name} | precio:$${r.price.toFixed(2)} | RSI14:${r.rsi14.toFixed(1)} | SMA200:$${r.sma200?.toFixed(2)||'?'} | dist.SMA200:${r.distSMA200?.toFixed(1)||'?'}% | ${fundStr||'sin fundamentales'})`;
+    }).join('\n');
+
+    const prompt = `Soy un inversor argentino con perfil moderado-agresivo. Mis posiciones: ${POSITIONS.map(p=>p.ticker).join(', ')}.
+
+El screener técnico real encontró estos candidatos con RSI bajo y cerca de su SMA200:
+${candidateStr}
+
+Para cada uno:
+1. entryTarget: soporte técnico real (SMA200, SMA50, zona de demanda, Fibonacci). Mínimo 3% bajo el precio actual.
+2. note: 1 línea técnica — por qué ese nivel es soporte.
+3. fundamental: 1 línea con los datos reales que te di (P/E, ROE, margen). Sé específico con los números.
+
+Respondé SOLO con JSON, sin texto extra:
+[{"ticker":"X","entryTarget":0,"note":"...","fundamental":"..."}]`;
+
+    try {
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'x-api-key':antKey, 'anthropic-version':ANTHROPIC_VERSION, 'anthropic-dangerous-direct-browser-access':'true' },
+        body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 900, messages: [{ role:'user', content: prompt }] })
       });
-      localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
-      RADAR_LAST_AI = todayISO;
-      localStorage.setItem('pip_radar_ai_date', todayISO);
-      renderRadar(true);
-    } else {
-      // Sin recomendaciones IA — mostrar pool sin objetivos falsos
-      RADAR_WATCHLIST = pool.map(r => ({
-        ...r,
-        entryTarget: null,
-        currentPrice: RADAR_PRICES[r.ticker]?.price || null,
-        note: 'Análisis IA no disponible. Actualizá el Radar para obtener niveles técnicos reales.'
-      }));
-      showToast('⚠ Análisis IA no disponible — verificá tu clave Anthropic en CONFIG');
-      renderRadar(false);
-    }
-    return;
+      const data = await response.json();
+      if(!data.error) {
+        const clean = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+        try {
+          const recs = JSON.parse(clean);
+          if(Array.isArray(recs) && recs.length) {
+            RADAR_WATCHLIST = recs.map(rec => {
+              const base = candidates.find(c => c.ticker === rec.ticker) || { ticker: rec.ticker, name: rec.ticker, sector: '—' };
+              const cached = RADAR_PRICES[rec.ticker] || {};
+              return { ticker: base.ticker, name: base.name, sector: base.sector,
+                entryTarget: rec.entryTarget, currentPrice: cached.price || rec.entryTarget * 1.05,
+                note: rec.note, fundamental: rec.fundamental || '',
+                rsi14: cached.rsi14, sma200: cached.sma200 };
+            });
+            localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
+            RADAR_LAST_AI = todayISO;
+            localStorage.setItem('pip_radar_ai_date', todayISO);
+            renderRadar(true);
+            return;
+          }
+        } catch(e) { showToast('⚠ Radar: respuesta IA inválida, mostrando datos técnicos'); }
+      } else { showToast('⚠ Radar IA: ' + (data.error.message || 'error')); }
+    } catch(e) { showToast('⚠ Radar: error de conexión con Claude'); }
   }
 
+  // Fallback: mostrar candidatos técnicos sin Claude
+  RADAR_WATCHLIST = candidates.map(r => ({
+    ...r, entryTarget: r.sma200 ? parseFloat(r.sma200.toFixed(2)) : parseFloat((r.price * 0.92).toFixed(2)),
+    currentPrice: r.price,
+    note: `RSI ${r.rsi14?.toFixed(1)} · A ${r.distSMA200?.toFixed(1)}% del SMA200`,
+    fundamental: fmpData[r.ticker] ? `P/E: ${fmpData[r.ticker].peRatioTTM?.toFixed(1)||'—'} · ROE: ${((fmpData[r.ticker].returnOnEquityTTM||0)*100).toFixed(1)}%` : '',
+    rsi14: r.rsi14, sma200: r.sma200
+  }));
   renderRadar(false);
 }
+
+// Mantener updateRadarPrices como alias para compatibilidad
+async function updateRadarPrices() { await runRadarScreener(); }
 
 function renderRadar(aiUpdated = false) {
   const radarEl = document.getElementById('briefingRadar');
@@ -4704,6 +4843,7 @@ function renderRadar(aiUpdated = false) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--green)">${r.ticker}</span>
         <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(63,185,80,.2);color:var(--green);font-weight:700">✓ ENTRAR</span>
+        ${r.rsi14 != null ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(63,185,80,.1);color:var(--green)">RSI ${r.rsi14.toFixed(0)}</span>` : ''}
         <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
         <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
         ${changeStr ? `<span style="font-family:var(--mono);font-size:10px;color:${changeColor}">${changeStr}</span>` : ''}
@@ -4726,6 +4866,7 @@ function renderRadar(aiUpdated = false) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--yellow)">${r.ticker}</span>
         <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(210,153,34,.15);color:var(--yellow);font-weight:700">🎯 CERCA</span>
+        ${r.rsi14 != null ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(210,153,34,.1);color:var(--yellow)">RSI ${r.rsi14.toFixed(0)}</span>` : ''}
         <span style="font-size:11px;color:var(--text2);flex:1">${r.name} · <span style="color:var(--muted)">${r.sector}</span></span>
         <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)">${r.currentPrice != null ? '$'+r.currentPrice.toFixed(2) : '—'}</span>
       </div>
@@ -5085,35 +5226,31 @@ function renderSectorToggles() {
 }
 
 function toggleRadarSector(sector) {
-  // Single-select: activar solo el sector elegido
-  if(RADAR_ACTIVE_SECTORS.length === 1 && RADAR_ACTIVE_SECTORS[0] === sector) return;
-  RADAR_ACTIVE_SECTORS = [sector];
+  const idx = RADAR_ACTIVE_SECTORS.indexOf(sector);
+  if(idx >= 0) {
+    if(RADAR_ACTIVE_SECTORS.length === 1) return; // mínimo un sector activo
+    RADAR_ACTIVE_SECTORS.splice(idx, 1);
+  } else {
+    RADAR_ACTIVE_SECTORS.push(sector);
+  }
   localStorage.setItem('pip_radar_sectors', JSON.stringify(RADAR_ACTIVE_SECTORS));
   renderSectorToggles();
-  // Al cambiar sectores, forzar nueva recomendación IA
   RADAR_LAST_AI = '';
   localStorage.removeItem('pip_radar_ai_date');
   localStorage.removeItem('pip_radar_active');
-  RADAR_WATCHLIST = getRadarPool().map(r => ({
-    ...r, entryTarget: null, currentPrice: RADAR_PRICES[r.ticker]?.price || null, note: 'Analizando...'
-  }));
-  renderRadar(false);
-  updateRadarPrices();
+  RADAR_WATCHLIST = [];
+  runRadarScreener();
 }
 
 function refreshRadar() {
-  // Resetear cache de IA y precios para forzar actualización completa
   RADAR_LAST_AI = '';
   RADAR_PRICES = {};
   localStorage.removeItem('pip_radar_ai_date');
   localStorage.removeItem('pip_radar_active');
   localStorage.removeItem('pip_radar_prices');
   RADAR_WATCHLIST = [];
-  // Mostrar loading
-  const radarEl = document.getElementById('briefingRadar');
-  if(radarEl) radarEl.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:20px;text-align:center">✦ Consultando Claude para nuevas recomendaciones...</div>';
-  updateRadarPrices();
-  showToast('Actualizando recomendaciones IA...');
+  showToast('Escaneando mercado...');
+  runRadarScreener();
 }
 
 
