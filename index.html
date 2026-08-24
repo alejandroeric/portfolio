@@ -4723,7 +4723,7 @@ async function runRadarScreener() {
   // Si Yahoo Finance falló para todos, caer a precios simples via Finnhub/AV
   if(!screened.length) {
     radarEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:12px 0">
-      ⚠ No se pudo conectar con Yahoo Finance. Usando precios de referencia sin análisis técnico...
+      ⚠ Yahoo Finance no disponible. Obteniendo precios via Finnhub/AV y consultando Claude para niveles de entrada...
     </div>`;
     const fallback = [];
     for(const r of allTickers) {
@@ -4731,13 +4731,51 @@ async function runRadarScreener() {
       if(price) fallback.push({ ...r, price, rsi14: null, sma200: null, distSMA200: null });
     }
     if(!fallback.length) {
-      radarEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--red);padding:12px 0">⚠ Sin datos de mercado disponibles. Verificá tu conexión y volvé a intentar.</div>`;
+      radarEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--red);padding:12px 0">⚠ Sin datos de mercado. Verificá tu conexión y volvé a intentar.</div>`;
       return;
     }
+    // Igual llamar a Claude con precios actuales para obtener entryTargets
+    const antKey = localStorage.getItem('anthropic_key') || '';
+    if(antKey && isValidAnthropicKey(antKey)) {
+      const fallbackStr = fallback.map(r => `${r.ticker}(${r.name}, precio:$${r.price.toFixed(2)})`).join('\n');
+      const prompt = `Soy un inversor argentino con perfil moderado-agresivo. Mis posiciones: ${POSITIONS.map(p=>p.ticker).join(', ')}.
+
+Estos tickers tienen precios actuales (sin datos técnicos RSI/SMA disponibles hoy):
+${fallbackStr}
+
+Para cada uno dame un entryTarget razonable basado en soportes históricos conocidos y una justificación breve.
+Respondé SOLO con JSON: [{"ticker":"X","entryTarget":0,"note":"...","fundamental":"..."}]`;
+      try {
+        const resp = await fetch(ANTHROPIC_API_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':antKey,'anthropic-version':ANTHROPIC_VERSION,'anthropic-dangerous-direct-browser-access':'true'},
+          body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 900, messages:[{role:'user',content:prompt}] })
+        });
+        const data = await resp.json();
+        if(!data.error) {
+          const clean = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+          const recs = JSON.parse(clean);
+          if(Array.isArray(recs) && recs.length) {
+            RADAR_WATCHLIST = recs.map(rec => {
+              const base = fallback.find(f => f.ticker === rec.ticker) || { ticker: rec.ticker, name: rec.ticker, sector: '—' };
+              return { ticker: base.ticker, name: base.name, sector: base.sector,
+                entryTarget: rec.entryTarget, currentPrice: base.price,
+                note: rec.note + ' ⚠ Sin RSI/SMA (Yahoo Finance no disponible)',
+                fundamental: rec.fundamental || '', rsi14: null, sma200: null };
+            });
+            localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST));
+            RADAR_LAST_AI = todayISO;
+            localStorage.setItem('pip_radar_ai_date', todayISO);
+            renderRadar(true);
+            return;
+          }
+        }
+      } catch(e) {}
+    }
+    // Sin Claude: mostrar precios sin objetivo
     RADAR_WATCHLIST = fallback.map(r => ({
       ...r, entryTarget: null, currentPrice: r.price,
-      note: 'Sin análisis técnico — datos de Yahoo Finance no disponibles.',
-      fundamental: ''
+      note: 'Sin análisis técnico ni IA disponible.', fundamental: ''
     }));
     renderRadar(false);
     return;
