@@ -5503,11 +5503,7 @@ function toggleRadarSector(sector) {
   }
   localStorage.setItem('pip_radar_sectors', JSON.stringify(RADAR_ACTIVE_SECTORS));
   renderSectorToggles();
-  RADAR_LAST_AI = '';
-  localStorage.removeItem('pip_radar_ai_date');
-  localStorage.removeItem('pip_radar_active');
-  RADAR_WATCHLIST = [];
-  runRadarScreener();
+  renderRadar(); // solo muestra datos en caché, sin correr el análisis
 }
 
 function refreshRadar() {
