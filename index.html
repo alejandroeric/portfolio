@@ -949,9 +949,11 @@ canvas{max-width:100%}
 
   <div class="cfg-block">
     <div class="cfg-ttl">// DATOS</div>
-    <div class="cfg-row">
-      <button class="btn btn-d" onclick="if(confirm('¿Borrar todos los datos?'))clearAll()">BORRAR TODO</button>
-      <button class="btn btn-g" onclick="exportData()">EXPORTAR JSON</button>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:10px">Exportá un backup completo (watchlist, posiciones, historial) e importalo en otro dispositivo o para restaurar.</div>
+    <div class="cfg-row" style="flex-wrap:wrap;gap:8px">
+      <button class="btn btn-g" onclick="exportData()">↓ EXPORTAR BACKUP</button>
+      <label class="btn btn-g" style="cursor:pointer">↑ IMPORTAR BACKUP<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+      <button class="btn btn-d" onclick="if(confirm('¿Borrar todos los datos? Esta acción no se puede deshacer.'))clearAll()">BORRAR TODO</button>
     </div>
   </div>
 </div>
@@ -2797,10 +2799,49 @@ function clearAll(){
   location.reload();
 }
 function exportData(){
-  const d = {positions:POSITIONS,results:RESULTS_CACHE,exported:new Date().toISOString()};
+  const d = {
+    version: 2,
+    exported: new Date().toISOString(),
+    positions: POSITIONS,
+    results: RESULTS_CACHE,
+    watchlist: USER_WATCHLIST,
+    radarWatchlist: RADAR_WATCHLIST,
+    radarSectors: RADAR_ACTIVE_SECTORS,
+    radarPrices: RADAR_PRICES,
+    radarAiDate: RADAR_LAST_AI
+  };
   const b = new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download='portfolio_pip_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'fintrade_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('Backup exportado ✓');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const d = JSON.parse(e.target.result);
+      if(!d.exported) { showToast('Archivo inválido'); return; }
+      if(!confirm(`Importar backup del ${d.exported.slice(0,10)}?\nSe sobreescribirán tus datos actuales.`)) return;
+      if(Array.isArray(d.positions))      { POSITIONS = d.positions; localStorage.setItem('pip_positions', JSON.stringify(POSITIONS)); }
+      if(d.results)                        { RESULTS_CACHE = d.results; localStorage.setItem('pip_results', JSON.stringify(RESULTS_CACHE)); }
+      if(Array.isArray(d.watchlist))       { USER_WATCHLIST = d.watchlist; localStorage.setItem('pip_user_watchlist', JSON.stringify(USER_WATCHLIST)); }
+      if(Array.isArray(d.radarWatchlist))  { RADAR_WATCHLIST = d.radarWatchlist; localStorage.setItem('pip_radar_active', JSON.stringify(RADAR_WATCHLIST)); }
+      if(Array.isArray(d.radarSectors))    { RADAR_ACTIVE_SECTORS = d.radarSectors; localStorage.setItem('pip_radar_sectors', JSON.stringify(RADAR_ACTIVE_SECTORS)); }
+      if(d.radarPrices)                    { RADAR_PRICES = d.radarPrices; localStorage.setItem('pip_radar_prices', JSON.stringify(RADAR_PRICES)); }
+      if(d.radarAiDate)                    { RADAR_LAST_AI = d.radarAiDate; localStorage.setItem('pip_radar_ai_date', d.radarAiDate); }
+      renderUserWatchlist();
+      renderSectorToggles();
+      renderRadar();
+      showToast('Backup importado correctamente ✓');
+    } catch(err) { showToast('Error al leer el archivo'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ── ANALYZER INTEGRATION ──
