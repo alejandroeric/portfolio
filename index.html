@@ -5217,6 +5217,15 @@ function removeFromUserWatchlist(ticker) {
   showToast(`${ticker} eliminado de Watchlist`);
 }
 
+function toggleUWHistory(ticker) {
+  const el = document.getElementById('uwHist-' + ticker);
+  if(!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  const btn = el.previousElementSibling?.querySelector(`[onclick="toggleUWHistory('${ticker}')"]`);
+  if(btn) btn.textContent = open ? '▼ historial' : '▲ historial';
+}
+
 function toggleUserWatchlistActive(ticker) {
   const item = USER_WATCHLIST.find(w => w.ticker === ticker);
   if(!item) return;
@@ -5241,6 +5250,7 @@ function renderUserWatchlist() {
 
   container.innerHTML = USER_WATCHLIST.map(item => {
     const lastEntry = item.history.length ? item.history[item.history.length-1] : null;
+    const firstEntry = item.history.length ? item.history[0] : null;
     const lastPrice = lastEntry ? lastEntry.price : null;
     const dailyChg = lastEntry?.change ?? null;
     const dailyColor = dailyChg == null ? 'var(--muted)' : dailyChg < 0 ? 'var(--green)' : dailyChg > 0 ? 'var(--red)' : 'var(--muted)';
@@ -5249,23 +5259,56 @@ function renderUserWatchlist() {
     const distColor = dist == null ? 'var(--muted)' : dist <= 0 ? 'var(--green)' : dist < 8 ? '#7bff7b' : dist < 15 ? 'var(--yellow)' : 'var(--red)';
     const distLabel = dist == null ? '—' : dist <= 0 ? 'EN ZONA' : `+${dist.toFixed(1)}% objetivo`;
     const priceLabel = lastPrice ? '$' + lastPrice.toFixed(2) : '—';
+
+    // Historial desplegable — más reciente primero
+    const histRows = [...item.history].reverse().map((h, i, arr) => {
+      const sinceFirst = firstEntry ? (h.price - firstEntry.price) / firstEntry.price * 100 : null;
+      const sfColor = sinceFirst == null ? 'var(--muted)' : sinceFirst < 0 ? 'var(--green)' : sinceFirst > 0 ? 'var(--red)' : 'var(--muted)';
+      const sfLabel = sinceFirst == null ? '—' : (sinceFirst >= 0 ? '+' : '') + sinceFirst.toFixed(2) + '%';
+      const chgLabel = h.change != null ? (h.change >= 0 ? '+' : '') + h.change.toFixed(2) + '%' : '—';
+      const chgColor = h.change == null ? 'var(--muted)' : h.change < 0 ? 'var(--green)' : h.change > 0 ? 'var(--red)' : 'var(--muted)';
+      const isToday = i === 0;
+      return `<tr style="border-bottom:1px solid var(--border2);${isToday ? 'font-weight:600' : ''}">
+        <td style="padding:4px 8px 4px 0;color:var(--text2)">${h.date}</td>
+        <td style="padding:4px 8px;font-family:var(--mono);color:var(--text)">$${h.price.toFixed(2)}</td>
+        <td style="padding:4px 8px;font-family:var(--mono);color:${chgColor}">${chgLabel}</td>
+        <td style="padding:4px 0;font-family:var(--mono);color:${sfColor}">${sfLabel}</td>
+      </tr>`;
+    }).join('');
+
     return `
-      <div class="uw-card" style="${item.active ? '' : 'opacity:.5'}">
-        <div style="min-width:56px">
-          <div class="uw-ticker">${item.ticker}</div>
-          <div class="uw-name">${item.name}</div>
+      <div class="uw-card" style="${item.active ? '' : 'opacity:.5'};flex-direction:column;align-items:stretch;gap:0">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="min-width:56px">
+            <div class="uw-ticker">${item.ticker}</div>
+            <div class="uw-name">${item.name}</div>
+          </div>
+          <div>
+            <div class="uw-price" style="color:${item.active ? 'var(--accent)' : 'var(--muted)'}">${priceLabel}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:${dailyColor};margin-top:2px">${dailyLabel || ('Obj: $'+item.entryTarget.toFixed(2))}</div>
+          </div>
+          <div>
+            <div class="uw-dist" style="color:${distColor}">${distLabel}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">Obj: $${item.entryTarget.toFixed(2)}</div>
+          </div>
+          <div class="uw-actions" style="margin-left:auto">
+            ${item.history.length > 1 ? `<button class="uw-btn" onclick="toggleUWHistory('${item.ticker}')">▼ historial</button>` : ''}
+            <button class="uw-btn${item.active ? '' : ' paused'}" onclick="toggleUserWatchlistActive('${item.ticker}')">${item.active ? '⏸ Pausar' : '▶ Activar'}</button>
+            <button class="uw-btn danger" onclick="removeFromUserWatchlist('${item.ticker}')">✕</button>
+          </div>
         </div>
-        <div>
-          <div class="uw-price" style="color:${item.active ? 'var(--accent)' : 'var(--muted)'}">${priceLabel}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:${dailyColor};margin-top:2px">${dailyLabel || 'Obj: $'+item.entryTarget.toFixed(2)}</div>
-        </div>
-        <div>
-          <div class="uw-dist" style="color:${distColor}">${distLabel}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">Obj: $${item.entryTarget.toFixed(2)}</div>
-        </div>
-        <div class="uw-actions">
-          <button class="uw-btn${item.active ? '' : ' paused'}" onclick="toggleUserWatchlistActive('${item.ticker}')">${item.active ? '⏸ Pausar' : '▶ Activar'}</button>
-          <button class="uw-btn danger" onclick="removeFromUserWatchlist('${item.ticker}')">✕</button>
+        <div id="uwHist-${item.ticker}" style="display:none;margin-top:10px;border-top:1px solid var(--border2);padding-top:8px;overflow-x:auto">
+          <table style="width:100%;font-size:10px;border-collapse:collapse">
+            <thead>
+              <tr style="color:var(--muted);font-family:var(--mono);font-size:9px">
+                <th style="text-align:left;padding:0 8px 4px 0;font-weight:400">Fecha</th>
+                <th style="text-align:left;padding:0 8px 4px;font-weight:400">Precio</th>
+                <th style="text-align:left;padding:0 8px 4px;font-weight:400">Var. día</th>
+                <th style="text-align:left;padding:0 0 4px;font-weight:400">Desde entrada</th>
+              </tr>
+            </thead>
+            <tbody>${histRows}</tbody>
+          </table>
         </div>
       </div>`;
   }).join('');
