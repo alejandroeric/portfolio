@@ -5240,7 +5240,11 @@ function renderUserWatchlist() {
   }
 
   container.innerHTML = USER_WATCHLIST.map(item => {
-    const lastPrice = item.history.length ? item.history[item.history.length-1].price : null;
+    const lastEntry = item.history.length ? item.history[item.history.length-1] : null;
+    const lastPrice = lastEntry ? lastEntry.price : null;
+    const dailyChg = lastEntry?.change ?? null;
+    const dailyColor = dailyChg == null ? 'var(--muted)' : dailyChg < 0 ? 'var(--green)' : dailyChg > 0 ? 'var(--red)' : 'var(--muted)';
+    const dailyLabel = dailyChg == null ? '' : (dailyChg >= 0 ? '+' : '') + dailyChg.toFixed(2) + '% hoy';
     const dist = lastPrice && item.entryTarget ? (lastPrice - item.entryTarget) / item.entryTarget * 100 : null;
     const distColor = dist == null ? 'var(--muted)' : dist <= 0 ? 'var(--green)' : dist < 8 ? '#7bff7b' : dist < 15 ? 'var(--yellow)' : 'var(--red)';
     const distLabel = dist == null ? '—' : dist <= 0 ? 'EN ZONA' : `+${dist.toFixed(1)}% objetivo`;
@@ -5253,11 +5257,11 @@ function renderUserWatchlist() {
         </div>
         <div>
           <div class="uw-price" style="color:${item.active ? 'var(--accent)' : 'var(--muted)'}">${priceLabel}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:2px">Obj: $${item.entryTarget.toFixed(2)}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:${dailyColor};margin-top:2px">${dailyLabel || 'Obj: $'+item.entryTarget.toFixed(2)}</div>
         </div>
         <div>
           <div class="uw-dist" style="color:${distColor}">${distLabel}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">desde ${item.addedDate}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">Obj: $${item.entryTarget.toFixed(2)}</div>
         </div>
         <div class="uw-actions">
           <button class="uw-btn${item.active ? '' : ' paused'}" onclick="toggleUserWatchlistActive('${item.ticker}')">${item.active ? '⏸ Pausar' : '▶ Activar'}</button>
@@ -5277,7 +5281,7 @@ async function updateUserWatchlistPrices() {
 
   for(const item of needsUpdate) {
     try {
-      let price = null;
+      let price = null, dailyChg = null;
       if(isBYMATicker(item.ticker)) {
         const data = await fetchBYMAHistory(item.ticker);
         price = data.currentPrice;
@@ -5285,18 +5289,23 @@ async function updateUserWatchlistPrices() {
         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${FINNHUB_KEY}`);
         const j = await r.json();
         price = j.c || null;
+        if(j.pc && j.c) dailyChg = (j.c - j.pc) / j.pc * 100;
       } else if(API_KEY) {
         const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.ticker}&apikey=${API_KEY}`);
         const j = await r.json();
-        price = parseFloat(j['Global Quote']?.['05. price']) || null;
+        const gq = j['Global Quote'] || {};
+        price = parseFloat(gq['05. price']) || null;
+        const prevClose = parseFloat(gq['08. previous close']) || null;
+        if(price && prevClose) dailyChg = (price - prevClose) / prevClose * 100;
       }
       if(price && price > 0) {
         const lastEntry = item.history[item.history.length - 1];
         if(!lastEntry || lastEntry.date !== today) {
-          item.history.push({ date: today, price: price });
+          item.history.push({ date: today, price: price, change: dailyChg });
           if(item.history.length > 365) item.history.shift();
         } else {
           lastEntry.price = price;
+          if(dailyChg != null) lastEntry.change = dailyChg;
         }
         item.lastUpdated = today;
       }
