@@ -1681,9 +1681,9 @@ function updateAVCountDisplay() {
   const nav = document.getElementById('avNavCount');
   if(nav) {
     nav.style.display = count > 0 ? 'inline-block' : 'none';
-    nav.style.color = color;
-    nav.style.borderColor = count >= AV_LIMIT ? 'rgba(248,81,73,.4)' : count >= 20 ? 'rgba(210,153,34,.4)' : 'rgba(0,229,255,.2)';
-    nav.style.background = count >= AV_LIMIT ? 'rgba(248,81,73,.08)' : count >= 20 ? 'rgba(210,153,34,.08)' : 'rgba(0,229,255,.07)';
+    nav.style.color = '#000';
+    nav.style.borderColor = 'transparent';
+    nav.style.background = count >= AV_LIMIT ? 'var(--red)' : count >= 20 ? 'var(--yellow)' : 'var(--accent)';
     nav.textContent = `AV ${count}/${AV_LIMIT}`;
   }
 }
