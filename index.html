@@ -880,6 +880,7 @@ canvas{max-width:100%}
           KEY ACTIVA: <span id="activeKeyDisplay" style="color:var(--accent)">Modo Demo</span> ·
           <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color:var(--accent)">Obtener gratis</a>
         </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px" id="avCountDisplay"></div>
       </div>
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:12px">
@@ -1151,7 +1152,7 @@ async function fetchAV(ticker, tf) {
   const url = `https://www.alphavantage.co/query?function=${fn}&symbol=${encodeURIComponent(ticker)}&outputsize=compact&apikey=${API_KEY}`;
   let data;
   try {
-    const resp = await fetch(url);
+    const resp = await avFetch(url);
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
     data = await resp.json();
   } catch(e) {
@@ -1655,6 +1656,31 @@ let API_KEY      = localStorage.getItem('av_key')       || '';
 let FMP_KEY      = localStorage.getItem('fmp_key')      || '';
 let FRED_KEY     = localStorage.getItem('fred_key')     || '';
 let FINNHUB_KEY  = localStorage.getItem('finnhub_key')  || '';
+
+// ── CONTADOR DE REQUESTS ALPHA VANTAGE ──
+const AV_LIMIT = 25;
+function getAVCount() {
+  const today = new Date().toISOString().slice(0,10);
+  const stored = JSON.parse(localStorage.getItem('pip_av_count') || '{}');
+  return stored.date === today ? (stored.count || 0) : 0;
+}
+function incrementAVCount() {
+  const today = new Date().toISOString().slice(0,10);
+  const count = getAVCount() + 1;
+  localStorage.setItem('pip_av_count', JSON.stringify({ date: today, count }));
+  updateAVCountDisplay();
+}
+function updateAVCountDisplay() {
+  const el = document.getElementById('avCountDisplay');
+  if(!el) return;
+  const count = getAVCount();
+  const color = count >= AV_LIMIT ? 'var(--red)' : count >= 20 ? 'var(--yellow)' : 'var(--green)';
+  el.innerHTML = `<span style="color:${color};font-weight:700">${count}/${AV_LIMIT}</span> requests usados hoy`;
+}
+async function avFetch(url, options) {
+  incrementAVCount();
+  return fetch(url, options);
+}
 
 // ── NOTIFICACIONES DEL NAVEGADOR ──
 const NOTIF_DEFAULTS = { price: 3, score: 2, rsiOb: 75, rsiOs: 25 };
@@ -2556,6 +2582,7 @@ function renderConfig() {
   if(keyEl) keyEl.textContent = avKey ? avKey.slice(0,8)+'...' : 'Modo Demo activo';
   if(keyEl) keyEl.style.color = avKey ? 'var(--green)' : 'var(--accent)';
   if(!API_KEY && avKey) API_KEY = avKey;
+  updateAVCountDisplay();
   // Show Anthropic key status
   const antKey = localStorage.getItem('anthropic_key') || '';
   const antEl = document.getElementById('anthropicKeyDisplay');
@@ -3974,7 +4001,7 @@ async function fetchMacro() {
   if(!Object.keys(results).length && API_KEY && !IS_DEMO) {
     try {
       const fetches = Object.entries(proxies).map(([k, sym]) =>
-        fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${API_KEY}`)
+        avFetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${API_KEY}`)
           .then(r => r.json()).then(d => ({ k, data: d['Global Quote'] })).catch(() => ({ k, data: null }))
       );
       const res = await Promise.all(fetches);
@@ -4028,7 +4055,7 @@ async function fetchBenchmark(ticker, sector, tickerCloses, tickerLabels) {
   if(API_KEY && !IS_DEMO) {
     try {
       const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${benchTicker}&outputsize=compact&apikey=${API_KEY}`;
-      const res = await fetch(url);
+      const res = await avFetch(url);
       const json = await res.json();
       const ts = json['Time Series (Daily)'];
       if(ts) benchCloses = Object.entries(ts).slice(0, 130).reverse().map(([, v]) => parseFloat(v['4. close']));
@@ -4484,7 +4511,7 @@ async function fetchRadarPrice(ticker) {
   if(!API_KEY) return null;
   try {
     const url  = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`;
-    const resp = await fetch(url);
+    const resp = await avFetch(url);
     const data = await resp.json();
     if(data['Note'] || data['Information']) return null;
     const quote = data['Global Quote'];
@@ -4695,7 +4722,7 @@ async function fetchUSStockHistory(ticker) {
     const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker.toUpperCase())}&outputsize=compact&apikey=${API_KEY}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
-    const resp = await fetch(url, { signal: controller.signal });
+    const resp = await avFetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     const json = await resp.json();
     const series = json['Time Series (Daily)'];
@@ -5417,7 +5444,7 @@ async function updateUserWatchlistPrices() {
         price = j.c || null;
         if(j.pc && j.c) dailyChg = (j.c - j.pc) / j.pc * 100;
       } else if(API_KEY) {
-        const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.ticker}&apikey=${API_KEY}`);
+        const r = await avFetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.ticker}&apikey=${API_KEY}`);
         const j = await r.json();
         const gq = j['Global Quote'] || {};
         price = parseFloat(gq['05. price']) || null;
