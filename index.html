@@ -560,6 +560,7 @@ canvas{max-width:100%}
   <button class="nav-tab" onclick="showPage('chat')">💬 CHAT</button>
   <button class="nav-tab" onclick="showPage('config')">CONFIG</button>
   <div class="nav-right">
+    <span id="avNavCount" onclick="showPage('config')" style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;letter-spacing:.06em;cursor:pointer;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.07);color:var(--accent);display:none">AV 0/25</span>
     <span id="modeBadge" class="mode-badge mode-demo">DEMO</span>
   </div>
 </nav>
@@ -1671,11 +1672,20 @@ function incrementAVCount() {
   updateAVCountDisplay();
 }
 function updateAVCountDisplay() {
-  const el = document.getElementById('avCountDisplay');
-  if(!el) return;
   const count = getAVCount();
   const color = count >= AV_LIMIT ? 'var(--red)' : count >= 20 ? 'var(--yellow)' : 'var(--green)';
-  el.innerHTML = `<span style="color:${color};font-weight:700">${count}/${AV_LIMIT}</span> requests usados hoy`;
+  // Config panel
+  const el = document.getElementById('avCountDisplay');
+  if(el) el.innerHTML = `<span style="color:${color};font-weight:700">${count}/${AV_LIMIT}</span> requests usados hoy`;
+  // Nav chip — solo visible si se usó al menos 1 request
+  const nav = document.getElementById('avNavCount');
+  if(nav) {
+    nav.style.display = count > 0 ? 'inline-block' : 'none';
+    nav.style.color = color;
+    nav.style.borderColor = count >= AV_LIMIT ? 'rgba(248,81,73,.4)' : count >= 20 ? 'rgba(210,153,34,.4)' : 'rgba(0,229,255,.2)';
+    nav.style.background = count >= AV_LIMIT ? 'rgba(248,81,73,.08)' : count >= 20 ? 'rgba(210,153,34,.08)' : 'rgba(0,229,255,.07)';
+    nav.textContent = `AV ${count}/${AV_LIMIT}`;
+  }
 }
 async function avFetch(url, options) {
   incrementAVCount();
@@ -1689,6 +1699,7 @@ const WATCHLIST = ['ACN','SPOT','RBLX','MSFT','LMT','ADBE','MELI','MU','BTC','ET
 let USER_WATCHLIST = JSON.parse(localStorage.getItem('pip_user_watchlist') || '[]');
 let LAST_SCORES = JSON.parse(localStorage.getItem('lastScores') || '{}');
 let IS_DEMO = !API_KEY && !FINNHUB_KEY;
+setTimeout(updateAVCountDisplay, 0);
 let POSITIONS = JSON.parse(localStorage.getItem('pip_positions') || 'null');
 let RESULTS_CACHE = {};
 let ACTIVE_ALERTS = [];
