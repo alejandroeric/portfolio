@@ -5090,10 +5090,9 @@ function renderBriefing() {
   const macroMEP = document.getElementById('macroMEP');
   if(macroMEP) macroMEP.textContent = '$' + MEP.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-  // Radar / zona de compra
+  // Radar / zona de compra — solo renderiza datos guardados, no auto-actualiza
   renderSectorToggles();
   renderRadar();
-  updateRadarPrices(); // actualiza en segundo plano sin bloquear el render
 
   // Alertas de mercado — señales dinámicas basadas en macro y radar
   const alertasEl = document.getElementById('briefingAlertas');
