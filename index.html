@@ -600,7 +600,10 @@ canvas{max-width:100%}
       <span style="font-family:var(--mono);font-size:9px;color:var(--muted)" id="uwLastUpdate"></span>
     </div>
     <div id="userWatchlistCards"></div>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">Agregá acciones desde ANALIZAR o SCREENER</div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="uw-add-btn" onclick="openAddToWatchlistManual()">＋ Agregar manualmente</button>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">o agregá desde ANALIZAR o SCREENER</span>
+    </div>
   </div>
 
   <!-- EN ZONA DE COMPRA -->
@@ -5151,6 +5154,46 @@ function addToWatchlistFromRadar(ticker, name, entryTarget, currentPrice) {
     history: currentPrice > 0 ? [{ date: today, price: currentPrice }] : []
   });
   saveUserWatchlist();
+  renderUserWatchlist();
+  showToast(`${ticker} agregado a Watchlist ✓`);
+}
+
+function openAddToWatchlistManual() {
+  const modal = document.createElement('div');
+  modal.className = 'uw-modal';
+  modal.id = 'uwModal';
+  modal.innerHTML = `
+    <div class="uw-modal-box">
+      <div class="uw-modal-title">// AGREGAR A WATCHLIST</div>
+      <div class="uw-modal-label">Ticker (ej: AAPL, TSLA)</div>
+      <input class="uw-modal-input" id="uwTickerInput" type="text" placeholder="ej: AAPL" autocomplete="off" style="text-transform:uppercase">
+      <div class="uw-modal-label" style="margin-top:10px">Nombre (opcional)</div>
+      <input class="uw-modal-input" id="uwNameInput" type="text" placeholder="ej: Apple Inc.">
+      <div class="uw-modal-label" style="margin-top:10px">Precio objetivo de entrada (USD)</div>
+      <input class="uw-modal-input" id="uwTargetInput" type="number" step="0.01" min="0" placeholder="ej: 120.00">
+      <div class="uw-modal-btns">
+        <button class="uw-btn" onclick="document.getElementById('uwModal').remove()">Cancelar</button>
+        <button class="btn btn-a" style="font-size:10px" onclick="confirmAddToWatchlistManual()">＋ AGREGAR</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { document.getElementById('uwTickerInput')?.focus(); }, 50);
+}
+
+function confirmAddToWatchlistManual() {
+  const tickerEl = document.getElementById('uwTickerInput');
+  const nameEl   = document.getElementById('uwNameInput');
+  const targetEl = document.getElementById('uwTargetInput');
+  const ticker = (tickerEl?.value || '').trim().toUpperCase();
+  const name   = (nameEl?.value || '').trim() || ticker;
+  const target = parseFloat(targetEl?.value || 0);
+  if(!ticker) { showToast('Ingresá un ticker válido'); return; }
+  if(!target || target <= 0) { showToast('Ingresá un precio objetivo válido'); return; }
+  if(USER_WATCHLIST.find(w => w.ticker === ticker)) { showToast(`${ticker} ya está en tu Watchlist`); return; }
+  const today = new Date().toISOString().slice(0,10);
+  USER_WATCHLIST.push({ ticker, name, entryTarget: target, addedDate: today, active: true, lastUpdated: today, history: [] });
+  saveUserWatchlist();
+  document.getElementById('uwModal')?.remove();
   renderUserWatchlist();
   showToast(`${ticker} agregado a Watchlist ✓`);
 }
