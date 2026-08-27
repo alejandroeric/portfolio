@@ -5454,7 +5454,8 @@ async function updateUserWatchlistPrices() {
         const j = await r.json();
         price = j.c || null;
         if(j.pc && j.c) dailyChg = (j.c - j.pc) / j.pc * 100;
-      } else if(API_KEY) {
+      }
+      if(!price && API_KEY) {
         const r = await avFetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.ticker}&apikey=${API_KEY}`);
         const j = await r.json();
         const gq = j['Global Quote'] || {};
