@@ -2709,7 +2709,8 @@ async function fetchBYMAHistory(ticker) {
 function isBYMATicker(ticker) {
   // Tickers del universo NYSE/NASDAQ nunca son BYMA
   const usFromRadar = new Set(typeof RADAR_UNIVERSE !== 'undefined' ? RADAR_UNIVERSE.map(r => r.ticker) : []);
-  const usTickers = new Set([...usFromRadar, 'NVDA','AAPL','MSFT','AMZN','META','GOOGL','TSLA','SPY','QQQ','GLD','JPM','AMGN','AMD','ADBE','MELI','COIN','GS','LMT','SPOT','RBLX','ACN','BTC','ETH','TLT','VXX','UUP','ABBV','JNJ','PFE','UNH','AXP','SQ','PYPL','NU','WMT','COST','PG','KO','MCD','BAC','V','MA','XLI','CAT','HON','DE','UPS','XLE','XOP','CVX','XOM','MPC','XLV','UNH','SLV','GDX','PDBC','DJP','IEF','SHY','BND','AGG','EWZ','ILF','EWW','GXG','EPU']);
+  const usFromWatchlist = new Set(USER_WATCHLIST.filter(w => !w.ticker.includes('.')).map(w => w.ticker.toUpperCase()));
+  const usTickers = new Set([...usFromRadar, ...usFromWatchlist, 'NVDA','AAPL','MSFT','AMZN','META','GOOGL','TSLA','SPY','QQQ','GLD','JPM','AMGN','AMD','ADBE','MELI','COIN','GS','LMT','SPOT','RBLX','ACN','BTC','ETH','TLT','VXX','UUP','ABBV','JNJ','PFE','UNH','AXP','SQ','PYPL','NU','WMT','COST','PG','KO','MCD','BAC','V','MA','XLI','CAT','HON','DE','UPS','XLE','XOP','CVX','XOM','MPC','XLV','UNH','SLV','GDX','PDBC','DJP','IEF','SHY','BND','AGG','EWZ','ILF','EWW','GXG','EPU','SNDK','WDC','TSM','NFLX','GOOGL','UKOIL','MP','SPCX']);
   if(usTickers.has(ticker.toUpperCase())) return false;
   if(ticker.includes('.')) return false;
   return true;
