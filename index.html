@@ -5440,7 +5440,7 @@ async function updateUserWatchlistPrices() {
   if(active.length === 0) return;
 
   const today = new Date().toISOString().slice(0,10);
-  const needsUpdate = active.filter(w => w.lastUpdated !== today);
+  const needsUpdate = active.filter(w => w.lastUpdated !== today || w.history.length === 0);
   if(needsUpdate.length === 0) return;
 
   for(const item of needsUpdate) {
