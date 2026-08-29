@@ -758,14 +758,24 @@ canvas{max-width:100%}
 
   <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
 
+    <!-- Ticker input -->
+    <div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:6px">TICKER <span style="color:var(--red)">*</span></div>
+      <input id="chartTickerInp" type="text" placeholder="Ej: ORA · CRWV · QQQ"
+        style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <!-- Upload area -->
     <div id="chartDropZone" onclick="document.getElementById('chartImgInput').click()"
       style="border:2px dashed var(--border);border-radius:8px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--bg2)">
       <div style="font-size:32px;margin-bottom:8px">📈</div>
       <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">SUBIR CAPTURA DEL GRÁFICO</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px">Click para seleccionar · JPG o PNG</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">Click para seleccionar · JPG o PNG · cursor fuera del gráfico</div>
     </div>
     <input type="file" id="chartImgInput" accept="image/*" style="display:none" onchange="onChartImageSelected(event)">
 
+    <!-- Preview -->
     <div id="chartPreviewWrap" style="display:none">
       <img id="chartPreviewImg" style="width:100%;border-radius:6px;border:1px solid var(--border)">
       <div style="display:flex;gap:8px;margin-top:8px">
@@ -774,13 +784,26 @@ canvas{max-width:100%}
       </div>
     </div>
 
+    <!-- Context -->
     <div id="chartContextWrap" style="display:none">
       <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:6px">CONTEXTO OPCIONAL</div>
       <input id="chartContextInp" type="text" placeholder='Ej: "estoy pensando en entrar" · "tengo esta acción en cartera" · "quiero saber si salir"'
         style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit">
     </div>
 
+    <!-- Result -->
     <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;line-height:1.7;font-size:14px;white-space:pre-wrap"></div>
+
+    <!-- Save button -->
+    <div id="chartSaveWrap" style="display:none">
+      <button class="btn btn-a" onclick="saveChartAnalysis()" style="width:100%">GUARDAR ESTE ANÁLISIS EN EL HISTORIAL</button>
+    </div>
+
+    <!-- Historial -->
+    <div id="chartHistoryWrap" style="margin-top:8px">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:10px;letter-spacing:.08em">HISTORIAL DE ANÁLISIS</div>
+      <div id="chartHistoryList"></div>
+    </div>
 
   </div>
 </div>
@@ -1809,6 +1832,7 @@ function showPage(id) {
   if(id === 'briefing')  { renderBriefing(); renderUserWatchlist(); }
   if(id === 'portfolio') renderPortfolio();
   if(id === 'decisions') renderDecisions();
+  if(id === 'chartanalysis') renderChartHistory();
   if(id === 'screener')  initScreener();
   if(id === 'alerts') renderAlerts();
   if(id === 'chat') initChat();
@@ -2337,6 +2361,13 @@ function rebuildScreenerTag(ticker, index, tagsEl) {
 // ── CHART ANALYSIS ──
 let chartImageBase64 = null;
 let chartImageMime   = 'image/jpeg';
+let CHART_ANALYSES   = JSON.parse(localStorage.getItem('pip_chart_analyses') || '[]');
+
+function saveChartAnalysesToStorage() {
+  // Mantener máximo 50 análisis
+  if(CHART_ANALYSES.length > 50) CHART_ANALYSES = CHART_ANALYSES.slice(-50);
+  localStorage.setItem('pip_chart_analyses', JSON.stringify(CHART_ANALYSES));
+}
 
 function onChartImageSelected(event) {
   const file = event.target.files[0];
@@ -2350,28 +2381,13 @@ function onChartImageSelected(event) {
     document.getElementById('chartPreviewWrap').style.display = 'block';
     document.getElementById('chartContextWrap').style.display = 'block';
     document.getElementById('chartAnalysisResult').style.display = 'none';
+    document.getElementById('chartSaveWrap').style.display = 'none';
     document.getElementById('chartAnalysisResult').textContent = '';
   };
   reader.readAsDataURL(file);
 }
 
-async function runChartAnalysis() {
-  if(!chartImageBase64) return;
-  const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
-  if(!ANTHROPIC_KEY) { showToast('Cargá tu Anthropic API key en CONFIG'); return; }
-
-  const btn = document.getElementById('chartAnalyzeBtn');
-  btn.disabled = true;
-  btn.textContent = 'ANALIZANDO...';
-
-  const resEl = document.getElementById('chartAnalysisResult');
-  resEl.style.display = 'block';
-  resEl.textContent = 'Analizando el gráfico...';
-
-  const context = document.getElementById('chartContextInp').value.trim();
-  const contextLine = context ? `\nContexto adicional del usuario: ${context}` : '';
-
-  const systemPrompt = `Sos un portfolio manager y asesor de inversiones senior con más de 20 años de experiencia en análisis técnico. Tu análisis es riguroso, profesional y honesto — nunca predecís el precio con certeza, siempre trabajás con probabilidades y escenarios.
+const CHART_SYSTEM_PROMPT = `Sos un portfolio manager y asesor de inversiones senior con más de 20 años de experiencia en análisis técnico. Tu análisis es riguroso, profesional y honesto — nunca predecís el precio con certeza, siempre trabajás con probabilidades y escenarios.
 
 REGLA DE CURSOR: Si los valores de los indicadores en el panel superior del gráfico parecen no corresponder al precio actual (el mouse estaba dentro del gráfico al sacar la captura), aclaralo y basá el análisis en lectura visual.
 
@@ -2417,7 +2433,35 @@ Usá SIEMPRE esta estructura exacta de informe:
 **SÍNTESIS**
 [Lectura global · Zona de acumulación, espera o salida]`;
 
-  const userMsg = `Analizá este gráfico de velas con el protocolo completo de análisis técnico profesional.${contextLine}`;
+async function runChartAnalysis() {
+  if(!chartImageBase64) return;
+  const ticker = document.getElementById('chartTickerInp').value.trim().toUpperCase();
+  if(!ticker) { showToast('Ingresá el ticker antes de analizar'); return; }
+  const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
+  if(!ANTHROPIC_KEY) { showToast('Cargá tu Anthropic API key en CONFIG'); return; }
+
+  const btn = document.getElementById('chartAnalyzeBtn');
+  btn.disabled = true;
+  btn.textContent = 'ANALIZANDO...';
+
+  const resEl = document.getElementById('chartAnalysisResult');
+  resEl.style.display = 'block';
+  resEl.textContent = 'Analizando el gráfico...';
+  document.getElementById('chartSaveWrap').style.display = 'none';
+
+  const context = document.getElementById('chartContextInp').value.trim();
+  const contextLine = context ? `\nContexto adicional: ${context}` : '';
+
+  // Buscar análisis previos del mismo ticker
+  const prevAnalyses = CHART_ANALYSES.filter(a => a.ticker === ticker).slice(-3);
+  let followUpSection = '';
+  if(prevAnalyses.length > 0) {
+    followUpSection = `\n\nANÁLISIS ANTERIORES DE ${ticker} (del más antiguo al más reciente):\n` +
+      prevAnalyses.map(a => `--- ${a.date} ---\n${a.report}`).join('\n\n') +
+      `\n\nAdemás del análisis técnico completo del gráfico actual, agregá una sección:\n\n**SEGUIMIENTO**\nComparando el gráfico actual con los análisis anteriores: ¿se cumplieron los escenarios planteados? ¿El precio respetó los soportes y resistencias? ¿El stop hubiera sido tocado? ¿Qué señales anticipadas se confirmaron y cuáles no? Sé específico con números.`;
+  }
+
+  const userMsg = `Analizá este gráfico de ${ticker} con el protocolo completo de análisis técnico profesional.${contextLine}${followUpSection}`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2430,8 +2474,8 @@ Usá SIEMPRE esta estructura exacta de informe:
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
-        max_tokens: 3000,
-        system: systemPrompt,
+        max_tokens: 3500,
+        system: CHART_SYSTEM_PROMPT,
         messages: [{
           role: 'user',
           content: [
@@ -2444,6 +2488,7 @@ Usá SIEMPRE esta estructura exacta de informe:
     const json = await resp.json();
     if(json.content && json.content[0]) {
       resEl.textContent = json.content[0].text;
+      document.getElementById('chartSaveWrap').style.display = 'block';
     } else {
       resEl.textContent = 'Error al analizar el gráfico. Verificá tu API key.';
     }
@@ -2455,15 +2500,76 @@ Usá SIEMPRE esta estructura exacta de informe:
   btn.textContent = 'ANALIZAR GRÁFICO';
 }
 
+function saveChartAnalysis() {
+  const ticker = document.getElementById('chartTickerInp').value.trim().toUpperCase();
+  const report = document.getElementById('chartAnalysisResult').textContent;
+  if(!ticker || !report) return;
+
+  const today = new Date().toISOString().slice(0,10);
+  CHART_ANALYSES.push({ id: Date.now(), ticker, date: today, report });
+  saveChartAnalysesToStorage();
+  document.getElementById('chartSaveWrap').style.display = 'none';
+  showToast('Análisis guardado en el historial ✓');
+  renderChartHistory();
+}
+
 function clearChartAnalysis() {
   chartImageBase64 = null;
   document.getElementById('chartImgInput').value = '';
   document.getElementById('chartPreviewWrap').style.display = 'none';
   document.getElementById('chartContextWrap').style.display = 'none';
   document.getElementById('chartAnalysisResult').style.display = 'none';
+  document.getElementById('chartSaveWrap').style.display = 'none';
   document.getElementById('chartAnalysisResult').textContent = '';
   document.getElementById('chartContextInp').value = '';
 }
+
+function deleteChartAnalysis(id) {
+  CHART_ANALYSES = CHART_ANALYSES.filter(a => a.id !== id);
+  saveChartAnalysesToStorage();
+  renderChartHistory();
+}
+
+function toggleChartReport(id) {
+  const el = document.getElementById('chartReport-' + id);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderChartHistory() {
+  const el = document.getElementById('chartHistoryList');
+  if(!el) return;
+  if(CHART_ANALYSES.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:20px 0">No hay análisis guardados todavía</div>';
+    return;
+  }
+
+  // Agrupar por ticker
+  const grouped = {};
+  CHART_ANALYSES.forEach(a => {
+    if(!grouped[a.ticker]) grouped[a.ticker] = [];
+    grouped[a.ticker].push(a);
+  });
+
+  el.innerHTML = Object.entries(grouped).map(([ticker, analyses]) => {
+    const rows = analyses.slice().reverse().map(a => `
+      <div style="border-left:2px solid var(--border);margin-left:8px;padding:8px 0 8px 12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">${a.date}</span>
+          <button onclick="toggleChartReport(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text2);cursor:pointer">VER INFORME</button>
+          <button onclick="deleteChartAnalysis(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--red);border-radius:4px;padding:2px 8px;color:var(--red);cursor:pointer">✕</button>
+        </div>
+        <div id="chartReport-${a.id}" style="display:none;margin-top:10px;font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--bg3);border-radius:6px;padding:12px;border:1px solid var(--border)">${a.report}</div>
+      </div>`).join('');
+
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px">${ticker} <span style="color:var(--text3);font-weight:400;font-size:10px">${analyses.length} análisis</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+// Inicializar historial al cargar
+setTimeout(renderChartHistory, 0);
 
 function initScreener() {
   const tagsEl = document.getElementById('scrTags');
