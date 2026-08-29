@@ -556,6 +556,7 @@ canvas{max-width:100%}
   </div>
   <button class="nav-tab active" onclick="showPage('briefing')">☀ BRIEFING</button>
   <button class="nav-tab" onclick="showPage('analyzer')">ANALIZAR</button>
+  <button class="nav-tab" onclick="showPage('chartanalysis')">GRÁFICO</button>
   <button class="nav-tab" onclick="showPage('screener')">SCREENER</button>
   <button class="nav-tab" onclick="showPage('chat')">💬 CHAT</button>
   <button class="nav-tab" onclick="showPage('config')">CONFIG</button>
@@ -745,7 +746,47 @@ canvas{max-width:100%}
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     PAGE 4: SCREENER
+     PAGE 4: ANÁLISIS DE GRÁFICO
+══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-chartanalysis">
+  <div class="sec-hdr">
+    <div>
+      <div class="sec-title">// ANÁLISIS DE GRÁFICO</div>
+      <div class="sec-sub">Subí una captura de TradingView · cursor fuera del gráfico para valores precisos</div>
+    </div>
+  </div>
+
+  <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+    <div id="chartDropZone" onclick="document.getElementById('chartImgInput').click()"
+      style="border:2px dashed var(--border);border-radius:8px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--bg2)">
+      <div style="font-size:32px;margin-bottom:8px">📈</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">SUBIR CAPTURA DEL GRÁFICO</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">Click para seleccionar · JPG o PNG</div>
+    </div>
+    <input type="file" id="chartImgInput" accept="image/*" style="display:none" onchange="onChartImageSelected(event)">
+
+    <div id="chartPreviewWrap" style="display:none">
+      <img id="chartPreviewImg" style="width:100%;border-radius:6px;border:1px solid var(--border)">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-a" onclick="runChartAnalysis()" id="chartAnalyzeBtn" style="flex:1">ANALIZAR GRÁFICO</button>
+        <button class="btn" onclick="clearChartAnalysis()" style="padding:8px 16px">✕ LIMPIAR</button>
+      </div>
+    </div>
+
+    <div id="chartContextWrap" style="display:none">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:6px">CONTEXTO OPCIONAL</div>
+      <input id="chartContextInp" type="text" placeholder='Ej: "estoy pensando en entrar" · "tengo esta acción en cartera" · "quiero saber si salir"'
+        style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit">
+    </div>
+
+    <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;line-height:1.7;font-size:14px;white-space:pre-wrap"></div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 5: SCREENER
 ══════════════════════════════════════════════════════════ -->
 <div class="page" id="page-screener">
   <div class="sec-hdr">
@@ -1763,7 +1804,7 @@ function showPage(id) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   const tabs = document.querySelectorAll('.nav-tab');
-  const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, screener:4, alerts:5, chat:6, config:7};
+  const map = {briefing:0, portfolio:1, decisions:2, analyzer:3, chartanalysis:4, screener:5, alerts:6, chat:7, config:8};
   if(map[id] !== undefined) tabs[map[id]].classList.add('active');
   if(id === 'briefing')  { renderBriefing(); renderUserWatchlist(); }
   if(id === 'portfolio') renderPortfolio();
@@ -2291,6 +2332,137 @@ function rebuildScreenerTag(ticker, index, tagsEl) {
   wrap.appendChild(btn);
   wrap.appendChild(editBtn);
   return wrap;
+}
+
+// ── CHART ANALYSIS ──
+let chartImageBase64 = null;
+let chartImageMime   = 'image/jpeg';
+
+function onChartImageSelected(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  chartImageMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    chartImageBase64 = dataUrl.split(',')[1];
+    document.getElementById('chartPreviewImg').src = dataUrl;
+    document.getElementById('chartPreviewWrap').style.display = 'block';
+    document.getElementById('chartContextWrap').style.display = 'block';
+    document.getElementById('chartAnalysisResult').style.display = 'none';
+    document.getElementById('chartAnalysisResult').textContent = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runChartAnalysis() {
+  if(!chartImageBase64) return;
+  const ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
+  if(!ANTHROPIC_KEY) { showToast('Cargá tu Anthropic API key en CONFIG'); return; }
+
+  const btn = document.getElementById('chartAnalyzeBtn');
+  btn.disabled = true;
+  btn.textContent = 'ANALIZANDO...';
+
+  const resEl = document.getElementById('chartAnalysisResult');
+  resEl.style.display = 'block';
+  resEl.textContent = 'Analizando el gráfico...';
+
+  const context = document.getElementById('chartContextInp').value.trim();
+  const contextLine = context ? `\nContexto adicional del usuario: ${context}` : '';
+
+  const systemPrompt = `Sos un portfolio manager y asesor de inversiones senior con más de 20 años de experiencia en análisis técnico. Tu análisis es riguroso, profesional y honesto — nunca predecís el precio con certeza, siempre trabajás con probabilidades y escenarios.
+
+REGLA DE CURSOR: Si los valores de los indicadores en el panel superior del gráfico parecen no corresponder al precio actual (el mouse estaba dentro del gráfico al sacar la captura), aclaralo y basá el análisis en lectura visual.
+
+Usá SIEMPRE esta estructura exacta de informe:
+
+**[TICKER] — [MERCADO] | [TIMEFRAME] | Cierre $[PRECIO]**
+
+---
+
+**VERIFICACIÓN DE CURSOR**
+[¿Los valores del panel coinciden con el precio actual? ¿Son confiables?]
+
+**VALORES ACTUALES**
+[Tabla con BB upper/middle/lower, EMA 21, EMA 50, SMA 200, Stoch RSI K/D, MACD/Señal, ATR, Volumen]
+
+**TENDENCIA**
+[Largo plazo vs SMA 200 · Mediano plazo: corrección o continuación]
+
+**PATRONES DE VELAS**
+[Última vela · Patrones relevantes últimas 20-30 velas · Todos los tipos: individuales, 2 velas, 3 velas, complejos]
+
+**ESTADO ACTUAL**
+[Posición precio vs EMAs y BB · Lecturas clave]
+
+**MOMENTUM Y DIVERGENCIAS**
+[Stoch RSI: zona y cruce K/D · MACD: posición y histograma · Divergencias precio vs indicadores]
+
+**VOLUMEN**
+[Respaldo de movimientos · Presencia institucional]
+
+**ZONAS CLAVE**
+[Tabla con soportes y resistencias con referencia técnica]
+
+**ESCENARIO ALCISTA**
+[Condición de confirmación · Objetivos · Ratio riesgo/beneficio]
+
+**ESCENARIO BAJISTA**
+[Condición de confirmación · Soportes siguientes · Invalidación]
+
+**GESTIÓN DE RIESGO**
+[Stop basado en ATR · Nivel exacto · Dimensionamiento]
+
+**SÍNTESIS**
+[Lectura global · Zona de acumulación, espera o salida]`;
+
+  const userMsg = `Analizá este gráfico de velas con el protocolo completo de análisis técnico profesional.${contextLine}`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 3000,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: chartImageMime, data: chartImageBase64 } },
+            { type: 'text', text: userMsg }
+          ]
+        }]
+      })
+    });
+    const json = await resp.json();
+    if(json.content && json.content[0]) {
+      resEl.textContent = json.content[0].text;
+    } else {
+      resEl.textContent = 'Error al analizar el gráfico. Verificá tu API key.';
+    }
+  } catch(e) {
+    resEl.textContent = 'Error de conexión: ' + e.message;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'ANALIZAR GRÁFICO';
+}
+
+function clearChartAnalysis() {
+  chartImageBase64 = null;
+  document.getElementById('chartImgInput').value = '';
+  document.getElementById('chartPreviewWrap').style.display = 'none';
+  document.getElementById('chartContextWrap').style.display = 'none';
+  document.getElementById('chartAnalysisResult').style.display = 'none';
+  document.getElementById('chartAnalysisResult').textContent = '';
+  document.getElementById('chartContextInp').value = '';
 }
 
 function initScreener() {
