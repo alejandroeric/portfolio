@@ -42,6 +42,10 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 .alert-bell{position:relative;cursor:pointer;font-size:14px;color:var(--text2);padding:4px}
 .alert-dot{position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--red);border-radius:50%;border:1px solid var(--bg)}
 
+/* ── ALERT BANNER ── */
+#alertBanner{display:none!important}
+#alertBanner.visible{display:flex!important}
+
 /* ── PAGES ── */
 .page{display:none;padding:14px;max-width:1000px;margin:0 auto}
 .page.active{display:block}
@@ -565,6 +569,13 @@ canvas{max-width:100%}
     <span id="modeBadge" class="mode-badge mode-demo">DEMO</span>
   </div>
 </nav>
+
+<!-- BANNER DE ALERTAS -->
+<div id="alertBanner" style="display:none;background:rgba(210,153,34,.10);border-bottom:1px solid rgba(210,153,34,.25);padding:7px 14px;font-family:var(--mono);font-size:10px;color:var(--yellow);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <span style="font-weight:700;letter-spacing:.06em;white-space:nowrap">⚠ REVISIÓN PENDIENTE</span>
+  <span id="alertBannerText" style="flex:1;color:var(--text2)"></span>
+  <button onclick="document.getElementById('alertBanner').classList.remove('visible')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 4px;line-height:1" title="Cerrar">✕</button>
+</div>
 
 <!-- MACRO STRIP (visible everywhere) -->
 <div style="padding:8px 14px 0;max-width:1000px;margin:0 auto">
@@ -2661,6 +2672,37 @@ function formatInline(text) {
 
 // Inicializar historial al cargar
 setTimeout(renderChartHistory, 0);
+setTimeout(checkPendingReviews, 0);
+
+function checkPendingReviews() {
+  const banner = document.getElementById('alertBanner');
+  const textEl = document.getElementById('alertBannerText');
+  if(!banner || !textEl) return;
+
+  const today = new Date().toISOString().slice(0,10);
+  const msPerDay = 86400000;
+  const alerts = [];
+
+  // 1. Análisis de gráfico con más de 3 días sin revisar (el más reciente por ticker)
+  const byTicker = {};
+  CHART_ANALYSES.forEach(a => {
+    if(!byTicker[a.ticker] || a.date > byTicker[a.ticker]) byTicker[a.ticker] = a.date;
+  });
+  Object.entries(byTicker).forEach(([ticker, date]) => {
+    const days = Math.round((new Date(today) - new Date(date)) / msPerDay);
+    if(days >= 3) alerts.push(`${ticker} (gráfico hace ${days}d)`);
+  });
+
+  // 2. Watchlist sin precio actualizado en más de 2 días
+  USER_WATCHLIST.filter(w => w.active && w.lastUpdated).forEach(w => {
+    const days = Math.round((new Date(today) - new Date(w.lastUpdated)) / msPerDay);
+    if(days >= 2) alerts.push(`${w.ticker} (precio hace ${days}d)`);
+  });
+
+  if(alerts.length === 0) return;
+  textEl.textContent = alerts.join('  ·  ');
+  banner.classList.add('visible');
+}
 
 function initScreener() {
   const tagsEl = document.getElementById('scrTags');
