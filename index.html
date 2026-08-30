@@ -2615,9 +2615,9 @@ function renderChartHistory() {
           <button onclick="deleteChartAnalysis(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--red);border-radius:4px;padding:2px 8px;color:var(--red);cursor:pointer">✕</button>
         </div>
         <div id="chartReport-${a.id}" style="display:none;margin-top:10px;background:var(--bg3);border-radius:6px;padding:12px;border:1px solid var(--border)">
-          <div style="display:flex;gap:20px;align-items:flex-start">
-            <div style="flex:1;min-width:0">${renderChartReport(a.report)}</div>
-            ${a.thumbnail ? `<div style="flex-shrink:0;width:400px;position:sticky;top:100px;align-self:flex-start"><img src="${a.thumbnail}" style="width:100%;border-radius:6px;border:1px solid var(--border)"></div>` : ''}
+          <div style="${a.thumbnail ? 'display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start' : ''}">
+            <div style="min-width:0;overflow:hidden">${renderChartReport(a.report)}</div>
+            ${a.thumbnail ? `<div style="position:sticky;top:100px;align-self:flex-start"><img src="${a.thumbnail}" style="width:100%;border-radius:6px;border:1px solid var(--border)"></div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border2)">
             <button onclick="toggleChartReport(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text2);cursor:pointer">▲ CERRAR INFORME</button>
