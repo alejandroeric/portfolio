@@ -42,6 +42,10 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 .alert-bell{position:relative;cursor:pointer;font-size:14px;color:var(--text2);padding:4px}
 .alert-dot{position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--red);border-radius:50%;border:1px solid var(--bg)}
 
+/* ── CHART SPLIT ── */
+#chartSplitWrap{display:none}
+#chartSplitWrap.visible{display:grid!important;grid-template-columns:380px 1fr}
+
 /* ── ALERT BANNER ── */
 #alertBanner{display:none!important}
 #alertBanner.visible{display:flex!important}
@@ -787,7 +791,14 @@ canvas{max-width:100%}
     </div>
     <input type="file" id="chartImgInput" accept="image/*" style="display:none" onchange="onChartImageSelected(event)">
 
-    <!-- Preview -->
+    <!-- Context -->
+    <div id="chartContextWrap" style="display:none">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:6px">CONTEXTO OPCIONAL</div>
+      <input id="chartContextInp" type="text" placeholder='Ej: "estoy pensando en entrar" · "tengo esta acción en cartera" · "quiero saber si salir"'
+        style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit">
+    </div>
+
+    <!-- Preview + Botones (se mueve al panel derecho una vez analizado) -->
     <div id="chartPreviewWrap" style="display:none">
       <img id="chartPreviewImg" style="width:100%;border-radius:6px;border:1px solid var(--border)">
       <div style="display:flex;gap:8px;margin-top:8px">
@@ -796,15 +807,13 @@ canvas{max-width:100%}
       </div>
     </div>
 
-    <!-- Context -->
-    <div id="chartContextWrap" style="display:none">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:6px">CONTEXTO OPCIONAL</div>
-      <input id="chartContextInp" type="text" placeholder='Ej: "estoy pensando en entrar" · "tengo esta acción en cartera" · "quiero saber si salir"'
-        style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit">
+    <!-- Layout split: informe izquierda, gráfico derecha -->
+    <div id="chartSplitWrap" style="display:none;gap:16px">
+      <div id="chartAnalysisResult" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;line-height:1.7;font-size:14px;min-width:0;overflow:hidden"></div>
+      <div id="chartStickyImg" style="position:sticky;top:100px;align-self:flex-start">
+        <img id="chartSplitImg" style="width:100%;border-radius:6px;border:1px solid var(--border)">
+      </div>
     </div>
-
-    <!-- Result -->
-    <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 12px;line-height:1.7;font-size:14px"></div>
 
     <!-- Save button -->
     <div id="chartSaveWrap" style="display:none">
@@ -2392,9 +2401,9 @@ function onChartImageSelected(event) {
     document.getElementById('chartPreviewImg').src = dataUrl;
     document.getElementById('chartPreviewWrap').style.display = 'block';
     document.getElementById('chartContextWrap').style.display = 'block';
-    document.getElementById('chartAnalysisResult').style.display = 'none';
+    document.getElementById('chartSplitWrap').classList.remove('visible');
     document.getElementById('chartSaveWrap').style.display = 'none';
-    document.getElementById('chartAnalysisResult').textContent = '';
+    document.getElementById('chartAnalysisResult').innerHTML = '';
   };
   reader.readAsDataURL(file);
 }
@@ -2503,15 +2512,12 @@ async function runChartAnalysis() {
     const json = await resp.json();
     if(json.content && json.content[0]) {
       const rawText = json.content[0].text;
-      const previewSrc = document.getElementById('chartPreviewImg').src;
-      resEl.innerHTML = `
-        <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start">
-          <div>${renderChartReport(rawText)}</div>
-          <div style="position:sticky;top:100px">
-            <img src="${previewSrc}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
-          </div>
-        </div>`;
+      resEl.innerHTML = renderChartReport(rawText);
       resEl._rawText = rawText;
+      // Mostrar imagen en el panel derecho del split
+      document.getElementById('chartSplitImg').src = document.getElementById('chartPreviewImg').src;
+      document.getElementById('chartPreviewWrap').style.display = 'none';
+      document.getElementById('chartSplitWrap').classList.add('visible');
       document.getElementById('chartSaveWrap').style.display = 'block';
     } else {
       resEl.innerHTML = '<div style="color:var(--red);font-family:var(--mono);font-size:11px">Error al analizar el gráfico. Verificá tu API key.</div>';
@@ -2564,9 +2570,10 @@ function clearChartAnalysis() {
   document.getElementById('chartImgInput').value = '';
   document.getElementById('chartPreviewWrap').style.display = 'none';
   document.getElementById('chartContextWrap').style.display = 'none';
-  document.getElementById('chartAnalysisResult').style.display = 'none';
+  document.getElementById('chartSplitWrap').classList.remove('visible');
   document.getElementById('chartSaveWrap').style.display = 'none';
-  document.getElementById('chartAnalysisResult').textContent = '';
+  document.getElementById('chartAnalysisResult').innerHTML = '';
+  document.getElementById('chartAnalysisResult')._rawText = '';
   document.getElementById('chartContextInp').value = '';
 }
 
