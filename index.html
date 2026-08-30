@@ -2506,8 +2506,8 @@ async function runChartAnalysis() {
       const previewSrc = document.getElementById('chartPreviewImg').src;
       resEl.innerHTML = `
         <div style="display:flex;gap:12px;align-items:flex-start">
-          <div style="flex:1;min-width:0">${renderChartReport(rawText)}</div>
-          <div style="flex-shrink:0;width:520px;position:sticky;top:100px;align-self:flex-start">
+          <div style="flex:0 0 420px;min-width:0">${renderChartReport(rawText)}</div>
+          <div style="flex:1;position:sticky;top:100px;align-self:flex-start">
             <img src="${previewSrc}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
           </div>
         </div>`;
