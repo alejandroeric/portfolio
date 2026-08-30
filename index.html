@@ -803,7 +803,7 @@ canvas{max-width:100%}
     </div>
 
     <!-- Result -->
-    <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;line-height:1.7;font-size:14px"></div>
+    <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 12px;line-height:1.7;font-size:14px"></div>
 
     <!-- Save button -->
     <div id="chartSaveWrap" style="display:none">
@@ -2504,9 +2504,9 @@ async function runChartAnalysis() {
       const rawText = json.content[0].text;
       const previewSrc = document.getElementById('chartPreviewImg').src;
       resEl.innerHTML = `
-        <div style="display:flex;gap:20px;align-items:flex-start">
+        <div style="display:flex;gap:12px;align-items:flex-start">
           <div style="flex:1;min-width:0">${renderChartReport(rawText)}</div>
-          <div style="flex-shrink:0;width:440px;position:sticky;top:100px;align-self:flex-start">
+          <div style="flex-shrink:0;width:520px;position:sticky;top:100px;align-self:flex-start">
             <img src="${previewSrc}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
           </div>
         </div>`;
