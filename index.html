@@ -2578,7 +2578,13 @@ function renderChartHistory() {
           <button onclick="toggleChartReport(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text2);cursor:pointer">VER INFORME</button>
           <button onclick="deleteChartAnalysis(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--red);border-radius:4px;padding:2px 8px;color:var(--red);cursor:pointer">✕</button>
         </div>
-        <div id="chartReport-${a.id}" style="display:none;margin-top:10px;font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--bg3);border-radius:6px;padding:12px;border:1px solid var(--border)">${a.report}</div>
+        <div id="chartReport-${a.id}" style="display:none;margin-top:10px;background:var(--bg3);border-radius:6px;padding:12px;border:1px solid var(--border)">
+          ${renderChartReport(a.report)}
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border2)">
+            <button onclick="toggleChartReport(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text2);cursor:pointer">▲ CERRAR INFORME</button>
+            <button onclick="deleteChartAnalysis(${a.id})" style="font-family:var(--mono);font-size:9px;background:transparent;border:1px solid var(--red);border-radius:4px;padding:2px 8px;color:var(--red);cursor:pointer">✕ ELIMINAR</button>
+          </div>
+        </div>
       </div>`).join('');
 
     return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
