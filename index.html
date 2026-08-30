@@ -2542,6 +2542,9 @@ function clearChartAnalysis() {
 }
 
 function deleteChartAnalysis(id) {
+  const entry = CHART_ANALYSES.find(a => a.id === id);
+  const label = entry ? `${entry.ticker} — ${entry.date}` : 'este análisis';
+  if(!confirm(`¿Eliminar el análisis de ${label}?\nEsta acción no se puede deshacer.`)) return;
   CHART_ANALYSES = CHART_ANALYSES.filter(a => a.id !== id);
   saveChartAnalysesToStorage();
   renderChartHistory();
