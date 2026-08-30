@@ -2554,7 +2554,7 @@ async function saveChartAnalysis() {
   let thumbnail = null;
   const previewImg = document.getElementById('chartPreviewImg');
   if(previewImg && previewImg.src && previewImg.src.startsWith('data:')) {
-    thumbnail = await compressChartImage(previewImg.src, 600, 0.7);
+    thumbnail = await compressChartImage(previewImg.src, 1200, 0.85);
   }
 
   const today = new Date().toISOString().slice(0,10);
