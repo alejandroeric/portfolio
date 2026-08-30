@@ -792,7 +792,7 @@ canvas{max-width:100%}
     </div>
 
     <!-- Result -->
-    <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;line-height:1.7;font-size:14px;white-space:pre-wrap"></div>
+    <div id="chartAnalysisResult" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;line-height:1.7;font-size:14px"></div>
 
     <!-- Save button -->
     <div id="chartSaveWrap" style="display:none">
@@ -2427,6 +2427,9 @@ Usá SIEMPRE esta estructura exacta de informe:
 **ESCENARIO BAJISTA**
 [Condición de confirmación · Soportes siguientes · Invalidación]
 
+**FIBONACCI** (solo si hay niveles visibles en el gráfico)
+[Identificar retrocesos clave: 23.6%, 38.2%, 50%, 61.8% · ¿El precio está respetando algún nivel? · ¿Coincide con otras referencias técnicas?]
+
 **GESTIÓN DE RIESGO**
 [Stop basado en ATR · Nivel exacto · Dimensionamiento]
 
@@ -2487,10 +2490,12 @@ async function runChartAnalysis() {
     });
     const json = await resp.json();
     if(json.content && json.content[0]) {
-      resEl.textContent = json.content[0].text;
+      const rawText = json.content[0].text;
+      resEl.innerHTML = renderChartReport(rawText);
+      resEl._rawText = rawText; // guardamos el texto plano para poder guardarlo en historial
       document.getElementById('chartSaveWrap').style.display = 'block';
     } else {
-      resEl.textContent = 'Error al analizar el gráfico. Verificá tu API key.';
+      resEl.innerHTML = '<div style="color:var(--red);font-family:var(--mono);font-size:11px">Error al analizar el gráfico. Verificá tu API key.</div>';
     }
   } catch(e) {
     resEl.textContent = 'Error de conexión: ' + e.message;
@@ -2502,7 +2507,8 @@ async function runChartAnalysis() {
 
 function saveChartAnalysis() {
   const ticker = document.getElementById('chartTickerInp').value.trim().toUpperCase();
-  const report = document.getElementById('chartAnalysisResult').textContent;
+  const resEl = document.getElementById('chartAnalysisResult');
+  const report = resEl._rawText || resEl.textContent;
   if(!ticker || !report) return;
 
   const today = new Date().toISOString().slice(0,10);
@@ -2566,6 +2572,91 @@ function renderChartHistory() {
       ${rows}
     </div>`;
   }).join('');
+}
+
+function renderChartReport(text) {
+  // Títulos de sección conocidos
+  const SECTIONS = ['VERIFICACIÓN DE CURSOR','VALORES ACTUALES','TENDENCIA','PATRONES DE VELAS',
+    'ESTADO ACTUAL','MOMENTUM Y DIVERGENCIAS','VOLUMEN','ZONAS CLAVE','ESCENARIO ALCISTA',
+    'ESCENARIO BAJISTA','GESTIÓN DE RIESGO','SÍNTESIS','SEGUIMIENTO','FIBONACCI'];
+
+  // Separar el título principal (primera línea con **)
+  let lines = text.split('\n');
+  let html = '';
+  let i = 0;
+
+  // Título principal
+  if(lines[0] && lines[0].startsWith('**')) {
+    const title = lines[0].replace(/\*\*/g,'').trim();
+    html += `<div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.08em;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">${title}</div>`;
+    i = 1;
+  }
+
+  let currentSection = '';
+  let sectionLines = [];
+
+  const flushSection = () => {
+    if(!currentSection && !sectionLines.length) return;
+    const isAlcista = currentSection.includes('ALCISTA');
+    const isBajista = currentSection.includes('BAJISTA');
+    const isSintesis = currentSection === 'SÍNTESIS';
+    const isSegui = currentSection === 'SEGUIMIENTO';
+    const accentColor = isAlcista ? 'var(--green)' : isBajista ? 'var(--red)' : isSegui ? 'var(--yellow)' : 'var(--accent)';
+    const borderColor = isAlcista ? 'rgba(0,255,100,.15)' : isBajista ? 'rgba(255,60,60,.15)' : isSegui ? 'rgba(255,200,0,.15)' : 'transparent';
+
+    let content = sectionLines.join('\n').trim();
+
+    // Detectar tabla markdown (líneas con |)
+    const tableLines = content.split('\n').filter(l => l.includes('|'));
+    if(tableLines.length >= 2) {
+      const nonTableLines = content.split('\n').filter(l => !l.includes('|') && l.trim());
+      const rows = tableLines.filter(l => !/^[\s|:-]+$/.test(l));
+      const tableHtml = `<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;margin:8px 0">` +
+        rows.map((r, ri) => {
+          const cells = r.split('|').filter(c => c.trim());
+          const tag = ri === 0 ? 'th' : 'td';
+          return `<tr style="border-bottom:1px solid var(--border2)">${cells.map(c =>
+            `<${tag} style="padding:5px 10px 5px 0;text-align:left;${tag==='th'?'color:var(--muted);font-weight:400;font-size:9px;letter-spacing:.08em':'color:var(--text)'}">${formatInline(c.trim())}</${tag}>`
+          ).join('')}</tr>`;
+        }).join('') + '</table>';
+      content = (nonTableLines.length ? '<p style="margin:0 0 6px">' + nonTableLines.map(formatInline).join('<br>') + '</p>' : '') + tableHtml;
+    } else {
+      content = content.split('\n').map(l => {
+        if(!l.trim()) return '';
+        return '<p style="margin:0 0 5px">' + formatInline(l) + '</p>';
+      }).join('');
+    }
+
+    html += `<div style="margin-bottom:18px;padding:12px 14px;border-radius:8px;background:${isSintesis||isSegui ? 'var(--bg3)' : 'transparent'};border:1px solid ${borderColor||'transparent'}">`;
+    if(currentSection) html += `<div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:${accentColor};margin-bottom:8px;font-weight:700">// ${currentSection}</div>`;
+    html += content + '</div>';
+    sectionLines = [];
+  };
+
+  for(; i < lines.length; i++) {
+    const line = lines[i];
+    const clean = line.replace(/\*\*/g,'').trim();
+    const isSectionHeader = SECTIONS.some(s => clean === s || clean === '---') && line.includes('**');
+    const isDivider = line.trim() === '---';
+
+    if(isDivider) { flushSection(); currentSection = ''; continue; }
+    if(isSectionHeader) {
+      flushSection();
+      currentSection = clean;
+      continue;
+    }
+    sectionLines.push(line);
+  }
+  flushSection();
+  return html;
+}
+
+function formatInline(text) {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
+    .replace(/\$[\d,]+\.?\d*/g, m => `<span style="font-family:var(--mono);color:var(--accent)">${m}</span>`)
+    .replace(/\b(alcista|alcistas|ALCISTA|sube|subió|recupera)\b/gi, w => `<span style="color:var(--green)">${w}</span>`)
+    .replace(/\b(bajista|bajistas|BAJISTA|cae|cayó|corrección)\b/gi, w => `<span style="color:var(--red)">${w}</span>`);
 }
 
 // Inicializar historial al cargar
@@ -5692,7 +5783,7 @@ function renderUserWatchlist() {
             <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">Obj: $${item.entryTarget.toFixed(2)}</div>
           </div>
           <div class="uw-actions" style="margin-left:auto">
-            ${item.history.length > 1 ? `<button class="uw-btn" onclick="toggleUWHistory('${item.ticker}')">▼ historial</button>` : ''}
+            ${item.history.length > 0 ? `<button class="uw-btn" onclick="toggleUWHistory('${item.ticker}')">▼ historial</button>` : ''}
             <button class="uw-btn${item.active ? '' : ' paused'}" onclick="toggleUserWatchlistActive('${item.ticker}')">${item.active ? '⏸ Pausar' : '▶ Activar'}</button>
             <button class="uw-btn danger" onclick="removeFromUserWatchlist('${item.ticker}')">✕</button>
           </div>
