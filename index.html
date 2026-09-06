@@ -1402,6 +1402,8 @@ function normMetrics(m) {
     revenuePerShareTTM:         m.revenuePerShareTTM || m.revenuePerShareAnnual || null,
     marketCapitalizationTTM:    m.marketCapitalizationTTM || m.marketCapitalization || null,
     revenueGrowthTTMYoy:        m.revenueGrowthTTMYoy || m.revenueGrowthQuarterlyYoy || null,
+    forwardPE:                  m.forwardPE || m.priceToEarningsRatioForward || null,
+    pegRatio:                   m.pegRatioTTM || m.pegRatio || null,
   };
 }
 
@@ -4068,6 +4070,20 @@ function renderFundamentals(data, ticker) {
   else if(pe>=15&&pe<25){peColor='var(--yellow)';peNote='Justo';}
   else if(pe>=25){peColor='var(--red)';peNote='Caro';}
 
+  // Forward PE evaluation
+  const fpe = r.forwardPE;
+  let fpeColor='var(--text)', fpeNote='';
+  if(fpe>0&&fpe<15){fpeColor='var(--green)';fpeNote='Barato';}
+  else if(fpe>=15&&fpe<25){fpeColor='var(--yellow)';fpeNote='Justo';}
+  else if(fpe>=25){fpeColor='var(--red)';fpeNote='Caro';}
+
+  // PEG evaluation
+  const peg = r.pegRatio;
+  let pegColor='var(--text)', pegNote='';
+  if(peg>0&&peg<1){pegColor='var(--green)';pegNote='Subvaluado vs crecimiento';}
+  else if(peg>=1&&peg<2){pegColor='var(--yellow)';pegNote='Valuación razonable';}
+  else if(peg>=2){pegColor='var(--red)';pegNote='Caro vs crecimiento';}
+
   // Debt evaluation
   const dte = r.debtEquityRatioTTM;
   let dteColor='var(--text)', dteNote='';
@@ -4094,7 +4110,9 @@ function renderFundamentals(data, ticker) {
   const shortFloat = p.beta > 1.5 ? 'Alto riesgo' : 'Normal';
 
   const cards = [
-    { k:'P/E Ratio (TTM)',   v: fmt2(pe),                     sub: peNote,     col: peColor },
+    { k:'P/E Ratio (TTM)',   v: fmt2(pe),                     sub: peNote,                    col: peColor },
+    { k:'P/E Forward',       v: fmt2(fpe),                    sub: fpeNote||'Estimado próx. año', col: fpeColor },
+    { k:'PEG Ratio',         v: fmt2(peg),                    sub: pegNote||'P/E ÷ crecimiento', col: pegColor },
     { k:'P/B Ratio',         v: fmt2(r.priceToBookRatioTTM),  sub: 'Precio/Valor libro', col:'var(--text)' },
     { k:'Margen Neto',       v: fmtPct(r.netProfitMarginTTM), sub: 'Rentabilidad', col: r.netProfitMarginTTM>0.15?'var(--green)':r.netProfitMarginTTM>0?'var(--yellow)':'var(--red)' },
     { k:'ROE',               v: fmtPct(r.returnOnEquityTTM),  sub: '>15% = excelente', col: r.returnOnEquityTTM>0.15?'var(--green)':'var(--yellow)' },
