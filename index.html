@@ -1502,6 +1502,18 @@ async function fetchFundamentals(ticker) {
     } catch(e) { console.warn('[PIP] Finnhub metric error', ticker, e); }
   }
 
+  // AV OVERVIEW — solo para Forward PE y PEG cuando FMP/Finnhub no los tienen
+  if(API_KEY && ratios && (ratios.forwardPE == null || ratios.pegRatio == null)) {
+    try {
+      const r = await avFetch(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${encodeURIComponent(ticker)}&apikey=${API_KEY}`);
+      const j = await r.json();
+      if(j && j.Symbol) {
+        if(ratios.forwardPE == null && j.ForwardPE && j.ForwardPE !== 'None') ratios.forwardPE = parseFloat(j.ForwardPE) || null;
+        if(ratios.pegRatio  == null && j.PEGRatio  && j.PEGRatio  !== 'None') ratios.pegRatio  = parseFloat(j.PEGRatio)  || null;
+      }
+    } catch(e) { console.warn('[PIP] AV OVERVIEW error', ticker, e); }
+  }
+
   console.log('[PIP] fetchFundamentals', ticker, { source, profile: !!profile, ratios });
   return { profile, ratios, income: [], insider: [] };
 }
