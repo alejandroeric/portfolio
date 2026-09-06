@@ -4110,9 +4110,9 @@ function renderFundamentals(data, ticker) {
   const shortFloat = p.beta > 1.5 ? 'Alto riesgo' : 'Normal';
 
   const cards = [
-    { k:'P/E Ratio (TTM)',   v: fmt2(pe),                     sub: peNote,                    col: peColor },
-    { k:'P/E Forward',       v: fmt2(fpe),                    sub: fpeNote||'Estimado próx. año', col: fpeColor },
-    { k:'PEG Ratio',         v: fmt2(peg),                    sub: pegNote||'P/E ÷ crecimiento', col: pegColor },
+    { k:'P/E Ratio (TTM)',   v: fmt2(pe),   sub: peNote,  desc: 'Precio / ganancia últimos 12m',       col: peColor },
+    { k:'P/E Forward',       v: fmt2(fpe),  sub: fpeNote, desc: 'Precio / ganancia estimada próx. año', col: fpeColor },
+    { k:'PEG Ratio',         v: fmt2(peg),  sub: pegNote, desc: 'P/E dividido por crecimiento EPS',     col: pegColor },
     { k:'P/B Ratio',         v: fmt2(r.priceToBookRatioTTM),  sub: 'Precio/Valor libro', col:'var(--text)' },
     { k:'Margen Neto',       v: fmtPct(r.netProfitMarginTTM), sub: 'Rentabilidad', col: r.netProfitMarginTTM>0.15?'var(--green)':r.netProfitMarginTTM>0?'var(--yellow)':'var(--red)' },
     { k:'ROE',               v: fmtPct(r.returnOnEquityTTM),  sub: '>15% = excelente', col: r.returnOnEquityTTM>0.15?'var(--green)':'var(--yellow)' },
@@ -4139,7 +4139,8 @@ function renderFundamentals(data, ticker) {
     <div class="fcard" data-tip="${c.k.toUpperCase()}">
       <div class="fk">${c.k}</div>
       <div class="fv" style="color:${c.col}">${c.v}</div>
-      <div class="fsub">${c.sub}</div>
+      <div class="fsub">${c.sub||''}</div>
+      ${c.desc ? `<div style="font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--mono)">${c.desc}</div>` : ''}
     </div>`).join('')}
   </div>
   ${p.description ? `<div id="companyDescBox" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text2);line-height:1.7;"><strong style="color:#fff">${p.companyName||ticker}</strong> — <span id="companyDescText">${p.description.slice(0,300)}...</span></div>` : ''}
