@@ -1402,8 +1402,8 @@ function normMetrics(m) {
     revenuePerShareTTM:         m.revenuePerShareTTM || m.revenuePerShareAnnual || null,
     marketCapitalizationTTM:    m.marketCapitalizationTTM || m.marketCapitalization || null,
     revenueGrowthTTMYoy:        m.revenueGrowthTTMYoy || m.revenueGrowthQuarterlyYoy || null,
-    forwardPE:                  m.forwardPE || m.priceToEarningsRatioForward || null,
-    pegRatio:                   m.pegRatioTTM || m.pegRatio || null,
+    forwardPE:                  m.forwardPE || m.priceToEarningsRatioForward || m.forwardPe || null,
+    pegRatio:                   m.priceEarningsToGrowthRatioTTM || m.pegRatioTTM || m.pegRatio || null,
   };
 }
 
@@ -4070,8 +4070,8 @@ function renderFundamentals(data, ticker) {
   else if(pe>=15&&pe<25){peColor='var(--yellow)';peNote='Justo';}
   else if(pe>=25){peColor='var(--red)';peNote='Caro';}
 
-  // Forward PE evaluation
-  const fpe = r.forwardPE;
+  // Forward PE evaluation — puede venir de ratios o del profile
+  const fpe = r.forwardPE || p.forwardPe || p.forwardPE || null;
   let fpeColor='var(--text)', fpeNote='';
   if(fpe>0&&fpe<15){fpeColor='var(--green)';fpeNote='Barato';}
   else if(fpe>=15&&fpe<25){fpeColor='var(--yellow)';fpeNote='Justo';}
