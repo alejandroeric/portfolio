@@ -481,6 +481,9 @@ canvas{max-width:100%}
 .macro-impact{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
 .macro-impact-title{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;margin-bottom:10px;}
 .mcard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 14px;position:relative;overflow:hidden;}
+.mcard.safe{background:rgba(63,185,80,0.07);border-color:rgba(63,185,80,0.2);}
+.mcard.risk{background:rgba(248,81,73,0.07);border-color:rgba(248,81,73,0.2);}
+.mcard.warn{background:rgba(210,153,34,0.07);border-color:rgba(210,153,34,0.2);}
 .mk{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
 .msub{font-size:11px;margin-top:3px;}
 .mv{font-family:var(--mono);font-size:18px;font-weight:700;color:#fff;}
@@ -4147,13 +4150,16 @@ function renderFundamentals(data, ticker) {
     <div class="section-badge" style="background:${fundamentalScore>=70?'rgba(0,255,136,.12)':fundamentalScore>=50?'rgba(255,215,0,.12)':'rgba(255,51,102,.12)'}; color:${fundamentalScore>=70?'var(--green)':fundamentalScore>=50?'var(--yellow)':'var(--red)'}; border:1px solid ${fundamentalScore>=70?'rgba(0,255,136,.25)':fundamentalScore>=50?'rgba(255,215,0,.25)':'rgba(255,51,102,.25)'}">Score fundamental: ${fundamentalScore}/100</div>
   </div>
   <div class="fund-grid-5">
-    ${cards.map(c=>`
-    <div class="fcard" data-tip="${c.k.toUpperCase()}">
+    ${cards.map(c=>{
+      const bg = c.col==='var(--green)'?'rgba(63,185,80,0.07)':c.col==='var(--red)'?'rgba(248,81,73,0.07)':c.col==='var(--yellow)'?'rgba(210,153,34,0.07)':'';
+      const bd = c.col==='var(--green)'?'rgba(63,185,80,0.2)':c.col==='var(--red)'?'rgba(248,81,73,0.2)':c.col==='var(--yellow)'?'rgba(210,153,34,0.2)':'var(--border)';
+      return `
+    <div class="fcard" data-tip="${c.k.toUpperCase()}" style="${bg?`background:${bg};border-color:${bd};`:''}">
       <div class="fk">${c.k}</div>
       <div class="fv" style="color:${c.col}">${c.v}</div>
       <div class="fsub">${c.sub||''}</div>
       ${c.desc ? `<div style="font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--mono)">${c.desc}</div>` : ''}
-    </div>`).join('')}
+    </div>`;}).join('')}
   </div>
   ${p.description ? `<div id="companyDescBox" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text2);line-height:1.7;"><strong style="color:#fff">${p.companyName||ticker}</strong> — <span id="companyDescText">${p.description.slice(0,300)}...</span></div>` : ''}
   `;
