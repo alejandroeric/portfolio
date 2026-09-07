@@ -3427,11 +3427,21 @@ async function fetchBYMAHistory(ticker) {
   };
 }
 
+function getCustomUSTickers() {
+  try { return new Set(JSON.parse(localStorage.getItem('pip_custom_us_tickers') || '[]')); } catch(e) { return new Set(); }
+}
+function addCustomUSTicker(ticker) {
+  try {
+    const list = JSON.parse(localStorage.getItem('pip_custom_us_tickers') || '[]');
+    if(!list.includes(ticker.toUpperCase())) { list.push(ticker.toUpperCase()); localStorage.setItem('pip_custom_us_tickers', JSON.stringify(list)); }
+  } catch(e) {}
+}
 function isBYMATicker(ticker) {
   // Tickers del universo NYSE/NASDAQ nunca son BYMA
   const usFromRadar = new Set(typeof RADAR_UNIVERSE !== 'undefined' ? RADAR_UNIVERSE.map(r => r.ticker) : []);
   const usFromWatchlist = new Set(USER_WATCHLIST.filter(w => !w.ticker.includes('.')).map(w => w.ticker.toUpperCase()));
-  const usTickers = new Set([...usFromRadar, ...usFromWatchlist, 'NVDA','AAPL','MSFT','AMZN','META','GOOGL','TSLA','SPY','QQQ','GLD','JPM','AMGN','AMD','ADBE','MELI','COIN','GS','LMT','SPOT','RBLX','ACN','BTC','ETH','TLT','VXX','UUP','ABBV','JNJ','PFE','UNH','AXP','SQ','PYPL','NU','WMT','COST','PG','KO','MCD','BAC','V','MA','XLI','CAT','HON','DE','UPS','XLE','XOP','CVX','XOM','MPC','XLV','UNH','SLV','GDX','PDBC','DJP','IEF','SHY','BND','AGG','EWZ','ILF','EWW','GXG','EPU','SNDK','WDC','TSM','NFLX','GOOGL','UKOIL','MP','SPCX','GLW','CRM','NOW','UBER','LYFT','ABNB','DASH','PLTR','HOOD','RIVN','LCID','F','GM','TM','SONY','NKE','SBUX','DIS','NFLX','T','VZ','INTC','QCOM','MU','AVGO','TXN','AMAT','LRCX','ASML','ARM','CRWD','ZS','PANW','FTNT','NET','DDOG','SNOW','MDB','GTLB','SHOP','SQ','PYPL','COIN','IREN','CORZ','MARA','CLSK','RIOT','HUT','CIFR','BTBT','WULF']);
+  const usCustom = getCustomUSTickers();
+  const usTickers = new Set([...usFromRadar, ...usFromWatchlist, ...usCustom, 'NVDA','AAPL','MSFT','AMZN','META','GOOGL','TSLA','SPY','QQQ','GLD','JPM','AMGN','AMD','ADBE','MELI','COIN','GS','LMT','SPOT','RBLX','ACN','BTC','ETH','TLT','VXX','UUP','ABBV','JNJ','PFE','UNH','AXP','SQ','PYPL','NU','WMT','COST','PG','KO','MCD','BAC','V','MA','XLI','CAT','HON','DE','UPS','XLE','XOP','CVX','XOM','MPC','XLV','UNH','SLV','GDX','PDBC','DJP','IEF','SHY','BND','AGG','EWZ','ILF','EWW','GXG','EPU','SNDK','WDC','TSM','NFLX','GOOGL','UKOIL','MP','SPCX','GLW','CRM','NOW','UBER','LYFT','ABNB','DASH','PLTR','HOOD','RIVN','LCID','F','GM','TM','SONY','NKE','SBUX','DIS','NFLX','T','VZ','INTC','QCOM','MU','AVGO','TXN','AMAT','LRCX','ASML','ARM','CRWD','ZS','PANW','FTNT','NET','DDOG','SNOW','MDB','GTLB','SHOP','SQ','PYPL','COIN','IREN','CORZ','MARA','CLSK','RIOT','HUT','CIFR','BTBT','WULF']);
   if(usTickers.has(ticker.toUpperCase())) return false;
   if(ticker.includes('.')) return false;
   return true;
@@ -3695,7 +3705,19 @@ function killCharts(){
   });
 }
 
-function showErr(msg){const e=document.getElementById('errBox');if(!e)return;e.innerHTML='⚠ '+msg.replace(/\n/g,'<br>');e.style.display='block';}
+function showErr(msg){
+  const e=document.getElementById('errBox');if(!e)return;
+  const ticker=(document.getElementById('tickerInp')||{}).value?.trim().toUpperCase()||'';
+  const isBymaErr=msg.toLowerCase().includes('byma')&&ticker;
+  const btn=isBymaErr?`<button onclick="registerAsUS('${ticker}')" style="margin-top:10px;display:inline-block;background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.3);border-radius:6px;color:#58a6ff;font-family:var(--mono);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:.05em">+ Registrar ${ticker} como ticker US y reintentar</button>`:'';
+  e.innerHTML='⚠ '+msg.replace(/\n/g,'<br>')+btn;e.style.display='block';
+}
+function registerAsUS(ticker){
+  addCustomUSTicker(ticker);
+  showToast(ticker+' registrado como ticker US');
+  clearErr();
+  run();
+}
 
 function clearErr(){const e=document.getElementById('errBox');if(e)e.style.display='none';}
 
