@@ -6058,7 +6058,7 @@ function openAddToWatchlist() {
   const r = CURRENT_RESULT;
   if(USER_WATCHLIST.find(w => w.ticker === r.ticker)) { showToast(`${r.ticker} ya está en tu Watchlist`); return; }
   const today = new Date().toISOString().slice(0,10);
-  const entryTarget = r.sl || r.price || 0;
+  const entryTarget = (r.price && r.atrC) ? parseFloat((r.price - 1.8 * r.atrC).toFixed(2)) : r.price || 0;
   USER_WATCHLIST.push({ ticker: r.ticker, name: r.name || r.ticker, entryTarget, addedDate: today, active: true, lastUpdated: today, history: [] });
   saveUserWatchlist();
   showToast(`${r.ticker} agregado a Watchlist — objetivo: $${entryTarget.toFixed(2)} ✓`);
