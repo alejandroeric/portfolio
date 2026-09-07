@@ -585,6 +585,251 @@ canvas{max-width:100%}
   <button onclick="document.getElementById('alertBanner').classList.remove('visible')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 4px;line-height:1" title="Cerrar">✕</button>
 </div>
 
+<!-- MODAL GUÍA -->
+<style>
+#guideOverlay{position:fixed;inset:0;background:rgba(1,4,9,.75);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .2s}
+#guideOverlay.open{opacity:1;pointer-events:all}
+#guideModal{background:#0d1117;border:1px solid #30363d;border-radius:12px;width:100%;max-width:900px;max-height:calc(100vh - 64px);display:grid;grid-template-columns:200px 1fr;grid-template-rows:52px 1fr;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.6);transform:translateY(12px);transition:transform .2s}
+#guideOverlay.open #guideModal{transform:translateY(0)}
+.gm-top{grid-column:1/-1;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;padding:0 20px}
+.gm-top-logo{font-family:var(--mono);font-size:12px;font-weight:700;color:#58a6ff;letter-spacing:.16em}
+.gm-top-sub{font-family:var(--mono);font-size:10px;color:#7d8590;letter-spacing:.1em;margin-left:10px}
+.gm-close{background:none;border:1px solid #30363d;border-radius:6px;color:#7d8590;cursor:pointer;font-size:14px;padding:3px 9px;line-height:1.4;transition:color .15s,border-color .15s}
+.gm-close:hover{color:#e6edf3;border-color:#7d8590}
+.gm-nav{background:#161b22;border-right:1px solid #30363d;overflow-y:auto;padding:16px 0}
+.gm-nav-label{font-family:var(--mono);font-size:9px;color:#7d8590;letter-spacing:.14em;text-transform:uppercase;padding:8px 16px 3px}
+.gm-nav-item{display:flex;align-items:center;gap:7px;padding:5px 16px;font-size:12px;color:#b1bac4;cursor:pointer;border-left:2px solid transparent;transition:color .12s,border-color .12s,background .12s}
+.gm-nav-item:hover{color:#e6edf3;background:#21262d}
+.gm-nav-item.active{color:#58a6ff;border-left-color:#58a6ff;background:rgba(88,166,255,.06)}
+.gm-nav-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.gm-body{overflow-y:auto;padding:32px 36px 48px;scroll-behavior:smooth}
+.gm-section{margin-bottom:44px;scroll-margin-top:16px}
+.gm-eyebrow{font-family:var(--mono);font-size:9px;color:#7d8590;letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px}
+.gm-h1{font-family:var(--mono);font-size:20px;font-weight:700;color:#e6edf3;line-height:1.2;text-wrap:balance;margin-bottom:12px}
+.gm-h1 .a{color:#58a6ff}
+.gm-lead{font-size:13px;color:#b1bac4;line-height:1.75;margin-bottom:20px;max-width:560px}
+.gm-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.gm-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px}
+.gm-card-tag{font-family:var(--mono);font-size:9px;color:#7d8590;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.gm-card-val{font-family:var(--mono);font-size:16px;font-weight:700;margin-bottom:2px}
+.gm-card-desc{font-size:11px;color:#7d8590;line-height:1.5}
+.gm-features{display:flex;flex-direction:column;gap:7px;margin-top:14px}
+.gm-feature{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;padding:10px 12px;background:#161b22;border:1px solid #30363d;border-radius:7px}
+.gm-fi{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
+.gm-fname{font-family:var(--mono);font-size:10px;font-weight:600;color:#e6edf3;letter-spacing:.03em;margin-bottom:2px}
+.gm-fbody{font-size:12px;color:#b1bac4;line-height:1.6}
+.gm-steps{display:flex;flex-direction:column;margin-top:16px}
+.gm-step{display:grid;grid-template-columns:32px 1fr;gap:14px;align-items:start}
+.gm-step-l{display:flex;flex-direction:column;align-items:center}
+.gm-step-num{width:26px;height:26px;border-radius:50%;background:#21262d;border:1px solid #30363d;font-family:var(--mono);font-size:10px;font-weight:700;color:#58a6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gm-step-line{width:1px;flex:1;min-height:20px;background:#30363d;margin:3px 0}
+.gm-step-body{padding:2px 0 22px}
+.gm-step-title{font-family:var(--mono);font-size:11px;font-weight:600;color:#e6edf3;margin-bottom:3px}
+.gm-step-desc{font-size:12px;color:#b1bac4;line-height:1.65}
+.gm-tip{background:rgba(88,166,255,.07);border:1px solid rgba(88,166,255,.2);border-radius:7px;padding:10px 14px;font-size:12px;color:#b1bac4;line-height:1.6;margin-top:14px}
+.gm-tip strong{color:#58a6ff;font-family:var(--mono);font-size:10px}
+.gm-warn{background:rgba(210,153,34,.07);border:1px solid rgba(210,153,34,.2);border-radius:7px;padding:10px 14px;font-size:12px;color:#b1bac4;line-height:1.6;margin-top:10px}
+.gm-warn strong{color:#d29922;font-family:var(--mono);font-size:10px}
+.gm-table{width:100%;border-collapse:collapse;margin-top:14px}
+.gm-table th{font-family:var(--mono);font-size:9px;color:#7d8590;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:7px 10px;border-bottom:1px solid #30363d}
+.gm-table td{font-size:12px;padding:9px 10px;border-bottom:1px solid rgba(48,54,61,.5);color:#b1bac4;vertical-align:top}
+.gm-table td:first-child{font-family:var(--mono);font-size:10px;font-weight:600;color:#e6edf3;white-space:nowrap}
+.gm-table tr:last-child td{border-bottom:none}
+.gm-badge{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;letter-spacing:.05em}
+.gm-bg{background:rgba(63,185,80,.15);color:#3fb950}
+.gm-by{background:rgba(210,153,34,.15);color:#d29922}
+.gm-br{background:rgba(248,81,73,.15);color:#f85149}
+.gm-api-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.gm-api-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px}
+.gm-api-name{font-family:var(--mono);font-size:11px;font-weight:600;color:#e6edf3;margin-bottom:2px}
+.gm-api-use{font-size:12px;color:#b1bac4;margin-bottom:5px;line-height:1.5}
+.gm-api-plan{font-family:var(--mono);font-size:10px;color:#7d8590}
+.gm-api-plan span{color:#3fb950}
+gm-code{font-family:var(--mono);font-size:10px;background:#21262d;border-radius:3px;padding:1px 5px;color:#58a6ff}
+/* Botón flotante i */
+#guideBtn{position:fixed;bottom:20px;right:20px;z-index:8999;width:34px;height:34px;border-radius:50%;background:#161b22;border:1px solid #30363d;color:#7d8590;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .15s,border-color .15s,background .15s;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#guideBtn:hover{color:#58a6ff;border-color:#58a6ff;background:#0d1117}
+</style>
+
+<div id="guideOverlay">
+  <div id="guideModal">
+    <div class="gm-top">
+      <div style="display:flex;align-items:center">
+        <span class="gm-top-logo">FINTRADE</span>
+        <span class="gm-top-sub">/ GUÍA DE USO</span>
+      </div>
+      <button class="gm-close" onclick="closeGuide()">✕ Cerrar</button>
+    </div>
+    <nav class="gm-nav">
+      <div class="gm-nav-label">General</div>
+      <div class="gm-nav-item active" onclick="guideScroll('g-intro')"><span class="gm-nav-dot" style="background:#58a6ff"></span>Qué es FinTrade</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-inicio')"><span class="gm-nav-dot" style="background:#3fb950"></span>Cómo empezar</div>
+      <div class="gm-nav-label">Secciones</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-analisis')"><span class="gm-nav-dot" style="background:#58a6ff"></span>Análisis</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-watchlist')"><span class="gm-nav-dot" style="background:#3fb950"></span>Watchlist</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-graficos')"><span class="gm-nav-dot" style="background:#d29922"></span>Gráficos</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-screener')"><span class="gm-nav-dot" style="background:#7d8590"></span>Screener</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-macro')"><span class="gm-nav-dot" style="background:#b1bac4"></span>Macro</div>
+      <div class="gm-nav-label">Referencia</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-ratios')"><span class="gm-nav-dot" style="background:#7d8590"></span>Ratios clave</div>
+      <div class="gm-nav-item" onclick="guideScroll('g-apikeys')"><span class="gm-nav-dot" style="background:#7d8590"></span>API Keys</div>
+    </nav>
+    <div class="gm-body" id="guideBody">
+
+      <div class="gm-section" id="g-intro">
+        <div class="gm-eyebrow">Bienvenida</div>
+        <div class="gm-h1">Tu <span class="a">portfolio financiero</span> personal, todo en un lugar</div>
+        <div class="gm-lead">FinTrade es una app web para analizar acciones del mercado americano y argentino (BYMA). Integrá precios en tiempo real, fundamentales, análisis técnico con IA y contexto macroeconómico — sin instalar nada, desde el navegador.</div>
+        <div class="gm-cards">
+          <div class="gm-card"><div class="gm-card-tag">Mercados</div><div class="gm-card-val" style="color:#58a6ff">US + ARG</div><div class="gm-card-desc">NYSE/NASDAQ y panel BYMA argentino</div></div>
+          <div class="gm-card"><div class="gm-card-tag">Datos</div><div class="gm-card-val" style="color:#3fb950">4 fuentes</div><div class="gm-card-desc">AV, FMP, Finnhub y Claude AI para gráficos</div></div>
+          <div class="gm-card"><div class="gm-card-tag">Almacenamiento</div><div class="gm-card-val" style="color:#d29922">Local</div><div class="gm-card-desc">Todo en tu navegador — sin cuenta ni servidor</div></div>
+        </div>
+      </div>
+
+      <div class="gm-section" id="g-inicio">
+        <div class="gm-eyebrow">Primeros pasos</div>
+        <div class="gm-h1">Cómo empezar</div>
+        <div class="gm-lead">La app necesita al menos una API key para funcionar. El proceso tarda menos de 5 minutos.</div>
+        <div class="gm-steps">
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">1</div><div class="gm-step-line"></div></div><div class="gm-step-body"><div class="gm-step-title">Abrí la pestaña CONFIG ⚙</div><div class="gm-step-desc">Hacé clic en el engranaje en la barra superior. Ahí van todas tus claves de API — se guardan localmente y nunca salen del navegador.</div></div></div>
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">2</div><div class="gm-step-line"></div></div><div class="gm-step-body"><div class="gm-step-title">Ingresá tu clave de Alpha Vantage</div><div class="gm-step-desc">Fuente principal de precios. Plan gratuito: 25 consultas/día. Registrate en alphavantage.co y pegá la key.</div></div></div>
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">3</div><div class="gm-step-line"></div></div><div class="gm-step-body"><div class="gm-step-title">Agregá FMP y/o Finnhub para fundamentales</div><div class="gm-step-desc">Proveen P/E, ROE, márgenes e insiders. Ambos tienen plan gratuito. Con uno solo ya funciona el análisis completo.</div></div></div>
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">4</div><div class="gm-step-line" style="background:transparent"></div></div><div class="gm-step-body"><div class="gm-step-title">Opcional: Anthropic para análisis de gráficos con IA</div><div class="gm-step-desc">Con la clave de Anthropic podés subir imágenes de gráficos y recibir un informe técnico completo. Sin ella, el resto de la app funciona igual.</div></div></div>
+        </div>
+        <div class="gm-tip"><strong>TIP</strong> &nbsp;Empezá solo con la key de Alpha Vantage, buscá una acción en Análisis y ver qué aparece. Después agregás las demás según lo que necesitás.</div>
+      </div>
+
+      <div class="gm-section" id="g-analisis">
+        <div class="gm-eyebrow">Pestaña principal</div>
+        <div class="gm-h1">Análisis de acciones</div>
+        <div class="gm-lead">Escribí un ticker (ej. AAPL, MCD o GGAL) y la app arma un informe completo en segundos.</div>
+        <div class="gm-features">
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(88,166,255,.12)">📊</div><div><div class="gm-fname">Fundamentales</div><div class="gm-fbody">P/E, PEG, ROE, Margen Neto, Deuda/Equity y más. Las cards se colorean verde/amarillo/rojo según el valor — pasá el mouse para ver la explicación de cada ratio.</div></div></div>
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(63,185,80,.12)">📈</div><div><div class="gm-fname">Score técnico</div><div class="gm-fbody">Puntaje combinado de RSI, MACD, Squeeze Momentum y medias móviles. Más de 60 es señal de entrada favorable.</div></div></div>
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(210,153,34,.12)">🌐</div><div><div class="gm-fname">Contexto macroeconómico</div><div class="gm-fbody">S&P 500, VIX, Treasury 10Y, DXY y Fear & Greed con análisis de sensibilidad específico para el ticker.</div></div></div>
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(248,81,73,.12)">👥</div><div><div class="gm-fname">Insiders</div><div class="gm-fbody">Compras y ventas recientes de directivos. Una compra de CEO con su propio dinero es señal alcista — la app lo explica al hacer hover.</div></div></div>
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(88,166,255,.12)">🤖</div><div><div class="gm-fname">Síntesis con IA</div><div class="gm-fbody">Resumen ejecutivo de Claude que combina fundamentales, técnico y macro en una lectura integrada.</div></div></div>
+        </div>
+      </div>
+
+      <div class="gm-section" id="g-watchlist">
+        <div class="gm-eyebrow">Seguimiento</div>
+        <div class="gm-h1">Watchlist</div>
+        <div class="gm-lead">Agregá los tickers que querés monitorear. La app guarda el último precio y te avisa cuando los datos tienen más de 2 días sin actualizar.</div>
+        <div class="gm-features">
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(63,185,80,.12)">＋</div><div><div class="gm-fname">Agregar ticker</div><div class="gm-fbody">Escribí el símbolo y presioná Enter. La app detecta automáticamente si es americana o BYMA.</div></div></div>
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(88,166,255,.12)">⚠</div><div><div class="gm-fname">Banner de revisión pendiente</div><div class="gm-fbody">Si un precio tiene más de 2 días sin actualizar o un análisis de gráfico más de 3 días, aparece un aviso en la parte superior con los tickers afectados.</div></div></div>
+        </div>
+      </div>
+
+      <div class="gm-section" id="g-graficos">
+        <div class="gm-eyebrow">Análisis con IA</div>
+        <div class="gm-h1">Gráficos</div>
+        <div class="gm-lead">Subí una captura de un gráfico de velas y Claude analiza la estructura técnica completa. El informe queda guardado para comparar a lo largo del tiempo.</div>
+        <div class="gm-steps">
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">1</div><div class="gm-step-line"></div></div><div class="gm-step-body"><div class="gm-step-title">Ingresá el ticker y subí la imagen</div><div class="gm-step-desc">Arrastrá o hacé clic para subir una captura de TradingView o cualquier plataforma.</div></div></div>
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">2</div><div class="gm-step-line"></div></div><div class="gm-step-body"><div class="gm-step-title">Analizá</div><div class="gm-step-desc">El informe aparece a la izquierda y el gráfico queda fijo a la derecha mientras scrolleás. Incluye tendencia, soportes/resistencias y niveles de entrada/salida.</div></div></div>
+          <div class="gm-step"><div class="gm-step-l"><div class="gm-step-num">3</div><div class="gm-step-line" style="background:transparent"></div></div><div class="gm-step-body"><div class="gm-step-title">Guardá el informe</div><div class="gm-step-desc">Con 3 o más análisis del mismo ticker aparece la sección SEGUIMIENTO para ver la evolución de las señales en el tiempo.</div></div></div>
+        </div>
+        <div class="gm-warn"><strong>LÍMITE</strong> &nbsp;La app guarda hasta 20 análisis. Para los tickers importantes conservá solo los más relevantes.</div>
+      </div>
+
+      <div class="gm-section" id="g-screener">
+        <div class="gm-eyebrow">Filtros</div>
+        <div class="gm-h1">Screener</div>
+        <div class="gm-lead">Filtrá acciones por fundamentales para encontrar candidatos que cumplan tus criterios. Configurá los filtros y la app evalúa cada ticker automáticamente.</div>
+        <div class="gm-features">
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(63,185,80,.12)">🔍</div><div><div class="gm-fname">Filtros disponibles</div><div class="gm-fbody">P/E máximo, ROE mínimo, Margen Neto mínimo, Deuda/Equity máximo, Current Ratio mínimo y Score Técnico mínimo.</div></div></div>
+          <div class="gm-feature"><div class="gm-fi" style="background:rgba(88,166,255,.12)">📋</div><div><div class="gm-fname">Lista de tickers</div><div class="gm-fbody">Ingresá los tickers separados por coma o espacio. El screener los analiza uno por uno y muestra los que pasan todos los filtros.</div></div></div>
+        </div>
+      </div>
+
+      <div class="gm-section" id="g-macro">
+        <div class="gm-eyebrow">Contexto</div>
+        <div class="gm-h1">Macro</div>
+        <div class="gm-lead">Los cinco indicadores macroeconómicos más relevantes para el mercado americano. Aparecen al final de cada informe.</div>
+        <table class="gm-table">
+          <thead><tr><th>Indicador</th><th>Qué mide</th><th>Señal</th></tr></thead>
+          <tbody>
+            <tr><td>S&amp;P 500</td><td>Tendencia general del mercado americano</td><td><span class="gm-badge gm-bg">+5000 alcista</span></td></tr>
+            <tr><td>VIX</td><td>Volatilidad esperada — el índice del miedo</td><td><span class="gm-badge gm-bg">&lt;20 tranquilo</span></td></tr>
+            <tr><td>Treasury 10Y</td><td>Tasa libre de riesgo — presiona P/E cuando sube</td><td><span class="gm-badge gm-br">&gt;4.5% presión</span></td></tr>
+            <tr><td>Dólar (DXY)</td><td>Fortaleza del dólar — afecta empresas globales</td><td><span class="gm-badge gm-by">&gt;104 atención</span></td></tr>
+            <tr><td>Fear &amp; Greed</td><td>Sentimiento del mercado de 0 a 100</td><td><span class="gm-badge gm-bg">40–60 neutro</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gm-section" id="g-ratios">
+        <div class="gm-eyebrow">Referencia rápida</div>
+        <div class="gm-h1">Ratios clave</div>
+        <div class="gm-lead">En la app podés ver la explicación completa pasando el mouse sobre cada card de fundamentales.</div>
+        <table class="gm-table">
+          <thead><tr><th>Ratio</th><th>Cómo interpretarlo</th></tr></thead>
+          <tbody>
+            <tr><td>P/E TTM</td><td><span class="gm-badge gm-bg">&lt;15 barato</span> <span class="gm-badge gm-by">15–25 justo</span> <span class="gm-badge gm-br">&gt;35 caro</span><br><span style="font-size:11px;color:#7d8590">Cuántas veces pagás las ganancias de los últimos 12 meses</span></td></tr>
+            <tr><td>P/E Forward</td><td>Igual al P/E pero con ganancias estimadas del próximo año. Si es menor al TTM, el mercado espera crecimiento.<br><span style="font-size:11px;color:#7d8590">Útil para empresas en expansión</span></td></tr>
+            <tr><td>PEG Ratio</td><td><span class="gm-badge gm-bg">&lt;1 barato</span> <span class="gm-badge gm-by">1–2 razonable</span> <span class="gm-badge gm-br">&gt;2 caro</span><br><span style="font-size:11px;color:#7d8590">P/E ajustado por crecimiento. Penaliza empresas caras que crecen poco</span></td></tr>
+            <tr><td>ROE</td><td><span class="gm-badge gm-bg">&gt;15% excelente</span><br><span style="font-size:11px;color:#7d8590">Cuidado: ROE muy alto puede ser por exceso de deuda, no eficiencia</span></td></tr>
+            <tr><td>Margen Neto</td><td><span class="gm-badge gm-bg">&gt;15% muy bueno</span> <span class="gm-badge gm-bg">&gt;30% calidad</span><br><span style="font-size:11px;color:#7d8590">Alto margen = negocio difícil de replicar</span></td></tr>
+            <tr><td>Deuda/Equity</td><td><span class="gm-badge gm-bg">&lt;0.5 sana</span> <span class="gm-badge gm-by">0.5–1.5 ok</span> <span class="gm-badge gm-br">&gt;1.5 riesgo</span><br><span style="font-size:11px;color:#7d8590">Con tasas altas como las actuales la deuda duele más</span></td></tr>
+            <tr><td>Current Ratio</td><td><span class="gm-badge gm-br">&lt;1 riesgo liquidez</span> <span class="gm-badge gm-bg">1–2 normal</span><br><span style="font-size:11px;color:#7d8590">Capacidad de pagar deudas de corto plazo</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gm-section" id="g-apikeys">
+        <div class="gm-eyebrow">Configuración</div>
+        <div class="gm-h1">API Keys</div>
+        <div class="gm-lead">Todas las claves se ingresan en CONFIG y se guardan en tu navegador. Nunca se envían a ningún servidor externo.</div>
+        <div class="gm-api-grid">
+          <div class="gm-api-card"><div class="gm-api-name">Alpha Vantage</div><div class="gm-api-use">Precios de acciones y datos macroeconómicos. Fuente principal de precios.</div><div class="gm-api-plan">Plan gratuito: <span>25 req/día</span></div></div>
+          <div class="gm-api-card"><div class="gm-api-name">Financial Modeling Prep</div><div class="gm-api-use">Fundamentales completos: P/E, ROE, márgenes, deuda. Fuente principal de ratios.</div><div class="gm-api-plan">Plan gratuito: <span>250 req/día</span></div></div>
+          <div class="gm-api-card"><div class="gm-api-name">Finnhub</div><div class="gm-api-use">Transacciones de insiders y datos complementarios de fundamentales.</div><div class="gm-api-plan">Plan gratuito: <span>60 req/min</span></div></div>
+          <div class="gm-api-card"><div class="gm-api-name">Anthropic (Claude)</div><div class="gm-api-use">Análisis de gráficos con visión por IA y síntesis ejecutiva de cada informe.</div><div class="gm-api-plan">Pago por uso — <span>claude-opus-4-5</span></div></div>
+        </div>
+        <div class="gm-warn"><strong>IMPORTANTE</strong> &nbsp;Con Alpha Vantage gratuito tenés 25 consultas diarias. Si analizás muchas acciones seguidas se agotan — al otro día se reinician automáticamente.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Botón flotante i -->
+<button id="guideBtn" onclick="openGuide()" title="Guía de uso">i</button>
+
+<script>
+function openGuide(){document.getElementById('guideOverlay').classList.add('open');}
+function closeGuide(){document.getElementById('guideOverlay').classList.remove('open');}
+function guideScroll(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.gm-nav-item').forEach(n=>n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+document.getElementById('guideOverlay').addEventListener('click',function(e){if(e.target===this)closeGuide();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeGuide();});
+// Mostrar automáticamente la primera vez
+if(!localStorage.getItem('pip_guide_seen')){
+  setTimeout(openGuide, 800);
+  localStorage.setItem('pip_guide_seen','1');
+}
+// Highlight nav on scroll
+const guideBody=document.getElementById('guideBody');
+if(guideBody){
+  guideBody.addEventListener('scroll',function(){
+    const sections=['g-intro','g-inicio','g-analisis','g-watchlist','g-graficos','g-screener','g-macro','g-ratios','g-apikeys'];
+    const navItems=document.querySelectorAll('.gm-nav-item');
+    let current=sections[0];
+    sections.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el&&el.offsetTop-guideBody.scrollTop<=80)current=id;
+    });
+    navItems.forEach((n,i)=>{n.classList.toggle('active',sections[i]===current);});
+  });
+}
+</script>
+
 <!-- MACRO STRIP (visible everywhere) -->
 <div style="padding:8px 14px 0;max-width:1000px;margin:0 auto">
   <div class="macro-strip" id="macroStrip">
