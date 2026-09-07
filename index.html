@@ -6056,8 +6056,11 @@ function confirmAddToWatchlistManual() {
 function openAddToWatchlist() {
   if(!CURRENT_RESULT) return;
   const r = CURRENT_RESULT;
-  const defaultTarget = r.price ? r.price.toFixed(2) : '';
-  showWatchlistModal(r.ticker, r.name || r.ticker, r.price || 0, defaultTarget);
+  if(USER_WATCHLIST.find(w => w.ticker === r.ticker)) { showToast(`${r.ticker} ya está en tu Watchlist`); return; }
+  const today = new Date().toISOString().slice(0,10);
+  USER_WATCHLIST.push({ ticker: r.ticker, name: r.name || r.ticker, entryTarget: r.price || 0, addedDate: today, active: true, lastUpdated: today, history: [] });
+  saveUserWatchlist();
+  showToast(`${r.ticker} agregado a Watchlist — entrada: $${(r.price||0).toFixed(2)} ✓`);
 }
 
 function openAddToWatchlistFromScreener(ticker, name, price) {
