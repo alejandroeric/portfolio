@@ -6012,15 +6012,28 @@ function openAddToWatchlistManual() {
       <input class="uw-modal-input" id="uwTickerInput" type="text" placeholder="ej: AAPL" autocomplete="off" style="text-transform:uppercase">
       <div class="uw-modal-label" style="margin-top:10px">Nombre (opcional)</div>
       <input class="uw-modal-input" id="uwNameInput" type="text" placeholder="ej: Apple Inc.">
-      <div class="uw-modal-label" style="margin-top:10px">Precio objetivo de entrada (USD)</div>
-      <input class="uw-modal-input" id="uwTargetInput" type="number" step="0.01" min="0" placeholder="ej: 120.00">
+      <div class="uw-modal-label" style="margin-top:10px" id="uwTargetLabel">Precio de entrada (USD) <span id="uwTargetHint" style="color:var(--muted);font-size:9px"></span></div>
+      <input class="uw-modal-input" id="uwTargetInput" type="number" step="0.01" min="0" placeholder="Opcional — se toma del último análisis si existe">
       <div class="uw-modal-btns">
         <button class="uw-btn" onclick="document.getElementById('uwModal').remove()">Cancelar</button>
         <button class="btn btn-a" style="font-size:10px" onclick="confirmAddToWatchlistManual()">＋ AGREGAR</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
-  setTimeout(() => { document.getElementById('uwTickerInput')?.focus(); }, 50);
+  const tickerInput = document.getElementById('uwTickerInput');
+  tickerInput?.addEventListener('input', () => {
+    const t = tickerInput.value.trim().toUpperCase();
+    const targetInput = document.getElementById('uwTargetInput');
+    const hint = document.getElementById('uwTargetHint');
+    if(CURRENT_RESULT && CURRENT_RESULT.ticker === t && CURRENT_RESULT.price) {
+      targetInput.value = CURRENT_RESULT.price.toFixed(2);
+      if(hint) hint.textContent = '— tomado del análisis activo';
+    } else {
+      targetInput.value = '';
+      if(hint) hint.textContent = '';
+    }
+  });
+  setTimeout(() => { tickerInput?.focus(); }, 50);
 }
 
 function confirmAddToWatchlistManual() {
@@ -6029,9 +6042,8 @@ function confirmAddToWatchlistManual() {
   const targetEl = document.getElementById('uwTargetInput');
   const ticker = (tickerEl?.value || '').trim().toUpperCase();
   const name   = (nameEl?.value || '').trim() || ticker;
-  const target = parseFloat(targetEl?.value || 0);
+  const target = parseFloat(targetEl?.value || 0) || (CURRENT_RESULT?.ticker === ticker ? CURRENT_RESULT.price : 0);
   if(!ticker) { showToast('Ingresá un ticker válido'); return; }
-  if(!target || target <= 0) { showToast('Ingresá un precio objetivo válido'); return; }
   if(USER_WATCHLIST.find(w => w.ticker === ticker)) { showToast(`${ticker} ya está en tu Watchlist`); return; }
   const today = new Date().toISOString().slice(0,10);
   USER_WATCHLIST.push({ ticker, name, entryTarget: target, addedDate: today, active: true, lastUpdated: today, history: [] });
