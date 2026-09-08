@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Portfolio Intelligence Pro</title>
+<title>FinTrade</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#080c10">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -591,6 +591,16 @@ canvas{max-width:100%}
 #guideOverlay.open{opacity:1;pointer-events:all}
 #guideModal{background:#0d1117;border:1px solid #30363d;border-radius:12px;width:100%;max-width:900px;max-height:calc(100vh - 64px);display:grid;grid-template-columns:200px 1fr;grid-template-rows:52px 1fr;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.6);transform:translateY(12px);transition:transform .2s}
 #guideOverlay.open #guideModal{transform:translateY(0)}
+@media(max-width:600px){
+  #guideOverlay{padding:0;align-items:flex-end}
+  #guideModal{max-height:92vh;border-radius:16px 16px 0 0;grid-template-columns:1fr;grid-template-rows:52px auto 1fr}
+  .gm-nav{border-right:none;border-bottom:1px solid #30363d;padding:8px 0;display:flex;flex-wrap:nowrap;overflow-x:auto;gap:0;scrollbar-width:none}
+  .gm-nav::-webkit-scrollbar{display:none}
+  .gm-nav-label{display:none}
+  .gm-nav-item{white-space:nowrap;flex-shrink:0;border-left:none;border-bottom:2px solid transparent;padding:6px 12px;font-size:11px}
+  .gm-nav-item.active{border-left-color:transparent;border-bottom-color:#58a6ff}
+  .gm-body{padding:20px 18px 40px}
+}
 .gm-top{grid-column:1/-1;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;padding:0 20px}
 .gm-top-logo{font-family:var(--mono);font-size:12px;font-weight:700;color:#58a6ff;letter-spacing:.16em}
 .gm-top-sub{font-family:var(--mono);font-size:10px;color:#7d8590;letter-spacing:.1em;margin-left:10px}

@@ -1,6 +1,6 @@
 {
-  "name": "Portfolio Intelligence Pro",
-  "short_name": "PIP Pro",
+  "name": "FinTrade",
+  "short_name": "FinTrade",
   "description": "Análisis técnico y fundamental de acciones en tiempo real",
   "start_url": "/portfolio/",
   "display": "standalone",
