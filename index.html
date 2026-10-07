@@ -1773,8 +1773,45 @@ async function fetchFundamentals(ticker) {
     } catch(e) { console.warn('[PIP] AV OVERVIEW error', ticker, e); }
   }
 
+  // Earnings: próximo + historial de sorpresas
+  let earnings = { next: null, history: [] };
+  if(FMP_KEY) {
+    try {
+      const earR = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${ticker}&limit=8&apikey=${FMP_KEY}`).then(r=>r.json());
+      if(Array.isArray(earR) && earR.length) {
+        const today = new Date().toISOString().slice(0,10);
+        const upcoming = earR.filter(e => e.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
+        const past     = earR.filter(e => e.date <  today).sort((a,b)=>b.date.localeCompare(a.date));
+        if(upcoming.length) {
+          const n = upcoming[0];
+          earnings.next = { date: n.date, epsEst: n.epsEstimated, revenueEst: n.revenueEstimated, time: n.time };
+        }
+        earnings.history = past.slice(0,4).map(e => ({
+          date: e.date,
+          actual:   e.eps,
+          estimate: e.epsEstimated,
+          surprise: (e.eps != null && e.epsEstimated != null) ? ((e.eps - e.epsEstimated) / Math.abs(e.epsEstimated || 1) * 100) : null,
+        }));
+      }
+    } catch(e) { console.warn('[PIP] FMP earnings error', ticker, e); }
+  }
+  // Complementar con Finnhub si no hay historial
+  if(FINNHUB_KEY && !earnings.history.length) {
+    try {
+      const fhEar = await fetch(`https://finnhub.io/api/v1/stock/earnings?symbol=${encodeURIComponent(ticker)}&limit=4&token=${FINNHUB_KEY}`).then(r=>r.json());
+      if(Array.isArray(fhEar) && fhEar.length) {
+        earnings.history = fhEar.map(e => ({
+          date:     e.period,
+          actual:   e.actual,
+          estimate: e.estimate,
+          surprise: e.surprisePercent,
+        }));
+      }
+    } catch(e) { console.warn('[PIP] Finnhub earnings error', ticker, e); }
+  }
+
   console.log('[PIP] fetchFundamentals', ticker, { source, profile: !!profile, ratios });
-  return { profile, ratios, income: [], insider: [] };
+  return { profile, ratios, income: [], insider: [], earnings };
 }
 
 function calcMacroImpact(macro, sector) {
@@ -4343,6 +4380,7 @@ function renderFundamentals(data, ticker) {
   const r = data.ratios  || {};
   const income = data.income || [];
   const insider = data.insider || [];
+  const earnings = data.earnings || { next: null, history: [] };
 
   const fmt2 = v => v==null||isNaN(v)?'N/A':Number(v).toFixed(2);
   const fmtPct = v => v==null||isNaN(v)?'N/A':(Number(v)*100).toFixed(1)+'%';
@@ -4396,8 +4434,12 @@ function renderFundamentals(data, ticker) {
   }
 
 
-  // Earnings surprise (next/last)
-  const nextEarnings = p.earningsAnnouncement ? new Date(p.earningsAnnouncement).toLocaleDateString('es-AR') : '—';
+  // Próximo earnings
+  const fmt2Eps = v => v==null||isNaN(v)?null:Number(v).toFixed(2);
+  const nextDate = earnings.next?.date || (p.earningsAnnouncement ? p.earningsAnnouncement.slice(0,10) : null);
+  const nextEarningsLabel = nextDate ? new Date(nextDate+'T12:00:00').toLocaleDateString('es-AR') : '—';
+  const nextEpsEst = fmt2Eps(earnings.next?.epsEst);
+  const nextTime = earnings.next?.time === 'amc' ? 'Después del cierre' : earnings.next?.time === 'bmo' ? 'Antes de apertura' : null;
 
   // Short interest proxy from profile
   const shortFloat = p.beta > 1.5 ? 'Alto riesgo' : 'Normal';
@@ -4415,7 +4457,7 @@ function renderFundamentals(data, ticker) {
     { k:'Rev. Growth YoY',   v: revGrowth,                    sub: 'Crecimiento ingresos', col: revColor },
     { k:'Market Cap',        v: fmtB(p.mktCap || (r.marketCapitalizationTTM ? r.marketCapitalizationTTM*1e6 : null)), sub: p.sector||'—', col:'var(--text)' },
     { k:'Beta',              v: fmt2(p.beta),                  sub: p.beta>1.5?'Alta volatilidad':'Normal', col: p.beta>1.5?'var(--red)':'var(--text)' },
-    { k:'Próx. Earnings',    v: nextEarnings,                  sub: 'Fecha resultados', col:'var(--yellow)' },
+    { k:'Próx. Earnings',    v: nextEarningsLabel, sub: nextEpsEst ? `EPS est: $${nextEpsEst}${nextTime?' · '+nextTime:''}` : (nextTime||'Fecha resultados'), col:'var(--yellow)' },
     { k:'Current Ratio',    v: fmt2(r.currentRatioTTM),       sub: r.currentRatioTTM>=2?'Excelente liquidez':r.currentRatioTTM>=1?'Liquidez OK':'⚠ Riesgo liquidez', col: r.currentRatioTTM>=2?'var(--green)':r.currentRatioTTM>=1?'var(--yellow)':'var(--red)' },
     { k:'Margen Bruto',     v: fmtPct(r.grossProfitMarginTTM), sub: r.grossProfitMarginTTM>0.4?'Excelente':r.grossProfitMarginTTM>0.2?'Aceptable':'Bajo', col: r.grossProfitMarginTTM>0.4?'var(--green)':r.grossProfitMarginTTM>0.2?'var(--yellow)':'var(--red)' },
   ];
@@ -4439,7 +4481,37 @@ function renderFundamentals(data, ticker) {
       ${c.desc ? `<div style="font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--mono)">${c.desc}</div>` : ''}
     </div>`;}).join('')}
   </div>
-  ${p.description ? `<div id="companyDescBox" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text2);line-height:1.7;"><strong style="color:#fff">${p.companyName||ticker}</strong> — <span id="companyDescText">${p.description.slice(0,300)}...</span></div>` : ''}
+  ${earnings.history.length ? `
+  <div style="margin-top:14px">
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">// Historial de earnings — últimos ${earnings.history.length} trimestres</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:5px 8px;color:var(--muted);font-weight:normal;font-size:9px;letter-spacing:.08em">FECHA</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--muted);font-weight:normal;font-size:9px;letter-spacing:.08em">EPS REAL</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--muted);font-weight:normal;font-size:9px;letter-spacing:.08em">EPS EST.</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--muted);font-weight:normal;font-size:9px;letter-spacing:.08em">SORPRESA</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${earnings.history.map(e => {
+          const surp = e.surprise;
+          const surpCol = surp==null?'var(--text)':surp>0?'var(--green)':'var(--red)';
+          const surpTxt = surp==null?'—':(surp>0?'+':'')+surp.toFixed(1)+'%';
+          const dateStr = e.date ? new Date(e.date+'T12:00:00').toLocaleDateString('es-AR',{month:'short',year:'numeric'}) : '—';
+          return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+            <td style="padding:6px 8px;color:var(--text2)">${dateStr}</td>
+            <td style="padding:6px 8px;text-align:right;color:var(--text);font-variant-numeric:tabular-nums">${e.actual!=null?'$'+Number(e.actual).toFixed(2):'—'}</td>
+            <td style="padding:6px 8px;text-align:right;color:var(--text2);font-variant-numeric:tabular-nums">${e.estimate!=null?'$'+Number(e.estimate).toFixed(2):'—'}</td>
+            <td style="padding:6px 8px;text-align:right;color:${surpCol};font-weight:600">${surpTxt}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>` : ''}
+  ${p.description ? `<div id="companyDescBox" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text2);line-height:1.7;margin-top:14px"><strong style="color:#fff">${p.companyName||ticker}</strong> — <span id="companyDescText">${p.description.slice(0,300)}...</span></div>` : ''}
   `;
 }
 
@@ -6619,6 +6691,7 @@ function clearChat() {
     'MARKET CAP': { t:'Market Cap — Capitalización de Mercado', b:'Valor total de todas las acciones en circulación. Nano cap (<$300M), Small (<$2B), Mid ($2B–$10B), Large ($10B–$200B), Mega (>$200B). Impacta el riesgo y la liquidez.' },
     'DCF VALUACIÓN': { t:'DCF — Valor Intrínseco Estimado', b:'Descuento de flujos de caja futuros. Si el precio actual está por debajo del DCF, la acción podría estar barata. Si está muy por encima, el mercado está pagando prima de crecimiento.' },
     'BETA': { t:'Beta — Volatilidad vs el Mercado', b:'Cómo se mueve la acción vs el S&P 500. Beta 1 = se mueve igual que el mercado. >1.5 = muy volátil (amplifica subidas y bajadas). <0.5 = defensiva, poco correlacionada.' },
+    'PRÓX. EARNINGS': { t:'Próximo Earnings — Fecha de Resultados', b:'Fecha en que la empresa publica sus resultados trimestrales. EPS est. = ganancia por acción que espera el consenso de analistas. BMO = antes de apertura del mercado. AMC = después del cierre. Los earnings son el evento de mayor volatilidad en una acción.' },
     'CURRENT RATIO': { t:'Current Ratio — Liquidez de Corto Plazo', b:'Activos corrientes / Pasivos corrientes. <1 = puede no poder pagar deudas de corto plazo. 1–2 = normal. >2 = muy líquida. Crítico en empresas con mucha deuda corta.' },
     'MARGEN BRUTO': { t:'Margen Bruto — Rentabilidad del Negocio Base', b:'(Ventas - Costo de ventas) / Ventas. >40% = negocio con alto poder de pricing (software, farma). 20–40% = normal. <20% = negocio de bajo margen (retail, commodities).' },
     'SHORT INTEREST': { t:'Short Interest — Presión Bajista', b:'Porcentaje de acciones que están vendidas en corto (apostando a la baja). Alto short interest puede significar que los institucionales ven riesgo, o puede generar un short squeeze si la acción sube.' },
