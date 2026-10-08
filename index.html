@@ -5635,7 +5635,7 @@ async function runRadarScreener() {
     const r = allTickers[i];
     const cached = RADAR_PRICES[r.ticker];
     if(cached && cached.date === todayISO && cached.rsi14 != null) {
-      screened.push({ ...r, price: cached.price, change: cached.change, rsi14: cached.rsi14, sma50: cached.sma50, distSMA50: cached.distSMA50 });
+      screened.push({ ...r, price: cached.price, change: cached.change, rsi14: cached.rsi14, sma50: cached.sma50, distSMA50: cached.distSMA50, low100: cached.low100, high100: cached.high100 });
       setProgress(i + 1);
       continue;
     }
@@ -5647,8 +5647,10 @@ async function runRadarScreener() {
         const rsi14     = calculateRSI(data.closes);
         const sma50     = calculateSMA(data.closes, 50);
         const distSMA50 = sma50 ? (data.price - sma50) / sma50 * 100 : null;
-        RADAR_PRICES[r.ticker] = { price: data.price, change: data.change, date: todayISO, rsi14, sma50, distSMA50 };
-        screened.push({ ...r, price: data.price, change: data.change, rsi14, sma50, distSMA50 });
+        const low100    = Math.min(...data.closes);
+        const high100   = Math.max(...data.closes);
+        RADAR_PRICES[r.ticker] = { price: data.price, change: data.change, date: todayISO, rsi14, sma50, distSMA50, low100, high100 };
+        screened.push({ ...r, price: data.price, change: data.change, rsi14, sma50, distSMA50, low100, high100 });
       }
     } catch(e) {}
     fetchCount++;
@@ -5754,18 +5756,21 @@ Respondé SOLO con JSON: [{"ticker":"X","entryTarget":0,"note":"...","fundamenta
         f.netProfitMarginTTM? `Margen:${(f.netProfitMarginTTM*100).toFixed(1)}%`      : '',
         f.debtEquityRatioTTM? `D/E:${f.debtEquityRatioTTM.toFixed(2)}`                : ''
       ].filter(Boolean).join(' ');
-      return `${r.ticker}(${r.name} | precio:$${r.price.toFixed(2)} | RSI14:${r.rsi14.toFixed(1)} | SMA50:$${r.sma50?.toFixed(2)||'?'} | dist.SMA50:${r.distSMA50?.toFixed(1)||'?'}% | ${fundStr||'sin fundamentales'})`;
+      const cached2 = RADAR_PRICES[r.ticker] || {};
+      const low100  = cached2.low100  ? `$${cached2.low100.toFixed(2)}`  : '?';
+      const high100 = cached2.high100 ? `$${cached2.high100.toFixed(2)}` : '?';
+      return `${r.ticker}(${r.name} | precio:$${r.price.toFixed(2)} | RSI14:${r.rsi14.toFixed(1)} | SMA50:$${r.sma50?.toFixed(2)||'?'} | dist.SMA50:${r.distSMA50?.toFixed(1)||'?'}% | rango100d:${low100}-${high100} | ${fundStr||'sin fundamentales'})`;
     }).join('\n');
 
     const prompt = `Soy un inversor argentino con perfil moderado-agresivo. Mis posiciones: ${POSITIONS.map(p=>p.ticker).join(', ')}.
 
-El screener técnico real encontró estos candidatos con RSI bajo y cerca de su SMA50:
+El screener técnico encontró estos candidatos con RSI bajo y cerca de su SMA50. TODOS LOS DATOS NUMÉRICOS QUE NECESITÁS ESTÁN ABAJO — no uses información de tu entrenamiento sobre precios históricos ni references fechas específicas que no puedas derivar de estos datos:
 ${candidateStr}
 
 Para cada uno:
-1. entryTarget: soporte técnico real (SMA50, zona de demanda, Fibonacci). Mínimo 3% bajo el precio actual.
-2. note: 1 línea técnica — por qué ese nivel es soporte.
-3. fundamental: 1 línea con los datos reales que te di (P/E, ROE, margen). Sé específico con los números.
+1. entryTarget: calculá el soporte basándote ÚNICAMENTE en los datos provistos (SMA50, rango de 100 días, dist.SMA50). Mínimo 3% bajo el precio actual. No inventes niveles históricos que no estén en los datos.
+2. note: 1 línea técnica que explique el nivel usando SOLO los números que te di (SMA50, rango 100d, RSI). No references fechas ni mínimos históricos que no aparezcan en los datos.
+3. fundamental: 1 línea con los datos reales de fundamentales que te di. Sé específico con los números.
 
 Respondé SOLO con JSON, sin texto extra:
 [{"ticker":"X","entryTarget":0,"note":"...","fundamental":"..."}]`;
