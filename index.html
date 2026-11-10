@@ -4941,11 +4941,11 @@ function renderSecEarnings(data) {
       <thead>
         <tr style="border-bottom:1px solid var(--border)">
           <th style="text-align:left;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">PERÍODO</th>
-          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">REVENUE</th>
-          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">NET INCOME</th>
-          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">EPS DIL.</th>
-          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">GROSS MGN</th>
-          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">OP. MGN</th>
+          <th data-tip="SEC:REVENUE" style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em;cursor:help">REVENUE</th>
+          <th data-tip="SEC:NET INCOME" style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em;cursor:help">NET INCOME</th>
+          <th data-tip="SEC:EPS DIL." style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em;cursor:help">EPS DIL.</th>
+          <th data-tip="SEC:GROSS MGN" style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em;cursor:help">GROSS MGN</th>
+          <th data-tip="SEC:OP. MGN" style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em;cursor:help">OP. MGN</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -6901,6 +6901,11 @@ function clearChat() {
     'DCF VALUACIÓN': { t:'DCF — Valor Intrínseco Estimado', b:'Descuento de flujos de caja futuros. Si el precio actual está por debajo del DCF, la acción podría estar barata. Si está muy por encima, el mercado está pagando prima de crecimiento.' },
     'BETA': { t:'Beta — Volatilidad vs el Mercado', b:'Cómo se mueve la acción vs el S&P 500. Beta 1 = se mueve igual que el mercado. >1.5 = muy volátil (amplifica subidas y bajadas). <0.5 = defensiva, poco correlacionada.' },
     'PRÓX. EARNINGS': { t:'Próximo Earnings — Fecha de Resultados', b:'Fecha en que la empresa publica sus resultados trimestrales. EPS est. = ganancia por acción que espera el consenso de analistas. BMO = antes de apertura del mercado. AMC = después del cierre. Los earnings son el evento de mayor volatilidad en una acción.' },
+    'SEC:REVENUE': { t:'Revenue — Ingresos Totales (SEC)', b:'Total de ventas o ingresos del trimestre, tal como fue reportado a la SEC en el formulario 10-Q o 10-K. El % al lado es la variación vs el mismo trimestre del año anterior (YoY). Un crecimiento sostenido de revenue es la base de cualquier tesis alcista.' },
+    'SEC:NET INCOME': { t:'Net Income — Ganancia Neta (SEC)', b:'Ganancia final después de todos los costos, intereses e impuestos. Es lo que queda para los accionistas. El % es la variación YoY. Puede ser negativo y seguir siendo un buen negocio si la empresa está invirtiendo para crecer — mirar en conjunto con el margen operativo.' },
+    'SEC:EPS DIL.': { t:'EPS Diluido — Ganancia por Acción (SEC)', b:'Earnings Per Share: ganancia neta dividida por el total de acciones diluidas (incluye opciones y convertibles). Es la métrica base del P/E. Si crece trimestre a trimestre, el negocio se hace más valioso por acción. Fuente: XBRL oficial de SEC.' },
+    'SEC:GROSS MGN': { t:'Gross Margin — Margen Bruto (SEC)', b:'(Revenue − Costo de Ventas) / Revenue. Mide cuánto queda después de producir el bien o servicio, antes de gastos operativos. >40% = negocio con alto poder de pricing (software, farma). 20–40% = normal. <20% = márgenes ajustados (retail, commodities). N/D en bancos y seguros que no tienen costo de ventas tradicional.' },
+    'SEC:OP. MGN': { t:'Operating Margin — Margen Operativo (SEC)', b:'Resultado operativo / Revenue. Mide la eficiencia del negocio central antes de intereses e impuestos. >20% = negocio muy eficiente. 10–20% = saludable. <5% = poco margen de error. Más robusto que el margen neto para comparar empresas con distinta estructura de capital.' },
     'CURRENT RATIO': { t:'Current Ratio — Liquidez de Corto Plazo', b:'Activos corrientes / Pasivos corrientes. <1 = puede no poder pagar deudas de corto plazo. 1–2 = normal. >2 = muy líquida. Crítico en empresas con mucha deuda corta.' },
     'MARGEN BRUTO': { t:'Margen Bruto — Rentabilidad del Negocio Base', b:'(Ventas - Costo de ventas) / Ventas. >40% = negocio con alto poder de pricing (software, farma). 20–40% = normal. <20% = negocio de bajo margen (retail, commodities).' },
     'SHORT INTEREST': { t:'Short Interest — Presión Bajista', b:'Porcentaje de acciones que están vendidas en corto (apostando a la baja). Alto short interest puede significar que los institucionales ven riesgo, o puede generar un short squeeze si la acción sube.' },
