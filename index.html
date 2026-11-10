@@ -1582,6 +1582,7 @@ async function fetchPriceTargets(ticker, currentPrice) {
         fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`).then(r=>r.json()),
       ]);
       // Precios objetivo de Finnhub
+      console.log('[PIP] Finnhub price-target response:', JSON.stringify(ptResp));
       if(ptResp?.targetHigh > 0) {
         const dataIsStale = ptResp.targetHigh < currentPrice;
         targets = {
@@ -1806,7 +1807,7 @@ async function fetchFundamentals(ticker) {
   let earnings = { next: null, history: [] };
   if(FMP_KEY) {
     try {
-      const earR = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${ticker}&limit=8&apikey=${FMP_KEY}`).then(r=>r.json());
+      const earR = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${ticker}&limit=8&apikey=${FMP_KEY}`).then(r=>r.ok?r.json():null).catch(()=>null);
       if(Array.isArray(earR) && earR.length) {
         const today = new Date().toISOString().slice(0,10);
         const upcoming = earR.filter(e => e.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
@@ -3187,8 +3188,8 @@ async function runScreener() {
     if(!FMP_KEY) { passed.push({ ticker, ratios: null, skipped: true }); continue; }
     try {
       const [metricsR, profileR] = await Promise.allSettled([
-        fetch(`https://financialmodelingprep.com/stable/key-metrics-ttm?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/key-metrics-ttm?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.ok?r.json():null).catch(()=>null),
       ]);
       const rawM = metricsR.status==='fulfilled' ? metricsR.value[0] : null;
       const rat  = normMetrics(rawM);
@@ -6079,6 +6080,7 @@ Respondé SOLO con JSON: [{"ticker":"X","entryTarget":0,"note":"...","fundamenta
     await Promise.allSettled(candidates.map(async r => {
       try {
         const resp = await fetch(`https://financialmodelingprep.com/api/v3/ratios-ttm/${r.ticker}?apikey=${FMP_KEY}`);
+        if(!resp.ok) return;
         const d = await resp.json();
         if(Array.isArray(d) && d[0]) fmpData[r.ticker] = d[0];
       } catch(e) {}

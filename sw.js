@@ -1,4 +1,4 @@
-const CACHE = 'pip-v4';
+const CACHE = 'pip-v5';
 const ASSETS = ['/portfolio/logopagina.jpg', '/portfolio/logoapp.jpg'];
 
 self.addEventListener('install', e => {
