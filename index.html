@@ -3500,14 +3500,15 @@ async function fetchIOLToken() {
 
 async function fetchBYMAHistory(ticker) {
   // Yahoo Finance: acciones BYMA con sufijo .BA (ej: PAMP.BA, HAVA.BA)
-  // No requiere autenticacion — API publica via corsproxy.io
-  const proxy = 'https://corsproxy.io/?';
+  // allorigins.win: proxy que funciona desde GitHub Pages (corsproxy.io da 403)
+  const proxy = 'https://api.allorigins.win/get?url=';
   const symbol = ticker.toUpperCase() + '.BA';
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`;
   let resp, json;
   try {
     resp = await fetch(proxy + encodeURIComponent(url));
-    json = await resp.json();
+    const wrapper = await resp.json();
+    json = JSON.parse(wrapper.contents);
   } catch(e) {
     throw new Error(`Sin datos para ${ticker} en BYMA. Verificá tu conexión.`);
   }
@@ -3618,13 +3619,15 @@ async function fetchMacroData() {
     macroPCE:  'PCEPILFE',
   };
   if(!fredKey) return; // sin key no hay datos
-  const proxy = 'https://corsproxy.io/?';
+  // allorigins.win: proxy que funciona desde GitHub Pages (corsproxy.io da 403)
+  const proxy = 'https://api.allorigins.win/get?url=';
   const results = await Promise.allSettled(
     Object.entries(series).map(([id, sid]) => {
       // PCE necesita 13 meses para calcular variacion YoY
       const limit = id === 'macroPCE' ? 14 : 5;
       return fetch(proxy + encodeURIComponent(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=${limit}&file_type=json`))
         .then(r => r.json())
+        .then(wrapper => JSON.parse(wrapper.contents))
         .then(d => {
           const obs = (d.observations || []).filter(o => o.value !== '.');
           if(id === 'macroPCE' && obs.length >= 13) {
