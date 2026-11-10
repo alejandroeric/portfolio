@@ -1815,29 +1815,8 @@ async function fetchFundamentals(ticker) {
     } catch(e) { console.warn('[PIP] AV OVERVIEW error', ticker, e); }
   }
 
-  // Earnings: próximo + historial de sorpresas
+  // Earnings: solo Finnhub (FMP /stable/earnings requiere plan de pago)
   let earnings = { next: null, history: [] };
-  if(FMP_KEY) {
-    try {
-      const earR = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${ticker}&limit=8&apikey=${FMP_KEY}`).then(r=>r.ok?r.json():null).catch(()=>null);
-      if(Array.isArray(earR) && earR.length) {
-        const today = new Date().toISOString().slice(0,10);
-        const upcoming = earR.filter(e => e.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
-        const past     = earR.filter(e => e.date <  today).sort((a,b)=>b.date.localeCompare(a.date));
-        if(upcoming.length) {
-          const n = upcoming[0];
-          earnings.next = { date: n.date, epsEst: n.epsEstimated, revenueEst: n.revenueEstimated, time: n.time };
-        }
-        earnings.history = past.slice(0,4).map(e => ({
-          date: e.date,
-          actual:   e.eps,
-          estimate: e.epsEstimated,
-          surprise: (e.eps != null && e.epsEstimated != null) ? ((e.eps - e.epsEstimated) / Math.abs(e.epsEstimated || 1) * 100) : null,
-        }));
-      }
-    } catch(e) { console.warn('[PIP] FMP earnings error', ticker, e); }
-  }
-  // Complementar con Finnhub si no hay historial
   if(FINNHUB_KEY && !earnings.history.length) {
     try {
       const fhEar = await fetch(`https://finnhub.io/api/v1/stock/earnings?symbol=${encodeURIComponent(ticker)}&limit=4&token=${FINNHUB_KEY}`).then(r=>r.json());
