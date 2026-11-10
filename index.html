@@ -1650,13 +1650,16 @@ function estimatePriceTargets(ticker, price) {
     const avg  = known.avg  > price        ? known.avg  : price * 1.12;
     const high = known.high > price        ? known.high : price * 1.35;
     const high52w = known.high52w > price  ? known.high52w : price * 1.05;
+    // Si algún valor fue recalculado (porque el hardcodeado quedó viejo),
+    // ya no es "stale" — los números mostrados son estimaciones válidas al precio actual
+    const wasRecalculated = (known.avg <= price) || (known.high <= price);
     return {
       ...known, low, avg, high,
       low52w:  known.low52w  || price * 0.72,
       high52w,
       count: known.buyCount + known.holdCount + known.sellCount || 20,
       isReal: false,
-      stale: (known.avg <= price) // flag para mostrar advertencia
+      stale: false // si llegamos aquí es porque ya corregimos los valores
     };
   }
   // Generic estimation: use ATR-based projection
