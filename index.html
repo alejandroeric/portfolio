@@ -1565,8 +1565,8 @@ async function fetchPriceTargets(ticker, currentPrice) {
   if(FMP_KEY && FMP_KEY !== 'demo') {
     try {
       const [profileR, ptR] = await Promise.all([
-        fetch(`https://financialmodelingprep.com/stable/profile?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/stable/price-target-consensus?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/api/v4/price-target-consensus?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
       ]);
       const profile = Array.isArray(profileR) ? profileR[0] : null;
       if(profile?.range) {
@@ -3889,69 +3889,47 @@ function renderPriceTargets(targets, currentPrice, currency) {
   if(targetsGrid) targetsGrid.style.display = '';
   if(noDataMsg)   noDataMsg.style.display   = 'none';
 
-  if(!targets.isReal) {
-    // Sin datos reales: mostrar campos con "—" y nota al pie
-    const cells = document.querySelectorAll('.pt-loading');
-    const subs = ['Precio mercado hoy','Sin datos','Sin datos','Sin datos','Sin datos'];
-    cells.forEach((cell, i) => {
-      if(i === 0) {
-        cell.textContent = fmtP2(currentPrice);
-        cell.style.color = 'var(--accent)';
-      } else {
-        cell.textContent = '—';
-        cell.style.color = 'var(--text2)';
-      }
-      cell.classList.remove('pt-loading');
-      const parent = cell.parentElement;
+  const upside = ((targets.avg - currentPrice) / currentPrice * 100).toFixed(1);
+  const upsideColor = parseFloat(upside) > 0 ? 'var(--green)' : 'var(--red)';
+  const gridVals = [
+    { val: fmtP2(currentPrice), color: 'var(--accent)', sub: 'Precio mercado hoy' },
+    { val: fmtP2(targets.low),  color: 'var(--red)',    sub: 'Escenario bajista' },
+    { val: fmtP2(targets.avg),  color: 'var(--yellow)', sub: 'Consenso Wall St.' },
+    { val: fmtP2(targets.high), color: 'var(--green)',  sub: 'Escenario alcista' },
+    { val: (parseFloat(upside)>0?'+':'')+upside+'%', color: upsideColor, sub: 'Hacia obj. promedio' },
+  ];
+  const cells = document.querySelectorAll('.pt-loading');
+  gridVals.forEach((gv, i) => {
+    if(cells[i]) {
+      cells[i].textContent = gv.val;
+      cells[i].style.color = gv.color;
+      cells[i].classList.remove('pt-loading');
+      const parent = cells[i].parentElement;
       const subEl = document.createElement('div');
       subEl.style.cssText = 'font-size:10px;color:var(--text2);margin-top:2px;';
-      subEl.textContent = subs[i];
+      subEl.textContent = gv.sub;
       parent.appendChild(subEl);
-    });
-    if(countEl) {
-      countEl.style.display = '';
-      countEl.textContent = '◎ SIN DATOS — configurá Finnhub o FMP';
-      countEl.style.color = '#1a1a1a';
-      countEl.style.background = 'var(--text2)';
-      countEl.style.border = 'none';
-      countEl.style.fontWeight = '700';
-      countEl.style.borderRadius = '4px';
-      countEl.style.padding = '2px 8px';
     }
-  } else {
-    const upside = ((targets.avg - currentPrice) / currentPrice * 100).toFixed(1);
-    const upsideColor = parseFloat(upside) > 0 ? 'var(--green)' : 'var(--red)';
-    const gridVals = [
-      { val: fmtP2(currentPrice), color: 'var(--accent)', sub: 'Precio mercado hoy' },
-      { val: fmtP2(targets.low),  color: 'var(--red)',    sub: 'Escenario bajista' },
-      { val: fmtP2(targets.avg),  color: 'var(--yellow)', sub: 'Consenso Wall St.' },
-      { val: fmtP2(targets.high), color: 'var(--green)',  sub: 'Escenario alcista' },
-      { val: (parseFloat(upside)>0?'+':'')+upside+'%',  color: upsideColor, sub: 'Hacia obj. promedio' },
-    ];
-    const cells = document.querySelectorAll('.pt-loading');
-    gridVals.forEach((gv, i) => {
-      if(cells[i]) {
-        cells[i].textContent = gv.val;
-        cells[i].style.color = gv.color;
-        cells[i].classList.remove('pt-loading');
-        const parent = cells[i].parentElement;
-        const subEl = document.createElement('div');
-        subEl.style.cssText = 'font-size:10px;color:var(--text2);margin-top:2px;';
-        subEl.textContent = gv.sub;
-        parent.appendChild(subEl);
-      }
-    });
-    if(countEl) {
-      const isStale = targets.stale;
-      countEl.style.display = '';
-      countEl.textContent = isStale ? '⚠ OBJETIVOS DESACTUALIZADOS' : '● REAL · ' + targets.count + ' analistas';
-      countEl.style.color      = isStale ? '#1a0d00' : '#0a1a0f';
-      countEl.style.background = isStale ? '#d29922' : '#3fb950';
-      countEl.style.border     = 'none';
-      countEl.style.fontWeight = '700';
-      countEl.style.borderRadius = '4px';
-      countEl.style.padding    = '2px 8px';
+  });
+  if(countEl) {
+    countEl.style.display = '';
+    if(!targets.isReal) {
+      countEl.textContent   = '◎ ESTIMADO — sin datos reales de analistas';
+      countEl.style.color      = '#1a1400';
+      countEl.style.background = '#d29922';
+    } else if(targets.stale) {
+      countEl.textContent   = '⚠ OBJETIVOS DESACTUALIZADOS';
+      countEl.style.color      = '#1a0d00';
+      countEl.style.background = '#d29922';
+    } else {
+      countEl.textContent   = '● REAL · ' + targets.count + ' analistas';
+      countEl.style.color      = '#0a1a0f';
+      countEl.style.background = '#3fb950';
     }
+    countEl.style.border       = 'none';
+    countEl.style.fontWeight   = '700';
+    countEl.style.borderRadius = '4px';
+    countEl.style.padding      = '2px 8px';
   }
 
   // 52W range bar
