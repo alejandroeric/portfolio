@@ -1,61 +1,28 @@
-# Contexto del proyecto Portfolio
+# Portfolio — Contexto del proyecto
 
-## Sobre el dueño
-
-Eric Nofal. Principiante en programación pero aprendiendo a usar Claude Code de forma profesional. Habla español rioplatense (Argentina, "vos").
-
-Su enfoque NO es escribir código línea por línea — es escribir prompts profesionales y entender el ecosistema. Cuando le expliques cosas, hacelo paso a paso, con ejemplos concretos y preguntas para verificar comprensión. Evitá info dumps.
-
-## Qué es Portfolio
+## Qué es
 
 App web de gestión de portfolio financiero personal. Muestra posiciones, precios de acciones, señales de compra/venta y análisis de tickers.
 
-Características clave:
-- App de archivo único HTML (`index.html`)
-- Se despliega via GitHub Pages: https://alejandroeric.github.io/portfolio
-- Integra Claude API (Anthropic) para análisis de imágenes y tickers
-- Integra Alpha Vantage API para precios de acciones
-- Las API keys se ingresan por UI, NO están hardcodeadas en el código
+Desplegada en GitHub Pages: **https://alejandroeric.github.io/portfolio**
+Push a `main` = deploy automático — confirmar antes de pushear.
 
-## Stack técnico real
+## Stack técnico
 
-- *HTML + CSS + JavaScript vanilla* — sin frameworks.
-- *NO* usar Python, Flask, SQLite ni stacks pesados.
-- Si se proponen cambios estructurales (split de archivos, build tools, etc.), pedir confirmación del dueño primero.
+- App de archivo único: `index.html`
+- HTML + CSS + JavaScript vanilla — sin frameworks.
+- Integra Claude API (Anthropic) para análisis de imágenes y tickers.
+- Integra Alpha Vantage API para precios de acciones.
+- Las API keys se ingresan por UI y se guardan en localStorage — nunca hardcodeadas.
+- **NO** usar Python, Flask, SQLite ni frameworks.
+- Cambios estructurales (split de archivos, build tools): pedir confirmación primero.
 
-## Seguridad
+## Estado al iniciar sesión
 
-- API keys (Anthropic, Alpha Vantage, etc.) *NUNCA en código fuente*. Solo en UI vía localStorage.
-- Sin secrets hardcodeados.
+- El proyecto tiene `.git/` conectado a GitHub.
+- Verificar en GitHub Pages después de cada deploy.
 
-## Control de versiones (git)
+## Mejoras pendientes (diseñadas, pendientes de implementar)
 
-*Regla #1 — Commits descriptivos:* mensajes claros, en castellano, que expliquen el "qué" y el "por qué". Evitar mensajes vagos tipo "fix", "update", "cambios".
-
-*Regla #2 — No commitear sin pedirlo:* no hacer commits automáticos sin que el dueño los apruebe explícitamente.
-
-*Regla #3 — Push = deploy:* cada push a `main` actualiza GitHub Pages. Confirmar con el dueño antes de pushear.
-
-Identidad git ya configurada globalmente: Eric Nofal / alejoanton@hotmail.com.
-
-## Workflow profesional esperado
-
-1. *Plan antes de código*: para tareas no triviales, presentar plan primero. Esperar OK.
-2. *Edit > Write*: preferir Edit a Write siempre que se pueda. Solo usar Write para archivos nuevos o reescrituras planeadas.
-3. *Leer antes de modificar*: nunca tocar archivo sin haberlo leído antes.
-4. *Verificar visualmente*: después de cambios significativos, recomendar abrir la app en GitHub Pages y confirmar que funciona.
-
-## Restricciones generales (defaults)
-
-- *No commitear a git* sin que el dueño lo pida explícitamente.
-- *No instalar paquetes nuevos* sin avisar y justificar.
-- *No borrar archivos* sin confirmar.
-- *Si existen instrucciones contradictorias*, preguntar al dueño cuál usar.
-
-## Estilo de comunicación esperado
-
-- Español rioplatense ("vos", no "tú").
-- Paso a paso, con ejemplos concretos y preguntas de verificación.
-- Validar el "por qué" antes del "cómo" cuando es un concepto nuevo.
-- Sin emojis salvo que el dueño los use primero o los pida.
-- Sin info dumps. Una idea por turno.
+- Panel de noticias por ticker — via RSS de Yahoo Finance + proxy allorigins.win
+- Panel de earnings por ticker — via SEC EDGAR XBRL API (sin key, User-Agent requerido: "Eric Nofal alejoanton@hotmail.com")
