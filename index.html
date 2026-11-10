@@ -1294,6 +1294,18 @@ if(guideBody){
   </div>
 
   <div class="cfg-block">
+    <div class="cfg-ttl">// PRECIOS ARS (CEDEARs y BONOS)</div>
+    <div class="cfg-row" style="flex-direction:column;gap:6px">
+      <div class="cfg-lbl">Los precios ARS se guardan en caché local. Actualizalos una vez por día desde acá.</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <button class="btn btn-a" onclick="refreshARSPricesManual()">ACTUALIZAR PRECIOS ARS</button>
+        <span id="arsUpdateStatus" style="font-family:var(--mono);font-size:10px;color:var(--text2)"></span>
+      </div>
+      <div id="arsCacheInfo" style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:2px"></div>
+    </div>
+  </div>
+
+  <div class="cfg-block">
     <div class="cfg-ttl">// MERCADO ARGENTINO (BYMA)</div>
     <div class="cfg-row" style="flex-direction:column;gap:8px">
       <div class="cfg-lbl">INVERTIRONLINE (acciones y CEDEARs del BYMA)</div>
@@ -5828,6 +5840,26 @@ async function fetchARSPrices() {
   }
 }
 
+async function refreshARSPricesManual() {
+  const btn = document.querySelector('[onclick="refreshARSPricesManual()"]');
+  const statusEl = document.getElementById('arsUpdateStatus');
+  const cacheEl  = document.getElementById('arsCacheInfo');
+  if(btn) btn.disabled = true;
+  if(statusEl) statusEl.textContent = 'Actualizando…';
+  // Forzar refetch borrando el cache de hoy
+  localStorage.removeItem('prices_today');
+  await fetchARSPrices();
+  const saved = JSON.parse(localStorage.getItem('prices_today') || 'null');
+  if(saved?.ars && Object.keys(saved.ars).length > 0) {
+    if(statusEl) { statusEl.textContent = '✓ Actualizado'; statusEl.style.color = 'var(--green)'; }
+    const tickers = Object.entries(saved.ars).map(([t,p]) => `${t}: $${p.toLocaleString('es-AR',{maximumFractionDigits:0})}`).join(' · ');
+    if(cacheEl) cacheEl.textContent = tickers;
+  } else {
+    if(statusEl) { statusEl.textContent = '✗ Error de red — allorigins.win no disponible desde GitHub Pages'; statusEl.style.color = 'var(--red)'; }
+  }
+  if(btn) btn.disabled = false;
+}
+
 async function fetchClaudeRadarRecommendations() {
   const antKey = localStorage.getItem('anthropic_key') || '';
   if(!antKey || !isValidAnthropicKey(antKey)) return null;
@@ -7146,9 +7178,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Actualizar precios USD del portfolio desde Finnhub al arrancar
   fetchPortfolioPrices();
-  // Actualizar precios ARS (CEDEARs y bonos) desde Yahoo Finance al arrancar
-  // Delay de 3s para no competir con otras llamadas a allorigins.win al startup
-  setTimeout(() => fetchARSPrices(), 3000);
+  // Precios ARS: solo desde cache localStorage — allorigins.win bloqueado en GitHub Pages
+  // Usuario puede actualizar manualmente desde CONFIG
+  try {
+    const saved = JSON.parse(localStorage.getItem('prices_today') || 'null');
+    if(saved?.ars) Object.assign(KNOWN_PRICES_ARS, saved.ars);
+  } catch(e) {}
+  renderPortfolio();
   // Actualizar dólar MEP desde DolarAPI al arrancar
   fetchMEP();
   updateMepDisplay();
