@@ -1275,6 +1275,25 @@ if(guideBody){
   </div>
 
   <div class="cfg-block">
+    <div class="cfg-ttl">// TIPO DE CAMBIO MEP (USD/ARS)</div>
+    <div class="cfg-row" style="margin-bottom:8px">
+      <div style="flex:1">
+        <div class="cfg-lbl">MEP MANUAL — se usa para convertir posiciones en ARS a USD</div>
+        <form autocomplete="off" onsubmit="saveMepManual();return false" style="display:flex;gap:8px;margin-top:4px">
+          <input class="inp" id="mepManualInp" placeholder="Ej: 1250.50" type="number" step="0.01" min="100" max="50000" style="max-width:160px">
+          <button type="submit" class="btn btn-a">GUARDAR</button>
+        </form>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+          ESTADO: <span id="mepStatusDisplay" style="color:var(--accent)">Cargando…</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px">
+          Al abrir la app se intenta cargar el MEP desde DolarAPI. Si hay error de red, usá el valor manual. <b>Actualizalo cada vez que lo veas desactualizado.</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cfg-block">
     <div class="cfg-ttl">// MERCADO ARGENTINO (BYMA)</div>
     <div class="cfg-row" style="flex-direction:column;gap:8px">
       <div class="cfg-lbl">INVERTIRONLINE (acciones y CEDEARs del BYMA)</div>
@@ -2158,7 +2177,39 @@ function getCostBasisARS(pos) {
 }
 
 function getEffectiveMEP() {
-  return window.MEP_RATE_OVERRIDE || MEP_RATE;
+  // Prioridad: 1) DolarAPI (cargado al inicio), 2) manual del usuario, 3) hardcoded
+  const manual = parseFloat(localStorage.getItem('pip_mep_manual') || '0');
+  return window.MEP_RATE_OVERRIDE || (manual > 0 ? manual : MEP_RATE);
+}
+function getMepInfo() {
+  if(window.MEP_RATE_OVERRIDE) return { rate: window.MEP_RATE_OVERRIDE, source: 'API (DolarAPI)', fresh: true };
+  const manual = parseFloat(localStorage.getItem('pip_mep_manual') || '0');
+  const date   = localStorage.getItem('pip_mep_manual_date') || '';
+  if(manual > 0) {
+    const today = new Date().toISOString().slice(0,10);
+    return { rate: manual, source: `Manual (${date})`, fresh: date === today };
+  }
+  return { rate: MEP_RATE, source: 'Hardcodeado — DESACTUALIZADO', fresh: false };
+}
+function saveMepManual() {
+  const val = parseFloat(document.getElementById('mepManualInp')?.value || '0');
+  if(!val || val < 100 || val > 50000) { showToast('Valor de MEP inválido'); return; }
+  localStorage.setItem('pip_mep_manual', String(val));
+  localStorage.setItem('pip_mep_manual_date', new Date().toISOString().slice(0,10));
+  window.MEP_RATE_OVERRIDE = null; // forzar re-lectura
+  renderPortfolio();
+  updateMepDisplay();
+  showToast(`MEP guardado: $${val.toLocaleString('es-AR')} ✓`);
+}
+function updateMepDisplay() {
+  const info = getMepInfo();
+  const el = document.getElementById('mepStatusDisplay');
+  if(!el) return;
+  const col = info.fresh ? 'var(--green)' : 'var(--red)';
+  el.innerHTML = `<span style="color:${col}">${info.source}</span> · $${info.rate.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  // Mostrar advertencia en portafolio si MEP no es fresco
+  const warn = document.getElementById('mepWarnBanner');
+  if(warn) warn.style.display = info.fresh ? 'none' : 'block';
 }
 
 // Bonos argentinos se cotizan por VN 100, no por unidad
@@ -2406,6 +2457,8 @@ function companyName(t){
 
 // ── DECISION ENGINE ──
 // This is the heart: personalized recommendations for YOUR portfolio
+const STATIC_ANALYSIS_BANNER = `<div style="border:1px solid var(--warn,#e3b341);border-radius:4px;padding:6px 10px;margin-bottom:10px;font-size:10px;font-family:var(--mono);color:var(--warn,#e3b341);background:rgba(227,179,65,0.07)">ANALISIS NARRATIVO ESTATICO — Los datos de EPS, objetivos y contexto fueron escritos en una fecha anterior. El P&L y los niveles de TP/SL se calculan en tiempo real con el precio actual. Verificá los datos específicos antes de operar.</div>`;
+
 function generateDecision(pos) {
   const priceUSD = getCurrentPrice(pos.ticker);
   if(!priceUSD) return {action:'ESPERAR',urgency:'n',text:'Sin precio disponible',tp:null,sl:null,confidence:40};
@@ -2422,92 +2475,95 @@ function generateDecision(pos) {
   }
   const t = pos.ticker;
 
+  // Helper: antepone banner a todos los narrativos hardcodeados
+  const withBanner = (obj) => ({ ...obj, text: STATIC_ANALYSIS_BANNER + obj.text });
+
   // ── ACN — Accenture ──
-  if(t === 'ACN') return {
+  if(t === 'ACN') return withBanner({
     action: 'VIGILAR', urgency:'w',
     text: `<b>Accenture cotiza un ${fmt(Math.abs(pnlPct))}% por debajo de tu precio de entrada.</b> La acción perdió más del 44% desde el máximo de 52 semanas ($321). La empresa reportó EPS de $2.93 vs $2.84 esperado en el último trimestre — sorpresa positiva del 3.2%. Formó joint venture con Mitsubishi Chemical para IA. <span class="warn-txt">El precio actual está cerca del soporte técnico del mínimo de 52 semanas.</span> <b>Estrategia: vigilar el próximo reporte de earnings. Si decepcionan, salir. Si superan expectativas, el rebote puede ser del 15-25%.</b>`,
     tp: price * 1.18, sl: price * 0.91, confidence: 52,
     levels: {obj:'$220 consenso', sl52w:'$155.82 soporte'}
-  };
+  });
 
   // ── SPOT — Spotify ──
-  if(t === 'SPOT') return {
+  if(t === 'SPOT') return withBanner({
     action: 'REDUCIR', urgency:'w',
-    text: `<b>SPOT tiene una ganancia latente del +${fmt(pnlPct)}% — la mayor rentabilidad de tu portafolio.</b> Spotify está en $510, bien por encima del objetivo mínimo de analistas ($350). <span class="warn-txt">El consenso apunta a $650, y ya estás 22% por debajo de ese objetivo, pero el riesgo de corrección es real.</span> La empresa firmó acuerdo con Universal Music y presentó objetivos para 2030 con IA generativa. Volumen de trading cayó esta sesión. <b>Recomendación: tomá ganancias del 30-40% de tu posición (12-16 acciones). Liberás capital sin cerrar una posición ganadora. Stop mental para el resto: $460.</b>`,
+    text: `<b>SPOT tiene una ganancia latente del +${fmt(pnlPct)}% — la mayor rentabilidad de tu portafolio.</b> <span class="warn-txt">El consenso apunta a $650, y ya estás 22% por debajo de ese objetivo, pero el riesgo de corrección es real.</span> La empresa firmó acuerdo con Universal Music y presentó objetivos para 2030 con IA generativa. <b>Recomendación: tomá ganancias del 30-40% de tu posición (12-16 acciones). Liberás capital sin cerrar una posición ganadora.</b>`,
     tp: price * 1.12, sl: price * 0.90, confidence: 73,
-    levels: {earn:'Q3 2026', obj:'$650 consenso', sl:'$460 stop mental'}
-  };
+    levels: {earn:'Q3 2026', obj:'$650 consenso', sl:`$${Math.round(price*0.90).toLocaleString()} stop`}
+  });
 
   // ── RBLX — Roblox ──
-  if(t === 'RBLX') return {
+  if(t === 'RBLX') return withBanner({
     action: 'SALIR', urgency:'u',
-    text: `<b><span class="danger-txt">RBLX es la posición de mayor riesgo de tu portafolio.</span> Cayó un ${fmt(Math.abs(pnlPct))}% desde tu precio de compra estimado.</b> Los fundamentos son deteriorantes: EBITDA negativo (-$1.04B), deuda/equity de 21.8x, pérdida neta de $1.1B en los últimos 12 meses. Después del Q1 2026 earnings, las acciones tocaron nuevo mínimo de 52 semanas ($41.75). <span class="danger-txt">Hay una investigación legal activa de KSF (firma Kahn Swick & Foti) post-earnings.</span> La guía para 2026 fue revisada a la baja. El upside técnico es mínimo y el riesgo fundamental es máximo. <b>Recomendación: salir en la próxima sesión de buena liquidez. La pérdida no realizada (~$${fmt((pos.costBasisARS - (KNOWN_PRICES_ARS['RBLX']||33000))*pos.qty/1000,0)}K ARS aprox.) es deducible fiscalmente y liberás capital para mejores oportunidades.</b>`,
+    text: `<b><span class="danger-txt">RBLX es la posición de mayor riesgo de tu portafolio.</span> Cayó un ${fmt(Math.abs(pnlPct))}% desde tu precio de compra estimado.</b> Los fundamentos son deteriorantes: EBITDA negativo (-$1.04B), deuda/equity de 21.8x, pérdida neta de $1.1B en los últimos 12 meses. <span class="danger-txt">Hay una investigación legal activa de KSF (firma Kahn Swick & Foti) post-earnings.</span> La guía para 2026 fue revisada a la baja. El upside técnico es mínimo y el riesgo fundamental es máximo. <b>Recomendación: salir en la próxima sesión de buena liquidez. La pérdida no realizada (~$${fmt((pos.costBasisARS - (KNOWN_PRICES_ARS['RBLX']||33000))*pos.qty/1000,0)}K ARS aprox.) es deducible fiscalmente y liberás capital para mejores oportunidades.</b>`,
     tp: price * 1.08, sl: price * 0.88, confidence: 82,
-    levels: {sl52w:'$40.15 mínimo', legal:'KSF en curso', earn:'próximo N/A'}
-  };
+    levels: {sl52w:`$${Math.round(price*0.88).toLocaleString()} stop`, legal:'KSF en curso', earn:'próximo N/A'}
+  });
 
   // ── MSFT — Microsoft ──
-  if(t === 'MSFT') return {
+  if(t === 'MSFT') return withBanner({
     action: 'MANTENER', urgency:'n',
     text: `<b>Microsoft tiene una pérdida latente del ${fmt(Math.abs(pnlPct))}% desde tu entrada, pero los fundamentos no justifican salir.</b> MSFT es el líder global en IA empresarial con Azure + Copilot. El consenso de analistas apunta a objetivo promedio de $465 (+9% upside desde niveles anteriores). Tasas restrictivas presionan las valuaciones tech, pero MSFT tiene posición de caja de $75B. <b>No tocar. Horizonte 12-18 meses para recuperar terreno hacia $465-$500.</b>`,
     tp: price * 1.12, sl: price * 0.87, confidence: 63,
-    levels: {obj:'$465 consenso', sl:'$380 soporte'}
-  };
+    levels: {obj:'$465 consenso', sl:`$${Math.round(price*0.87).toLocaleString()} soporte`}
+  });
 
   // ── LMT — Lockheed Martin ──
-  if(t === 'LMT') return {
+  if(t === 'LMT') return withBanner({
     action: 'MANTENER', urgency:'p',
-    text: `<b><span class="ok-txt">LMT es tu mejor posición estructural.</span> +${fmt(pnlPct)}% y el sector defensa está en máxima demanda.</b> El conflicto EE.UU.-Israel-Irán y el aumento de presupuestos NATO impulsan la demanda de F-35, misiles Patriot y sistemas THAAD. El consenso de analistas apunta a precio objetivo de $595 con upside potencial. <b>Mantener la posición completa. Si el contexto geopolítico escala, considerar agregar 2-3 acciones más. Stop loss en $490 para proteger ganancias.</b>`,
+    text: `<b><span class="ok-txt">LMT es tu mejor posición estructural.</span> +${fmt(pnlPct)}% y el sector defensa está en máxima demanda.</b> El conflicto EE.UU.-Israel-Irán y el aumento de presupuestos NATO impulsan la demanda de F-35, misiles Patriot y sistemas THAAD. El consenso de analistas apunta a precio objetivo de $595 con upside potencial. <b>Mantener la posición completa. Si el contexto geopolítico escala, considerar agregar 2-3 acciones más.</b>`,
     tp: price * 1.12, sl: price * 0.92, confidence: 71,
-    levels: {obj:'$595 consenso', sl:'$490 protección'}
-  };
+    levels: {obj:'$595 consenso', sl:`$${Math.round(price*0.92).toLocaleString()} protección`}
+  });
 
   // ── ADBE — Adobe ──
-  if(t === 'ADBE') return {
+  if(t === 'ADBE') return withBanner({
     action: 'MANTENER', urgency:'n',
     text: `<b>ADBE tiene una pérdida latente del ${fmt(Math.abs(pnlPct))}%.</b> Adobe Q1 2026: revenue +12% YoY a $6.4B (superó estimados), EPS $6.06 vs $5.86 esperado. <span class="ok-txt">La empresa anunció recompra de acciones por $25B hasta 2030 y está integrando IA generativa (Firefly + Gemini) en toda la suite Creative Cloud.</span> El objetivo de analistas es $327 promedio como referencia de upside. El negocio de suscripciones tradicional está bajo presión, pero AI-first está compensando. <b>Mantener. Si ADBE supera $270, puede acelerar hacia $300.</b>`,
     tp: price * 1.25, sl: price * 0.88, confidence: 58,
-    levels: {obj:'$327 consenso', sl:'$224 52W low'}
-  };
+    levels: {obj:'$327 consenso', sl:`$${Math.round(price*0.88).toLocaleString()} 52W low`}
+  });
 
   // ── MELI — MercadoLibre ──
-  if(t === 'MELI') return {
+  if(t === 'MELI') return withBanner({
     action: 'MANTENER', urgency:'n',
     text: `<b>MELI tiene una pérdida del ${fmt(Math.abs(pnlPct))}% pero es una posición de convicción.</b> MercadoLibre reportó revenue de $8.85B con EPS de $8.23. <span class="warn-txt">31 analistas apuntan a un precio objetivo de $2.360 — upside significativo desde los niveles actuales.</span> El negocio es sólido: MercadoPago creciendo, e-commerce dominante en LATAM. <b>Mantener la posición. El upside al consenso de $2.360 es significativo. Si el mercado LATAM se estabiliza, esta posición tiene alto potencial.</b>`,
     tp: price * 1.30, sl: price * 0.84, confidence: 61,
-    levels: {obj:'$2.360 consenso', sl:'$1.400 soporte'}
-  };
+    levels: {obj:'$2.360 consenso', sl:`$${Math.round(price*0.84).toLocaleString()} soporte`}
+  });
 
   // ── BTC ──
-  if(t === 'BTC') return {
+  if(t === 'BTC') return withBanner({
     action: 'MANTENER', urgency:'n',
     text: `<b>BTC ${pnlPct >= 0 ? 'muestra una ganancia' : 'tiene una pérdida'} del ${fmt(Math.abs(pnlPct))}% desde tu entrada estimada (~$75K).</b> Tenés una posición pequeña (0.069 BTC) que representa menos del 10% del portafolio. Bitcoin actúa como hedge de inflación y diversificador. <b>Mantener. La exposición es controlada. Usá el Analizador técnico para ver el precio actual y señales en tiempo real.</b>`,
-    tp: 110000, sl: 82000, confidence: 55,
-    levels: {res:'$100K resistencia histórica', sl:'$82K soporte clave'}
-  };
+    tp: price * 1.18, sl: price * 0.85, confidence: 55,
+    levels: {res:`$${Math.round(price*1.18).toLocaleString()} obj. +18%`, sl:`$${Math.round(price*0.85).toLocaleString()} stop -15%`}
+  });
 
   // ── AO27 — Bono Argentina 2027 ──
-  if(t === 'AO27') return {
+  if(t === 'AO27') return withBanner({
     action: 'MANTENER', urgency:'p',
     text: `<b><span class="ok-txt">AO27 — excelente decisión.</span> Compraste el bono que vence antes de las elecciones 2027.</b> El AO27 paga cupón mensual en dólares y vence en octubre 2027 dentro del mandato de Milei. Con ${pos.qty} títulos a $${(pos.costBasisARS||pos.costBasis).toLocaleString('es-AR')} ARS, tu posición genera renta mensual en USD. <span class="ok-txt">La tesis es correcta: menor riesgo político que el AO28, mayor rendimiento que el COCOAUSD.</span> Mantener hasta vencimiento o hasta que el precio suba 8-10% para tomar ganancia de capital.`,
     tp: price * 1.10, sl: price * 0.92, confidence: 75,
     levels: {venc:'Oct 2027', rend:'~4.93% TNA USD', sl:'No vender bajo $134.000'}
-  };
+  });
 
   // ── AO28 — Bono Argentina 2028 ──
-  if(t === 'AO28') return {
+  if(t === 'AO28') return withBanner({
     action: 'MANTENER', urgency:'n',
     text: `<b>AO28 — tu posición estructural en bonos argentinos.</b> Tenés 4.188 títulos generando ~US$20 de cupón mensual. El gobierno está usando el AO28 como instrumento de financiamiento activo. <span class="warn-txt">Seguí el cronograma de vencimientos de deuda soberana — cada pago sin sobresaltos impulsa el precio.</span> Si Argentina mantiene el cumplimiento, el bono puede subir 8-12% adicional. Mantener y evaluar en cada vencimiento.`,
     tp: price * 1.12, sl: price * 0.91, confidence: 65,
     levels: {cupon:'~US$20/mes', obj:'Subir 8-12% con cumplimiento soberano'}
-  };
+  });
 
   // ── ETH ──
   if(t === 'ETH') return {
     action: 'MANTENER', urgency:'p',
-    text: `<b>ETH tiene una ganancia del +${fmt(pnlPct)}% desde tu entrada estimada.</b> Ethereum opera en $2.460 con fundamentales mejorando: el ETF de ETH institucional captó $2.1B en 2026 hasta ahora. La narrativa de staking y DeFi se mantiene sólida. Posición pequeña (0.46 ETH, ~$1.1K). <b>Mantener. Tamaño controlado, sin acción necesaria.</b>`,
-    tp: 3200, sl: 1900, confidence: 60,
-    levels: {res:'$3.000 resistencia', sl:'$1.900 soporte', etf:'ETF institucional activo'}
+    text: `<b>ETH tiene una ganancia del +${fmt(pnlPct)}% desde tu entrada estimada.</b> Ethereum opera en $${fmt(price)} con fundamentales mejorando: el ETF de ETH institucional captó $2.1B en 2026 hasta ahora. La narrativa de staking y DeFi se mantiene sólida. Posición pequeña (0.46 ETH, ~$1.1K). <b>Mantener. Tamaño controlado, sin acción necesaria.</b>`,
+    tp: price * 1.22, sl: price * 0.82, confidence: 60,
+    levels: {res:`$${Math.round(price*1.22).toLocaleString()} obj. +22%`, sl:`$${Math.round(price*0.82).toLocaleString()} stop -18%`, etf:'ETF institucional activo'}
   };
 
   // Generic fallback
@@ -5628,7 +5684,11 @@ async function fetchMEP() {
     const rate = d?.venta || d?.compra || null;
     if(rate && rate > 0) {
       window.MEP_RATE_OVERRIDE = rate;
+      // Persistir en localStorage para sobrevivir recargas
+      localStorage.setItem('pip_mep_manual', String(rate));
+      localStorage.setItem('pip_mep_manual_date', new Date().toISOString().slice(0,10));
       renderPortfolio();
+      updateMepDisplay();
       const el = document.getElementById('macroMEP');
       if(el) el.textContent = '$' + rate.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
       console.log('[PIP] MEP actualizado desde DolarAPI:', rate);
@@ -6994,6 +7054,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchPortfolioPrices();
   // Actualizar dólar MEP desde DolarAPI al arrancar
   fetchMEP();
+  updateMepDisplay();
   const inp = document.getElementById('chatInp');
   if(inp) {
     const wrap = document.getElementById('chatInputWrap');
