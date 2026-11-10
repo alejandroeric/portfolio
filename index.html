@@ -1561,54 +1561,34 @@ function genDemo(ticker){
 async function fetchPriceTargets(ticker, currentPrice) {
   let targets = estimatePriceTargets(ticker, currentPrice);
 
-  // Enriquecer con rango 52w y precios objetivo reales de FMP
+  // Enriquecer con rango 52W real de FMP (plan gratuito: /api/v3/profile)
   if(FMP_KEY && FMP_KEY !== 'demo') {
     try {
-      const [profileR, ptR] = await Promise.all([
-        fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
-        fetch(`https://financialmodelingprep.com/api/v4/price-target-consensus?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
-      ]);
-      console.log('[FMP] profile:', JSON.stringify(profileR).slice(0,200));
-      console.log('[FMP] price-target:', JSON.stringify(ptR).slice(0,200));
+      const profileR = await fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`)
+        .then(r => r.ok ? r.json() : null).catch(() => null);
       const profile = Array.isArray(profileR) ? profileR[0] : null;
       if(profile?.range) {
-        const parts = profile.range.split('-');
-        const low52w  = parseFloat(parts[0]);
-        const high52w = parseFloat(parts[1]);
-        if(low52w > 0 && high52w > 0) targets = { ...targets, low52w, high52w, isReal: true };
-      }
-      const pt = Array.isArray(ptR) ? ptR[0] : ptR;
-      if(pt?.targetLow || pt?.targetConsensus || pt?.targetHigh) {
-        // Si el objetivo MÁXIMO está por debajo del precio actual, marcar stale
-        // pero igual mostrar los valores reales con badge de advertencia
-        const dataIsStale = pt.targetHigh && pt.targetHigh < currentPrice;
-        targets = {
-          ...targets,
-          low:  pt.targetLow       || targets.low,
-          avg:  pt.targetConsensus || targets.avg,
-          high: pt.targetHigh      || targets.high,
-          isReal: true,
-          stale: !!dataIsStale,
-        };
+        const parts = profile.range.split('-').map(s => parseFloat(s.trim()));
+        if(parts[0] > 0 && parts[1] > 0) targets = { ...targets, low52w: parts[0], high52w: parts[1] };
       }
     } catch(e) {}
   }
 
-  // Enriquecer con precios objetivo y recomendaciones reales de Finnhub
+  // Precios objetivo reales: Finnhub /stock/price-target (disponible en plan gratuito)
   if(FINNHUB_KEY) {
     try {
       const [ptResp, recResp] = await Promise.all([
         fetch(`https://finnhub.io/api/v1/stock/price-target?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`).then(r=>r.json()),
         fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`).then(r=>r.json()),
       ]);
-      // Precios objetivo de Finnhub (solo si FMP no los trajo o son mejores)
-      if(!targets.isReal && ptResp?.targetLow && ptResp?.targetHigh) {
+      // Precios objetivo de Finnhub
+      if(ptResp?.targetHigh > 0) {
         const dataIsStale = ptResp.targetHigh < currentPrice;
         targets = {
           ...targets,
-          low:  ptResp.targetLow    || targets.low,
-          avg:  ptResp.targetMean   || targets.avg,
-          high: ptResp.targetHigh   || targets.high,
+          low:   ptResp.targetLow  || targets.low,
+          avg:   ptResp.targetMean || targets.avg,
+          high:  ptResp.targetHigh,
           count: ptResp.numberOfAnalysts || targets.count,
           isReal: true,
           stale: !!dataIsStale,
@@ -4906,10 +4886,11 @@ async function fetchSecCik(ticker) {
   }
   if(!map) {
     try {
-      const res = await fetch('https://www.sec.gov/files/company_tickers.json', {
-        headers: { 'User-Agent': 'Eric Nofal alejoanton@hotmail.com' }
-      });
-      const raw = await res.json();
+      // SEC bloquea CORS desde GitHub Pages — usar proxy
+      const secUrl = 'https://www.sec.gov/files/company_tickers.json';
+      const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(secUrl));
+      const wrapper = await res.json();
+      const raw = JSON.parse(wrapper.contents);
       map = {};
       for(const entry of Object.values(raw)) {
         map[entry.ticker.toUpperCase()] = String(entry.cik_str).padStart(10, '0');
@@ -4927,11 +4908,11 @@ async function fetchSecEarnings(ticker) {
     const cik = await fetchSecCik(ticker);
     if(!cik) return null;
 
-    const res = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
-      headers: { 'User-Agent': 'Eric Nofal alejoanton@hotmail.com' }
-    });
+    const secDataUrl = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+    const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(secDataUrl));
     if(!res.ok) return null;
-    const json = await res.json();
+    const wrapper = await res.json();
+    const json = JSON.parse(wrapper.contents);
     const gaap = json.facts?.['us-gaap'];
     if(!gaap) return null;
 
@@ -5772,28 +5753,26 @@ async function fetchARSPrices() {
   try {
     const saved = JSON.parse(localStorage.getItem('prices_today') || 'null');
     if(saved?.dateISO === todayISO && saved?.ars && Object.keys(saved.ars).length > 0) {
-      // Ya tenemos precios de hoy — aplicarlos a KNOWN_PRICES_ARS y salir
       Object.assign(KNOWN_PRICES_ARS, saved.ars);
       renderPortfolio();
       return;
     }
   } catch(e) {}
 
-  // Obtener tickers ARS únicos del portfolio
   const arsTickers = [...new Set(
     POSITIONS.filter(p => p.currency === 'ARS').map(p => p.ticker)
   )];
   if(!arsTickers.length) return;
 
-  const proxy = 'https://corsproxy.io/?';
+  // allorigins.win: proxy que funciona desde GitHub Pages (corsproxy.io da 403)
+  const proxy = 'https://api.allorigins.win/get?url=';
   const fetches = arsTickers.map(async ticker => {
-    // Para bonos soberanos AR (AO27, AO28, etc.) usar sufijo .BA directo
-    // Para CEDEARs (MSFT, SPOT, etc.) Yahoo Finance usa el mismo sufijo .BA
     const symbol = ticker.toUpperCase() + '.BA';
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
     try {
       const resp = await fetch(proxy + encodeURIComponent(url));
-      const json = await resp.json();
+      const wrapper = await resp.json();
+      const json = JSON.parse(wrapper.contents);
       const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
       if(price && price > 0) return { ticker, price };
     } catch(e) {}
