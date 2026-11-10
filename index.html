@@ -3868,48 +3868,64 @@ function buildReasons(r){
 }
 
 function renderPriceTargets(targets, currentPrice, currency) {
-  const upside = ((targets.avg - currentPrice) / currentPrice * 100).toFixed(1);
-  const upsideColor = parseFloat(upside) > 0 ? 'var(--green)' : 'var(--red)';
-  const upsideMax = ((targets.high - currentPrice) / currentPrice * 100).toFixed(1);
   const fmtP2 = v => v >= 1000 ? '$'+v.toLocaleString('es-AR',{minimumFractionDigits:0}) : '$'+v.toFixed(2);
 
-  // Price target grid values
-  const gridVals = [
-    { val: fmtP2(currentPrice), color: 'var(--accent)', sub: 'Precio mercado hoy' },
-    { val: fmtP2(targets.low),  color: 'var(--red)',    sub: 'Escenario bajista' },
-    { val: fmtP2(targets.avg),  color: 'var(--yellow)', sub: 'Consenso Wall St.' },
-    { val: fmtP2(targets.high), color: 'var(--green)',  sub: 'Escenario alcista' },
-    { val: (parseFloat(upside)>0?'+':'')+upside+'%',  color: upsideColor, sub: 'Hacia obj. promedio' },
-  ];
+  // Si no hay datos reales de analistas, ocultar los objetivos y mostrar aviso
+  const targetsGrid = document.getElementById('priceTargetGrid');
+  const noDataMsg   = document.getElementById('ptNoDataMsg');
+  const countEl     = document.getElementById('analystCount');
 
-  // Update grid cells
-  const cells = document.querySelectorAll('.pt-loading');
-  gridVals.forEach((gv, i) => {
-    if(cells[i]) {
-      cells[i].textContent = gv.val;
-      cells[i].style.color = gv.color;
-      cells[i].classList.remove('pt-loading');
-      // Add sub label
-      const parent = cells[i].parentElement;
-      const subEl = document.createElement('div');
-      subEl.style.cssText = 'font-size:10px;color:var(--text2);margin-top:2px;';
-      subEl.textContent = gv.sub;
-      parent.appendChild(subEl);
+  if(!targets.isReal) {
+    // Ocultar grilla de objetivos
+    if(targetsGrid) targetsGrid.style.display = 'none';
+    // Mostrar mensaje
+    if(noDataMsg) {
+      noDataMsg.style.display = 'block';
+      noDataMsg.innerHTML = `<span style="color:var(--text2);font-family:var(--mono);font-size:11px">Sin datos de analistas disponibles para este ticker. Configurá <b>Finnhub</b> o <b>FMP</b> en CONFIG para ver objetivos reales.</span>`;
     }
-  });
+    if(countEl) countEl.style.display = 'none';
+    // Continuar para mostrar igualmente el rango 52W (viene de precio histórico real)
+  } else {
+    if(targetsGrid) targetsGrid.style.display = '';
+    if(noDataMsg)   noDataMsg.style.display   = 'none';
 
-  // Analyst count
-  const countEl = document.getElementById('analystCount');
-  if(countEl) {
-    const isReal = targets.isReal || !!(FINNHUB_KEY) || !!(FMP_KEY);
-    const isStale = targets.stale;
-    countEl.textContent = isStale ? '⚠ OBJETIVOS DESACTUALIZADOS' : (isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
-    countEl.style.color = isStale ? '#1a0d00' : isReal ? '#0a1a0f' : '#1a1400';
-    countEl.style.background = isStale ? '#d29922' : isReal ? '#3fb950' : '#d29922';
-    countEl.style.border = 'none';
-    countEl.style.fontWeight = '700';
-    countEl.style.borderRadius = '4px';
-    countEl.style.padding = '2px 8px';
+    const upside = ((targets.avg - currentPrice) / currentPrice * 100).toFixed(1);
+    const upsideColor = parseFloat(upside) > 0 ? 'var(--green)' : 'var(--red)';
+
+    // Price target grid values (solo precio actual + 3 objetivos reales + upside)
+    const gridVals = [
+      { val: fmtP2(currentPrice), color: 'var(--accent)', sub: 'Precio mercado hoy' },
+      { val: fmtP2(targets.low),  color: 'var(--red)',    sub: 'Escenario bajista' },
+      { val: fmtP2(targets.avg),  color: 'var(--yellow)', sub: 'Consenso Wall St.' },
+      { val: fmtP2(targets.high), color: 'var(--green)',  sub: 'Escenario alcista' },
+      { val: (parseFloat(upside)>0?'+':'')+upside+'%',  color: upsideColor, sub: 'Hacia obj. promedio' },
+    ];
+
+    const cells = document.querySelectorAll('.pt-loading');
+    gridVals.forEach((gv, i) => {
+      if(cells[i]) {
+        cells[i].textContent = gv.val;
+        cells[i].style.color = gv.color;
+        cells[i].classList.remove('pt-loading');
+        const parent = cells[i].parentElement;
+        const subEl = document.createElement('div');
+        subEl.style.cssText = 'font-size:10px;color:var(--text2);margin-top:2px;';
+        subEl.textContent = gv.sub;
+        parent.appendChild(subEl);
+      }
+    });
+
+    if(countEl) {
+      const isStale = targets.stale;
+      countEl.style.display = '';
+      countEl.textContent = isStale ? '⚠ OBJETIVOS DESACTUALIZADOS' : '● REAL · ' + targets.count + ' analistas';
+      countEl.style.color      = isStale ? '#1a0d00' : '#0a1a0f';
+      countEl.style.background = isStale ? '#d29922' : '#3fb950';
+      countEl.style.border     = 'none';
+      countEl.style.fontWeight = '700';
+      countEl.style.borderRadius = '4px';
+      countEl.style.padding    = '2px 8px';
+    }
   }
 
   // 52W range bar
@@ -3930,9 +3946,11 @@ function renderPriceTargets(targets, currentPrice, currency) {
     rangeLabel.style.color = pos >= 80 ? 'var(--yellow)' : pos <= 20 ? 'var(--green)' : 'var(--text2)';
   }
 
-  // Rating bar
+  // Rating bar — solo mostrar si los datos son reales
+  const ratingRow = document.querySelector('#priceTargetRow > div:last-child');
+  if(!targets.isReal && ratingRow) ratingRow.style.display = 'none';
   const total = targets.buyCount + targets.holdCount + targets.sellCount;
-  if(total > 0) {
+  if(targets.isReal && total > 0) {
     const buyPct  = (targets.buyCount  / total * 100).toFixed(0);
     const holdPct = (targets.holdCount / total * 100).toFixed(0);
     const sellPct = (targets.sellCount / total * 100).toFixed(0);
@@ -4019,6 +4037,7 @@ function renderResults(r){
           <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--muted);" class="pt-loading">...</div>
         </div>`).join('')}
       </div>
+      <div id="ptNoDataMsg" style="display:none;padding:10px 0;"></div>
       <!-- 52W Range bar -->
       <div style="margin-top:10px;" id="range52wRow">
         <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:4px;">
