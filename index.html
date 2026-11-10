@@ -1558,12 +1558,17 @@ async function fetchPriceTargets(ticker, currentPrice) {
       }
       const pt = Array.isArray(ptR) ? ptR[0] : ptR;
       if(pt?.targetLow || pt?.targetConsensus || pt?.targetHigh) {
+        // Ignorar targets de API que estén por debajo del precio actual (datos viejos)
+        const ptAvg  = pt.targetConsensus && pt.targetConsensus > currentPrice * 0.5 ? pt.targetConsensus : null;
+        const ptHigh = pt.targetHigh      && pt.targetHigh      > currentPrice * 0.5 ? pt.targetHigh      : null;
+        const ptLow  = pt.targetLow       && pt.targetLow       > currentPrice * 0.3 ? pt.targetLow       : null;
         targets = {
           ...targets,
-          low: pt.targetLow      || targets.low,
-          avg: pt.targetConsensus || targets.avg,
-          high: pt.targetHigh    || targets.high,
+          low:  ptLow  || targets.low,
+          avg:  ptAvg  || (ptHigh ? ptHigh * 0.85 : targets.avg),
+          high: ptHigh || targets.high,
           isReal: true,
+          stale: !ptAvg && !ptHigh, // todos los targets eran menores al precio
         };
       }
     } catch(e) {}
@@ -1618,22 +1623,28 @@ function estimatePriceTargets(ticker, price) {
   };
   const known = knownTargets[ticker.toUpperCase()];
   if(known) {
+    // Si los targets hardcodeados quedaron por debajo del precio actual, recalcular
+    const low  = known.low  > price * 0.5  ? known.low  : price * 0.82;
+    const avg  = known.avg  > price        ? known.avg  : price * 1.12;
+    const high = known.high > price        ? known.high : price * 1.35;
+    const high52w = known.high52w > price  ? known.high52w : price * 1.05;
     return {
-      ...known,
+      ...known, low, avg, high,
       low52w:  known.low52w  || price * 0.72,
-      high52w: known.high52w || price * 1.38,
+      high52w,
       count: known.buyCount + known.holdCount + known.sellCount || 20,
-      isReal: false
+      isReal: false,
+      stale: (known.avg <= price) // flag para mostrar advertencia
     };
   }
   // Generic estimation: use ATR-based projection
   return {
     low:     price * 0.82,
-    avg:     price * 1.18,
-    high:    price * 1.45,
+    avg:     price * 1.12,
+    high:    price * 1.35,
     count:   12,
-    low52w:  price * 0.68,
-    high52w: price * 1.42,
+    low52w:  price * 0.72,
+    high52w: price * 1.05,
     buyCount: 7, holdCount: 3, sellCount: 2,
     isReal: false
   };
@@ -3829,9 +3840,10 @@ function renderPriceTargets(targets, currentPrice, currency) {
   const countEl = document.getElementById('analystCount');
   if(countEl) {
     const isReal = targets.isReal || !!(FINNHUB_KEY) || !!(FMP_KEY);
-    countEl.textContent = (isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
-    countEl.style.color = isReal ? '#0a1a0f' : '#1a1400';
-    countEl.style.background = isReal ? '#3fb950' : '#d29922';
+    const isStale = targets.stale;
+    countEl.textContent = isStale ? '⚠ OBJETIVOS DESACTUALIZADOS' : (isReal ? '● REAL' : '◎ ESTIMADO') + ' · ' + targets.count + ' analistas';
+    countEl.style.color = isStale ? '#1a0d00' : isReal ? '#0a1a0f' : '#1a1400';
+    countEl.style.background = isStale ? '#d29922' : isReal ? '#3fb950' : '#d29922';
     countEl.style.border = 'none';
     countEl.style.fontWeight = '700';
     countEl.style.borderRadius = '4px';
