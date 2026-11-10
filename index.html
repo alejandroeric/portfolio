@@ -4093,6 +4093,9 @@ function renderResults(r){
   <!-- FUNDAMENTALS -->
   <div id="layer-fundamentals"></div>
 
+  <!-- SEC EDGAR EARNINGS -->
+  <div id="layer-sec-earnings"></div>
+
   <!-- NEWS & SENTIMENT -->
   <div id="layer-news"></div>
 
@@ -4789,6 +4792,168 @@ function renderRisk(r, bt, data) {
   </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════
+//  SEC EDGAR — earnings reales desde XBRL
+// ═══════════════════════════════════════════════════════════
+
+async function fetchSecCik(ticker) {
+  // Caché diario del mapa completo ticker→CIK
+  const cacheKey = 'pip_sec_cik_map';
+  const cacheDateKey = 'pip_sec_cik_date';
+  const today = new Date().toISOString().slice(0,10);
+  let map = null;
+  if(localStorage.getItem(cacheDateKey) === today) {
+    try { map = JSON.parse(localStorage.getItem(cacheKey)); } catch(e) {}
+  }
+  if(!map) {
+    try {
+      const res = await fetch('https://www.sec.gov/files/company_tickers.json', {
+        headers: { 'User-Agent': 'Eric Nofal alejoanton@hotmail.com' }
+      });
+      const raw = await res.json();
+      map = {};
+      for(const entry of Object.values(raw)) {
+        map[entry.ticker.toUpperCase()] = String(entry.cik_str).padStart(10, '0');
+      }
+      localStorage.setItem(cacheKey, JSON.stringify(map));
+      localStorage.setItem(cacheDateKey, today);
+    } catch(e) { return null; }
+  }
+  return map[ticker.toUpperCase()] || null;
+}
+
+async function fetchSecEarnings(ticker) {
+  if(isBYMATicker(ticker)) return null;
+  try {
+    const cik = await fetchSecCik(ticker);
+    if(!cik) return null;
+
+    const res = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
+      headers: { 'User-Agent': 'Eric Nofal alejoanton@hotmail.com' }
+    });
+    if(!res.ok) return null;
+    const json = await res.json();
+    const gaap = json.facts?.['us-gaap'];
+    if(!gaap) return null;
+
+    // Extrae solo los reportes trimestrales (form 10-Q y 10-K) de una métrica
+    const getQuarterly = (concept) => {
+      const c = gaap[concept];
+      if(!c) return [];
+      const units = c.units?.USD || c.units?.['USD/shares'] || c.units?.shares || null;
+      if(!units) return [];
+      return units
+        .filter(u => u.form === '10-Q' || u.form === '10-K')
+        .filter(u => u.fp && u.fp !== 'FY' && u.start && u.end)
+        .sort((a,b) => b.end.localeCompare(a.end));
+    };
+
+    // Revenue — varios nombres posibles en GAAP
+    const revSeries =
+      getQuarterly('Revenues') ||
+      getQuarterly('RevenueFromContractWithCustomerExcludingAssessedTax') ||
+      getQuarterly('SalesRevenueNet') || [];
+    const rev = (getQuarterly('Revenues').length ? getQuarterly('Revenues') :
+                 getQuarterly('RevenueFromContractWithCustomerExcludingAssessedTax').length ? getQuarterly('RevenueFromContractWithCustomerExcludingAssessedTax') :
+                 getQuarterly('SalesRevenueNet'));
+
+    const ni   = getQuarterly('NetIncomeLoss');
+    const eps  = getQuarterly('EarningsPerShareDiluted');
+    const gp   = getQuarterly('GrossProfit');
+    const oi   = getQuarterly('OperatingIncomeLoss');
+
+    // Toma los últimos 8 trimestres únicos por período (dedup por fp+fy)
+    const dedup = (arr) => {
+      const seen = new Set();
+      return arr.filter(u => {
+        const k = u.fp + u.fy;
+        if(seen.has(k)) return false;
+        seen.add(k); return true;
+      }).slice(0, 8);
+    };
+
+    const revD  = dedup(rev);
+    const niD   = dedup(ni);
+    const epsD  = dedup(eps);
+    const gpD   = dedup(gp);
+    const oiD   = dedup(oi);
+
+    // Construye tabla de los últimos 4 trimestres
+    const quarters = revD.slice(0,4).map((r, i) => {
+      const period   = `${r.fp} ${r.fy}`;
+      const revenue  = r.val;
+      const netInc   = niD.find(x => x.fp===r.fp && x.fy===r.fy)?.val ?? null;
+      const epsVal   = epsD.find(x => x.fp===r.fp && x.fy===r.fy)?.val ?? null;
+      const grossP   = gpD.find(x => x.fp===r.fp && x.fy===r.fy)?.val ?? null;
+      const opInc    = oiD.find(x => x.fp===r.fp && x.fy===r.fy)?.val ?? null;
+
+      // YoY: mismo período del año anterior
+      const prevFy   = String(parseInt(r.fy) - 1);
+      const revPrev  = revD.find(x => x.fp===r.fp && x.fy===prevFy)?.val ?? null;
+      const niPrev   = niD.find(x  => x.fp===r.fp && x.fy===prevFy)?.val ?? null;
+
+      const yoyRev   = (revenue && revPrev) ? (revenue - revPrev) / Math.abs(revPrev) * 100 : null;
+      const yoyNi    = (netInc  && niPrev)  ? (netInc  - niPrev)  / Math.abs(niPrev)  * 100 : null;
+      const grossMgn = (grossP  && revenue) ? grossP  / revenue * 100 : null;
+      const opMgn    = (opInc   && revenue) ? opInc   / revenue * 100 : null;
+
+      return { period, revenue, netInc, epsVal, grossMgn, opMgn, yoyRev, yoyNi };
+    });
+
+    return quarters.length ? { ticker, quarters } : null;
+  } catch(e) { console.warn('[SEC]', ticker, e); return null; }
+}
+
+function renderSecEarnings(data) {
+  if(!data || !data.quarters?.length) return '';
+
+  const fmtB = v => {
+    if(v == null) return '<span style="color:var(--muted)">N/D</span>';
+    const a = Math.abs(v);
+    return (v < 0 ? '-' : '') + (a >= 1e9 ? '$'+(a/1e9).toFixed(2)+'B' : a >= 1e6 ? '$'+(a/1e6).toFixed(1)+'M' : '$'+a.toFixed(0));
+  };
+  const fmtPct = v => v == null ? '<span style="color:var(--muted)">N/D</span>' : v.toFixed(1)+'%';
+  const fmtEps = v => v == null ? '<span style="color:var(--muted)">N/D</span>' : (v >= 0 ? '$' : '-$') + Math.abs(v).toFixed(2);
+  const yoyBadge = v => {
+    if(v == null) return '';
+    const col = v >= 0 ? 'var(--green)' : 'var(--red)';
+    return ` <span style="font-size:9px;color:${col};font-family:var(--mono)">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+  };
+
+  const rows = data.quarters.map(q => `
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;font-family:var(--mono);font-size:10px;color:var(--accent);white-space:nowrap">${q.period}</td>
+      <td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--text);font-variant-numeric:tabular-nums">${fmtB(q.revenue)}${yoyBadge(q.yoyRev)}</td>
+      <td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--text);font-variant-numeric:tabular-nums">${fmtB(q.netInc)}${yoyBadge(q.yoyNi)}</td>
+      <td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--text);font-variant-numeric:tabular-nums">${fmtEps(q.epsVal)}</td>
+      <td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--text)">${fmtPct(q.grossMgn)}</td>
+      <td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--text)">${fmtPct(q.opMgn)}</td>
+    </tr>`).join('');
+
+  return `
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--accent)">// EARNINGS REALES — SEC EDGAR (XBRL)</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted)">Últimos 4 trimestres · Fuente oficial SEC</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:500px">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">PERÍODO</th>
+          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">REVENUE</th>
+          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">NET INCOME</th>
+          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">EPS DIL.</th>
+          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">GROSS MGN</th>
+          <th style="text-align:right;padding:5px 10px;color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:normal;letter-spacing:.08em">OP. MGN</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
 async function fetchNews(ticker) {
   // Finnhub company-news (primario)
   if(FINNHUB_KEY && !IS_DEMO) {
@@ -5049,6 +5214,14 @@ async function loadAllLayers(r, data) {
       const fScore = calcFundamentalScore(fundData.ratios, fundData.profile||{}, fundData.income||[]);
       updateMasterScore(r, fScore, null, null, null);
     }
+  }
+
+  // Layer SEC: earnings reales desde EDGAR (solo tickers US)
+  const secEl = document.getElementById('layer-sec-earnings');
+  if(secEl && !r.isBYMA) {
+    secEl.innerHTML = '<div class="loading-inline"><span class="spin-sm"></span>Consultando SEC EDGAR...</div>';
+    const secData = await fetchSecEarnings(r.ticker);
+    secEl.innerHTML = renderSecEarnings(secData);
   }
 
   // Layer 2: News
