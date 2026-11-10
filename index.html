@@ -3633,14 +3633,15 @@ async function fetchMacroData() {
   const todayISO = new Date().toISOString().slice(0,10);
   const CACHE_KEY = 'pip_macro_today';
 
-  // Restaurar valores cacheados primero (para no mostrar celdas vacías)
+  // Restaurar valores cacheados (siempre muestra lo que tiene — no fetchea al startup)
   try {
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     if(cached?.data) {
       Object.entries(cached.data).forEach(([id, num]) => _updateMacroEl(id, num));
-      // Si ya tenemos datos de hoy, no fetchear
-      if(cached.dateISO === todayISO) return;
     }
+    // Solo fetchear si el usuario lo pide explícitamente (force=true) o no hay cache del día
+    if(!arguments[0] /* force */ && cached?.dateISO === todayISO) return;
+    if(!arguments[0] && cached?.data) return; // tiene cache de algún día — no molestar
   } catch(e) {}
 
   const proxy = 'https://api.allorigins.win/get?url=';
@@ -7146,7 +7147,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Actualizar precios USD del portfolio desde Finnhub al arrancar
   fetchPortfolioPrices();
   // Actualizar precios ARS (CEDEARs y bonos) desde Yahoo Finance al arrancar
-  fetchARSPrices();
+  // Delay de 3s para no competir con otras llamadas a allorigins.win al startup
+  setTimeout(() => fetchARSPrices(), 3000);
   // Actualizar dólar MEP desde DolarAPI al arrancar
   fetchMEP();
   updateMepDisplay();
