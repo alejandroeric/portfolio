@@ -1558,18 +1558,21 @@ async function fetchPriceTargets(ticker, currentPrice) {
       }
       const pt = Array.isArray(ptR) ? ptR[0] : ptR;
       if(pt?.targetLow || pt?.targetConsensus || pt?.targetHigh) {
-        // Ignorar targets de API que estén por debajo del precio actual (datos viejos)
-        const ptAvg  = pt.targetConsensus && pt.targetConsensus > currentPrice * 0.5 ? pt.targetConsensus : null;
-        const ptHigh = pt.targetHigh      && pt.targetHigh      > currentPrice * 0.5 ? pt.targetHigh      : null;
-        const ptLow  = pt.targetLow       && pt.targetLow       > currentPrice * 0.3 ? pt.targetLow       : null;
-        targets = {
-          ...targets,
-          low:  ptLow  || targets.low,
-          avg:  ptAvg  || (ptHigh ? ptHigh * 0.85 : targets.avg),
-          high: ptHigh || targets.high,
-          isReal: true,
-          stale: !ptAvg && !ptHigh, // todos los targets eran menores al precio
-        };
+        // Si el objetivo MÁXIMO de analistas está por debajo del precio actual,
+        // los datos están desactualizados — ignorarlos y marcar como stale
+        const dataIsStale = pt.targetHigh && pt.targetHigh < currentPrice;
+        if(dataIsStale) {
+          targets = { ...targets, isReal: true, stale: true };
+        } else {
+          targets = {
+            ...targets,
+            low:  pt.targetLow       || targets.low,
+            avg:  pt.targetConsensus || targets.avg,
+            high: pt.targetHigh      || targets.high,
+            isReal: true,
+            stale: false,
+          };
+        }
       }
     } catch(e) {}
   }
