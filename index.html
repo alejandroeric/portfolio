@@ -4821,22 +4821,53 @@ async function fetchNews(ticker) {
       }
     } catch(e) {}
   }
-  // Fallback: Alpha Vantage
-  if(!API_KEY || IS_DEMO) return null;
+  // Fallback 2: Alpha Vantage
+  if(API_KEY && !IS_DEMO) {
+    try {
+      const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${encodeURIComponent(ticker)}&limit=10&apikey=${API_KEY}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if(json.feed && json.feed.length) {
+        return json.feed.slice(0, 8).map(item => {
+          const ts = item.ticker_sentiment?.find(t => t.ticker === ticker);
+          const score = ts ? parseFloat(ts.ticker_sentiment_score) : parseFloat(item.overall_sentiment_score || 0);
+          const label = score > 0.15 ? 'pos' : score < -0.15 ? 'neg' : 'neu';
+          const text  = label === 'pos' ? 'Positivo' : label === 'neg' ? 'Negativo' : 'Neutro';
+          const pct   = Math.round(Math.abs(score) * 100);
+          const pub   = item.time_published || '';
+          const time  = pub ? pub.slice(0,4)+'-'+pub.slice(4,6)+'-'+pub.slice(6,8) : '—';
+          return { title: item.title, source: item.source, url: item.url || '#', time, sentiment: { label, text, score: pct } };
+        });
+      }
+    } catch(e) {}
+  }
+
+  // Fallback 3: Yahoo Finance RSS vía allorigins (sin API key requerida)
   try {
-    const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${encodeURIComponent(ticker)}&limit=10&apikey=${API_KEY}`;
-    const res = await fetch(url);
+    const rssUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(ticker)}&region=US&lang=en-US`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+    const res = await fetch(proxyUrl);
     const json = await res.json();
-    if(!json.feed || !json.feed.length) return null;
-    return json.feed.slice(0, 8).map(item => {
-      const ts = item.ticker_sentiment?.find(t => t.ticker === ticker);
-      const score = ts ? parseFloat(ts.ticker_sentiment_score) : parseFloat(item.overall_sentiment_score || 0);
-      const label = score > 0.15 ? 'pos' : score < -0.15 ? 'neg' : 'neu';
-      const text  = label === 'pos' ? 'Positivo' : label === 'neg' ? 'Negativo' : 'Neutro';
-      const pct   = Math.round(Math.abs(score) * 100);
-      const pub   = item.time_published || '';
-      const time  = pub ? pub.slice(0,4)+'-'+pub.slice(4,6)+'-'+pub.slice(6,8) : '—';
-      return { title: item.title, source: item.source, url: item.url || '#', time, sentiment: { label, text, score: pct } };
+    if(!json.contents) return null;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(json.contents, 'text/xml');
+    const items = Array.from(doc.querySelectorAll('item')).slice(0, 8);
+    if(!items.length) return null;
+    const POSITIVE = ['surge','soar','beat','record','rally','gain','buy','upgrade','outperform','growth','profit','revenue'];
+    const NEGATIVE = ['fall','drop','miss','loss','cut','downgrade','concern','risk','decline','weak','layoff','fine','lawsuit'];
+    return items.map(item => {
+      const title  = item.querySelector('title')?.textContent || '—';
+      const link   = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '#';
+      const source = item.querySelector('source')?.textContent || 'Yahoo Finance';
+      const pubRaw = item.querySelector('pubDate')?.textContent || '';
+      const time   = pubRaw ? new Date(pubRaw).toISOString().slice(0,10) : '—';
+      const text   = title.toLowerCase();
+      const posHits = POSITIVE.filter(w => text.includes(w)).length;
+      const negHits = NEGATIVE.filter(w => text.includes(w)).length;
+      const score  = (posHits - negHits) / Math.max(posHits + negHits, 1);
+      const label  = score > 0.1 ? 'pos' : score < -0.1 ? 'neg' : 'neu';
+      const sentText = label === 'pos' ? 'Positivo' : label === 'neg' ? 'Negativo' : 'Neutro';
+      return { title, source, url: link, time, sentiment: { label, text: sentText, score: Math.round(Math.abs(score) * 100) } };
     });
   } catch(e) { return null; }
 }
