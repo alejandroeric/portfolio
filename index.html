@@ -1577,33 +1577,44 @@ async function fetchPriceTargets(ticker, currentPrice) {
       }
       const pt = Array.isArray(ptR) ? ptR[0] : ptR;
       if(pt?.targetLow || pt?.targetConsensus || pt?.targetHigh) {
-        // Si el objetivo MÁXIMO de analistas está por debajo del precio actual,
-        // los datos están desactualizados — ignorarlos y marcar como stale
+        // Si el objetivo MÁXIMO está por debajo del precio actual, marcar stale
+        // pero igual mostrar los valores reales con badge de advertencia
         const dataIsStale = pt.targetHigh && pt.targetHigh < currentPrice;
-        if(dataIsStale) {
-          targets = { ...targets, isReal: true, stale: true };
-        } else {
-          targets = {
-            ...targets,
-            low:  pt.targetLow       || targets.low,
-            avg:  pt.targetConsensus || targets.avg,
-            high: pt.targetHigh      || targets.high,
-            isReal: true,
-            stale: false,
-          };
-        }
+        targets = {
+          ...targets,
+          low:  pt.targetLow       || targets.low,
+          avg:  pt.targetConsensus || targets.avg,
+          high: pt.targetHigh      || targets.high,
+          isReal: true,
+          stale: !!dataIsStale,
+        };
       }
     } catch(e) {}
   }
 
-  // Enriquecer con recomendaciones reales de analistas vía Finnhub
+  // Enriquecer con precios objetivo y recomendaciones reales de Finnhub
   if(FINNHUB_KEY) {
     try {
-      const url  = `https://finnhub.io/api/v1/stock/recommendation?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`;
-      const resp = await fetch(url);
-      const recs = await resp.json();
-      if(Array.isArray(recs) && recs.length) {
-        const latest = recs[0];
+      const [ptResp, recResp] = await Promise.all([
+        fetch(`https://finnhub.io/api/v1/stock/price-target?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`).then(r=>r.json()),
+        fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`).then(r=>r.json()),
+      ]);
+      // Precios objetivo de Finnhub (solo si FMP no los trajo o son mejores)
+      if(!targets.isReal && ptResp?.targetLow && ptResp?.targetHigh) {
+        const dataIsStale = ptResp.targetHigh < currentPrice;
+        targets = {
+          ...targets,
+          low:  ptResp.targetLow    || targets.low,
+          avg:  ptResp.targetMean   || targets.avg,
+          high: ptResp.targetHigh   || targets.high,
+          count: ptResp.numberOfAnalysts || targets.count,
+          isReal: true,
+          stale: !!dataIsStale,
+        };
+      }
+      // Conteo buy/hold/sell
+      if(Array.isArray(recResp) && recResp.length) {
+        const latest = recResp[0];
         const buy  = (latest.buy  || 0) + (latest.strongBuy  || 0);
         const hold = latest.hold  || 0;
         const sell = (latest.sell || 0) + (latest.strongSell || 0);
