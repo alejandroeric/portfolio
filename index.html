@@ -1568,6 +1568,8 @@ async function fetchPriceTargets(ticker, currentPrice) {
         fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
         fetch(`https://financialmodelingprep.com/api/v4/price-target-consensus?symbol=${ticker}&apikey=${FMP_KEY}`).then(r=>r.json()),
       ]);
+      console.log('[FMP] profile:', JSON.stringify(profileR).slice(0,200));
+      console.log('[FMP] price-target:', JSON.stringify(ptR).slice(0,200));
       const profile = Array.isArray(profileR) ? profileR[0] : null;
       if(profile?.range) {
         const parts = profile.range.split('-');
@@ -3886,7 +3888,7 @@ function renderPriceTargets(targets, currentPrice, currency) {
   const noDataMsg   = document.getElementById('ptNoDataMsg');
   const countEl     = document.getElementById('analystCount');
 
-  if(targetsGrid) targetsGrid.style.display = '';
+  if(targetsGrid) targetsGrid.style.display = 'grid';
   if(noDataMsg)   noDataMsg.style.display   = 'none';
 
   const upside = ((targets.avg - currentPrice) / currentPrice * 100).toFixed(1);
