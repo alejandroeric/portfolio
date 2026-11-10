@@ -3630,41 +3630,67 @@ function _updateMacroEl(id, num) {
 }
 
 async function fetchMacroData() {
-  const proxy = 'https://api.allorigins.win/get?url=';
+  const todayISO = new Date().toISOString().slice(0,10);
+  const CACHE_KEY = 'pip_macro_today';
 
-  // VIX, T10Y, DXY — disponibles en Yahoo Finance (no necesita key, funciona desde GitHub Pages)
+  // Restaurar valores cacheados primero (para no mostrar celdas vacías)
+  try {
+    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if(cached?.data) {
+      Object.entries(cached.data).forEach(([id, num]) => _updateMacroEl(id, num));
+      // Si ya tenemos datos de hoy, no fetchear
+      if(cached.dateISO === todayISO) return;
+    }
+  } catch(e) {}
+
+  const proxy = 'https://api.allorigins.win/get?url=';
+  const fetched = {};
+
+  // VIX, T10Y, DXY — Yahoo Finance, sin API key
   const yahooMap = { macroVIX: '%5EVIX', macroT10Y: '%5ETNX', macroDXY: 'DX-Y.NYB' };
   await Promise.allSettled(Object.entries(yahooMap).map(async ([id, sym]) => {
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
       const resp = await fetch(proxy + encodeURIComponent(url));
+      if(!resp.ok) return;
       const wrapper = await resp.json();
       const json = JSON.parse(wrapper.contents);
       const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if(price > 0) _updateMacroEl(id, price);
+      if(price > 0) { _updateMacroEl(id, price); fetched[id] = price; }
     } catch(e) {}
   }));
 
-  // FED Rate y PCE — solo disponibles en FRED; silencioso si falla
+  // FED Rate y PCE — FRED API; solo si tiene key y solo guarda si funciona
   const fredKey = localStorage.getItem('fred_key') || FRED_KEY || '';
-  if(!fredKey) return;
-  const fredSeries = { macroFED: ['DFF', 5], macroPCE: ['PCEPILFE', 14] };
-  await Promise.allSettled(Object.entries(fredSeries).map(async ([id, [sid, limit]]) => {
+  if(fredKey) {
+    const fredSeries = { macroFED: ['DFF', 5], macroPCE: ['PCEPILFE', 14] };
+    await Promise.allSettled(Object.entries(fredSeries).map(async ([id, [sid, limit]]) => {
+      try {
+        const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=${limit}&file_type=json`;
+        const resp = await fetch(proxy + encodeURIComponent(url));
+        if(!resp.ok) return;
+        const wrapper = await resp.json();
+        const d = JSON.parse(wrapper.contents);
+        const obs = (d.observations || []).filter(o => o.value !== '.');
+        let val;
+        if(id === 'macroPCE' && obs.length >= 13) {
+          val = ((parseFloat(obs[0].value) - parseFloat(obs[12].value)) / Math.abs(parseFloat(obs[12].value)) * 100);
+        } else if(obs[0]) {
+          val = parseFloat(obs[0].value);
+        }
+        if(val != null && !isNaN(val)) { _updateMacroEl(id, val); fetched[id] = val; }
+      } catch(e) {}
+    }));
+  }
+
+  // Persistir lo que se pudo fetchear (merge con cache anterior)
+  if(Object.keys(fetched).length > 0) {
     try {
-      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=${limit}&file_type=json`;
-      const resp = await fetch(proxy + encodeURIComponent(url));
-      if(!resp.ok) return;
-      const wrapper = await resp.json();
-      const d = JSON.parse(wrapper.contents);
-      const obs = (d.observations || []).filter(o => o.value !== '.');
-      if(id === 'macroPCE' && obs.length >= 13) {
-        const pct = ((parseFloat(obs[0].value) - parseFloat(obs[12].value)) / Math.abs(parseFloat(obs[12].value)) * 100);
-        _updateMacroEl(id, pct);
-      } else if(obs[0]) {
-        _updateMacroEl(id, parseFloat(obs[0].value));
-      }
+      const prev = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      const merged = { ...((prev?.data) || {}), ...fetched };
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ dateISO: todayISO, data: merged }));
     } catch(e) {}
-  }));
+  }
 }
 
 function saveKey() {
