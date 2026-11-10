@@ -3609,61 +3609,62 @@ function saveFredKey() {
   fetchMacroData();
 }
 
+function _updateMacroEl(id, num) {
+  const el = document.getElementById(id);
+  if(!el || isNaN(num)) return;
+  if(id === 'macroVIX') {
+    el.textContent = num.toFixed(1);
+    el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
+    const hint = document.getElementById('macroVIXh');
+    if(hint) hint.textContent = num < 20 ? '<20 tranquilo' : num < 30 ? '20-30 alerta' : '>30 pánico';
+  } else if(id === 'macroT10Y' || id === 'macroFED') {
+    el.textContent = num.toFixed(2) + '%';
+    el.style.color = num > 4.5 ? '#f85149' : '#d29922';
+  } else if(id === 'macroDXY') {
+    el.textContent = num.toFixed(1);
+    el.style.color = '#e6edf3';
+  } else if(id === 'macroPCE') {
+    el.textContent = num.toFixed(1) + '%';
+    el.style.color = num > 3 ? '#f85149' : '#d29922';
+  }
+}
+
 async function fetchMacroData() {
-  const fredKey = localStorage.getItem('fred_key') || FRED_KEY || '';
-  const series = {
-    macroVIX:  'VIXCLS',
-    macroT10Y: 'DGS10',
-    macroDXY:  'DTWEXBGS',
-    macroFED:  'DFF',
-    macroPCE:  'PCEPILFE',
-  };
-  if(!fredKey) return; // sin key no hay datos
-  // allorigins.win: proxy que funciona desde GitHub Pages (corsproxy.io da 403)
   const proxy = 'https://api.allorigins.win/get?url=';
-  const results = await Promise.allSettled(
-    Object.entries(series).map(([id, sid]) => {
-      // PCE necesita 13 meses para calcular variacion YoY
-      const limit = id === 'macroPCE' ? 14 : 5;
-      return fetch(proxy + encodeURIComponent(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=${limit}&file_type=json`))
-        .then(r => r.json())
-        .then(wrapper => JSON.parse(wrapper.contents))
-        .then(d => {
-          const obs = (d.observations || []).filter(o => o.value !== '.');
-          if(id === 'macroPCE' && obs.length >= 13) {
-            // Variacion YoY: (ultimo - hace12meses) / hace12meses * 100
-            const current  = parseFloat(obs[0].value);
-            const yearAgo  = parseFloat(obs[12].value);
-            return { id, value: ((current - yearAgo) / yearAgo * 100).toFixed(1) };
-          }
-          return { id, value: obs[0]?.value };
-        });
-    })
-  );
-  results.forEach(r => {
-    if(r.status !== 'fulfilled') return;
-    const { id, value } = r.value;
-    if(!value || value === '.') return;
-    const num = parseFloat(value);
-    if(isNaN(num)) return;
-    const el = document.getElementById(id);
-    if(!el) return;
-    if(id === 'macroVIX') {
-      el.textContent = num.toFixed(1);
-      el.style.color = num < 20 ? '#3fb950' : num < 30 ? '#d29922' : '#f85149';
-      const hint = document.getElementById('macroVIXh');
-      if(hint) hint.textContent = num < 20 ? '<20 tranquilo' : num < 30 ? '20-30 alerta' : '>30 pánico';
-    } else if(id === 'macroT10Y' || id === 'macroFED') {
-      el.textContent = num.toFixed(2) + '%';
-      el.style.color = num > 4.5 ? '#f85149' : '#d29922';
-    } else if(id === 'macroDXY') {
-      el.textContent = num.toFixed(1);
-      el.style.color = '#e6edf3';
-    } else if(id === 'macroPCE') {
-      el.textContent = num.toFixed(1) + '%';
-      el.style.color = num > 3 ? '#f85149' : '#d29922';
-    }
-  });
+
+  // VIX, T10Y, DXY — disponibles en Yahoo Finance (no necesita key, funciona desde GitHub Pages)
+  const yahooMap = { macroVIX: '%5EVIX', macroT10Y: '%5ETNX', macroDXY: 'DX-Y.NYB' };
+  await Promise.allSettled(Object.entries(yahooMap).map(async ([id, sym]) => {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
+      const resp = await fetch(proxy + encodeURIComponent(url));
+      const wrapper = await resp.json();
+      const json = JSON.parse(wrapper.contents);
+      const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if(price > 0) _updateMacroEl(id, price);
+    } catch(e) {}
+  }));
+
+  // FED Rate y PCE — solo disponibles en FRED; silencioso si falla
+  const fredKey = localStorage.getItem('fred_key') || FRED_KEY || '';
+  if(!fredKey) return;
+  const fredSeries = { macroFED: ['DFF', 5], macroPCE: ['PCEPILFE', 14] };
+  await Promise.allSettled(Object.entries(fredSeries).map(async ([id, [sid, limit]]) => {
+    try {
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${fredKey}&sort_order=desc&limit=${limit}&file_type=json`;
+      const resp = await fetch(proxy + encodeURIComponent(url));
+      if(!resp.ok) return;
+      const wrapper = await resp.json();
+      const d = JSON.parse(wrapper.contents);
+      const obs = (d.observations || []).filter(o => o.value !== '.');
+      if(id === 'macroPCE' && obs.length >= 13) {
+        const pct = ((parseFloat(obs[0].value) - parseFloat(obs[12].value)) / Math.abs(parseFloat(obs[12].value)) * 100);
+        _updateMacroEl(id, pct);
+      } else if(obs[0]) {
+        _updateMacroEl(id, parseFloat(obs[0].value));
+      }
+    } catch(e) {}
+  }));
 }
 
 function saveKey() {
