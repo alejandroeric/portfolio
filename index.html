@@ -5735,6 +5735,60 @@ async function fetchPortfolioPrices() {
   if(updated) renderPortfolio();
 }
 
+async function fetchARSPrices() {
+  // Actualiza precios ARS de CEDEARs y bonos vía Yahoo Finance (.BA)
+  // Persiste en localStorage['prices_today'] con fecha ISO
+  const todayISO = new Date().toISOString().slice(0,10);
+
+  // Verificar si ya tenemos precios de hoy
+  try {
+    const saved = JSON.parse(localStorage.getItem('prices_today') || 'null');
+    if(saved?.dateISO === todayISO && saved?.ars && Object.keys(saved.ars).length > 0) {
+      // Ya tenemos precios de hoy — aplicarlos a KNOWN_PRICES_ARS y salir
+      Object.assign(KNOWN_PRICES_ARS, saved.ars);
+      renderPortfolio();
+      return;
+    }
+  } catch(e) {}
+
+  // Obtener tickers ARS únicos del portfolio
+  const arsTickers = [...new Set(
+    POSITIONS.filter(p => p.currency === 'ARS').map(p => p.ticker)
+  )];
+  if(!arsTickers.length) return;
+
+  const proxy = 'https://corsproxy.io/?';
+  const fetches = arsTickers.map(async ticker => {
+    // Para bonos soberanos AR (AO27, AO28, etc.) usar sufijo .BA directo
+    // Para CEDEARs (MSFT, SPOT, etc.) Yahoo Finance usa el mismo sufijo .BA
+    const symbol = ticker.toUpperCase() + '.BA';
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
+    try {
+      const resp = await fetch(proxy + encodeURIComponent(url));
+      const json = await resp.json();
+      const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if(price && price > 0) return { ticker, price };
+    } catch(e) {}
+    return null;
+  });
+
+  const results = await Promise.allSettled(fetches);
+  const arsData = {};
+  results.forEach(r => {
+    if(r.status === 'fulfilled' && r.value) {
+      const { ticker, price } = r.value;
+      arsData[ticker] = price;
+      KNOWN_PRICES_ARS[ticker] = price;
+    }
+  });
+
+  if(Object.keys(arsData).length > 0) {
+    localStorage.setItem('prices_today', JSON.stringify({ dateISO: todayISO, ars: arsData }));
+    renderPortfolio();
+    console.log('[PIP] Precios ARS actualizados:', arsData);
+  }
+}
+
 async function fetchClaudeRadarRecommendations() {
   const antKey = localStorage.getItem('anthropic_key') || '';
   if(!antKey || !isValidAnthropicKey(antKey)) return null;
@@ -7052,6 +7106,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Actualizar precios USD del portfolio desde Finnhub al arrancar
   fetchPortfolioPrices();
+  // Actualizar precios ARS (CEDEARs y bonos) desde Yahoo Finance al arrancar
+  fetchARSPrices();
   // Actualizar dólar MEP desde DolarAPI al arrancar
   fetchMEP();
   updateMepDisplay();
